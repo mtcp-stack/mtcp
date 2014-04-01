@@ -1,0 +1,137 @@
+========================================================================
+ README for mTCP
+========================================================================
+
+mTCP is a highly scalable user-level TCP stack for multicore systems. 
+mTCP source code is distributed under the Modified BSD License. For 
+more detail, please refer to the LICENSE. The license term of io_engine 
+driver and ported applications may differ from the mTCP’s.
+
+========================================================================
+ PREREQUISITE
+========================================================================
+
+We require the following libraries to run mTCP.
+ - libps (PacketShader I/O engine library)
+ - libnuma
+ - libpthread
+ - librt
+ Compling PSIO driver requires kernel headers.
+  - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
+
+========================================================================
+ INCLUDED DIRECTORIES
+========================================================================
+
+mtcp - mtcp source code directory
+mtcp/src - source code
+mtcp/src/include - mTCP’s internal header files
+mtcp/lib - library file
+mtcp/include - header files that applications will use
+
+io_engine - event-driven packet I/O engine (io_engine)
+io_engine/driver - driver source code
+io_engine/lib - io_engine library
+io_engine/include - io_engine header files
+io_engine/samples - sample io_engine applications (not mTCP’s)
+
+apps - mTCP applications
+apps/example - example applications (see README)
+apps/lighttpd-1.4.32 - mTCP-ported lighttpd (see INSTALL)
+apps/apache_benchmark - mTCP-ported apach benchmark (ab) (see README-mtcp)
+
+util - useful source code for applications
+
+config - sample mTCP configuration files (may not be necessary)
+
+========================================================================
+ INSTALL GUIDES
+========================================================================
+
+1. make in io_engine/driver
+  - check ps_ixgbe.ko
+
+2. install the driver
+  - ./install.py <# cores> <# cores>
+  - refer to http://shader.kaist.edu/packetshader/io_enigne/
+  - you may need to change the ip address in install.py:46
+
+3. make in io_engine/lib
+  - check libps.a
+
+4. make in mtcp/src
+  - check libmtcp.a in mtcp/lib
+  - check header files in mtcp/include
+
+5. make in apps/example
+  - check example binary files
+
+6. Check the configurations
+  - epserver.conf for server-side configuration
+  - epwget.conf for client-side configuration
+  - you may write your own configuration file for your application
+
+7. Run the applications!
+
+========================================================================
+ TESTED ENVIRONMENTS
+========================================================================
+
+mTCP runs on Linux-2.6-based operating systems with generic x86_64 CPUs,
+but to help evaluation, we provide our tested environments as follows.
+
+Intel Xeon E5-2690 octacore CPU @ 2.90 GHz
+32 GB of RAM (4 memory channels)
+10 GbE NIC with Intel 82599 chipset (specifically Intel X520-DA2)
+Debian 6.0.7 (Linux 2.6.32-5-amd64)
+
+Intel Core i7-3770 quadcore CPU @ 3.40 GHz
+16 GB of RAM (2 memory channels)
+10 GbE NIC with Intel 82599 chipset (specifically Intel X520-DA2)
+Ubuntu 10.04 (Linux 2.6.32-47)
+
+Event-driven PacketShader I/O engine (extended io_engine-0.2)
+ - PSIO is currently only compatible with Linux-2.6.
+
+========================================================================
+ NOTES
+========================================================================
+
+1. mTCP currently runs with fixed memory pools. That means, the size of
+   TCP receive and send buffers are fixed at the startup and does not 
+   increase dynamically. This could be performance limit to the large 
+   long-lived connections. Be sure to configure the buffer size 
+   appropriately to your size of workload.
+
+2. The client side of mTCP supports mtcp_init_rss() to create an 
+   address pool that can be used to fetch available address space in 
+   O(1). To easily congest the server side, this function should be 
+   called at the application startup.
+
+3. mTCP currently supports only 1 listening socket per an mTCP thread.
+
+4. The supported socket options are limited for right now. Please refer 
+   to the mtcp/src/api.c for more detail.
+
+5. The counterpart of mTCP should enable TCP timestamp.
+
+========================================================================
+ FREQUENTLY ASKED QUESTIONS
+========================================================================
+
+1. My application keeps printing "No route to 0.0.0.0"
+  - Try to turn off your network-manager for xge*. The network manager 
+    can override the IP configuration set by install.py in PSIO driver.
+
+2. Can I statically set the routing or arp table?
+  - Yes, mTCP allows static route and arp configuration. Go to the 
+    config directory and see sample_route.conf or sample_arp.conf. 
+    Copy and adapt it to your condition and link (ln -s) the config 
+    directory to the application directory. mTCP will find 
+    config/route.conf and config/arp.conf for static configuration.
+
+========================================================================
+
+                   Contact: mtcp at list.ndsl.kaist.edu
+                             April 2, 2014. 
+                 EunYoung Jeong <notav at ndsl.kaist.edu>

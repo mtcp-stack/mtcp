@@ -14,7 +14,6 @@ GCC = gcc
 GCC_OPT = -m64 -Wall
 
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE -DTSTAT -DAPP -DEPOLL
-#DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE
 #DBG_OPT += -DPKTDUMP
 #DBG_OPT += -DDUMP_STREAM
 #GCC_OPT += -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
@@ -30,7 +29,7 @@ LIBS = -lnuma -lpthread -lrt
 LIBS += -lps
 
 # PacketShader LIBRARY and HEADER
-PS_DIR=../../../io_engine/io_engine-2.0.38.2
+PS_DIR=../../io_engine
 LIB_DIR = -L$(PS_DIR)/lib
 INC += -I$(PS_DIR)/include
 
@@ -52,6 +51,7 @@ DEPS = $(patsubst %.c,.%.d,$(SRCS))
 
 ### GOALS ###
 default: $(OBJS) $(MTCP_HDR)
+	mkdir -p $(MTCP_LIB_DIR)
 	ar rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
 
 $(OBJS): %.o: %.c Makefile

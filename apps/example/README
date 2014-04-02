@@ -1,0 +1,37 @@
+========================================================================
+ USAGE OF EXAMPLE APPLICATIONS
+========================================================================
+
+epserver: a simple mtcp-epoll-based web server
+   usage: ./epserver www_home [-N #cores]
+      ex) ./epserver /home/notav/www -N 8
+
+options:
+  www_home: the directory to server. # max files are limited to 
+            MAX_FILES in epserver.c:36
+  -N: number of CPU cores to use. default: all existing cores
+
+========================================================================
+
+epwget: simple mtcp-epoll-based http request generator
+ usage: ./epwget URL #requests [-N #cores] [-c concurrency]
+    ex) ./epwget 10.0.0.43/example.txt 10000000 -N 8 -c 8000
+
+options:
+  URL: url of the content to download.
+  #requests: number of requests to generate
+  -N: number of CPU cores to use. default: min(# cores, # requests)
+  -c: number of maximum concurrent connections. default: 100
+
+notes:
+  - epwget can use a range of IP addresses for larger concurrent 
+	connections that cannot be in an IP. you can set it in epwget.c:33.
+  - epwget overrides some part of the settings in epgwet.conf and uses 
+    mtcp_setconf() internally to apply the input arguments to the 
+    configuration.
+
+========================================================================
+
+                   Contact: mtcp at list.ndsl.kaist.edu
+                             April 2, 2014. 
+                 EunYoung Jeong <notav at ndsl.kaist.edu>

@@ -1,0 +1,131 @@
+================================================================================
+ INSTALLATION
+================================================================================
+
+This guide describes installation of lighttpd both for Linux and mTCP. 
+For Linux, we also provide the patches for multi-threading and SO_REUSEPORT. 
+For more detail, please look at the description below.
+Each version of lighttpd should be configured differently and then compiled.
+
+================================================================================
+ Original version
+================================================================================
+
+:author: Jan Kneschke
+:Date: $Date: $
+:Revision: $Revision: $
+
+Get the source from
+
+http://www.lighttpd.net/download/
+
+unpack it by ::
+
+  $ gzip -cd lighttpd-1.x.x.tar.gz | tar xf -
+
+compile and install it with ::
+
+  $ cd lighttpd-1.x.x
+  $ ./configure
+  $ make
+  $ su -
+  # make install (if necessary)
+  # exit
+
+take a look at the configfile in ./doc/lighttpd.conf,
+make your own copy of that file and modify it for your needs.
+
+================================================================================
+ mTCP version
+================================================================================
+
+Configure the program with the following arguments:
+
+  $ ./configure --without-bzip2 CFLAGS="-O3" \
+    --with-libmtcp=${PATH_TO_LIBMTCP} \
+    --with-libpsio=${PATH_TO_LIBPSIO}
+
+The path should be absolute.
+
+  ## For debugging
+  $ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
+    --with-libmtcp=${PATH_TO_LIBMTCP} --with-libpsio=${PATH_TO_LIBPSIO}
+
+Please remember to adjust lighttpd.conf file carefully.
+Fields to adjust are:
+  - server.bind
+  - server.event-handler
+  - server.network-backend
+  - server.listen-backlog
+  - server.infinite-keep-alive-requests
+
+Also, remember to locate the 'mtcp.conf' at the directory where the binary lies.
+
+Sample lighttpd configuration files are placed at doc/config/. The default 
+config file assumes that it host web pages in /srv/www/htdocs directory while
+it does error logging in /tmp/lighttpd/error.log file. Please make sure that
+the directories are created before running lighttpd.
+ - Default: lighttpd.conf
+ - For mTCP: m-lighttpd.conf
+
+Please use the following command to run lighttpd:
+  $ sudo ./src/lighttpd -D -f ${PATH_OF_CONFIG_FILE} -n ${NO_OF_CORES}
+  (e.g., $ sudo ./src/lightpd -D -f docs/config/m-lighttpd.conf -n 8)
+
+Both PATH_OF_CONFIG_FILE and NO_OF_CORES options are required.
+
+================================================================================
+ Multi-threaded version (on Linux)
+================================================================================
+
+Configure the program with the following arguments:
+
+  $ ./configure --without-bzip2 CFLAGS="-O3" --enable-multithreading
+
+Please remember to adjust lighttpd.conf file carefully.
+Fields to adjust are:
+  - server.bind
+  - server.event-handler ("linux-sysepoll")
+  - server.network-backend ("linux-sendfile")
+
+Please turn OFF server.listen-backlog
+
+A sample lighttpd.conf file is placed@: doc/config/lighttpd.conf
+
+Please use the following command to run lighttpd:
+  $ sudo ./src/lighttpd -D -f ${PATH_OF_CONFIG_FILE} -n ${NO_OF_CORES}
+
+================================================================================
+ Multi-threaded REUSEPORT version (on Linux)
+================================================================================
+
+First, check whether your kernel version is higher than 3.9. This SO_REUSEPORT 
+option is supported only after Linux-3.9.
+
+Then, please check whether SO_REUSEPORT is defined. Please update 
+/usr/include/asm-generic/socket.h by adding the following line. 
+(if it is not already defined)
+
+#define SO_REUSEPORT 15
+
+
+Configure the program with the following arguments:
+
+  $ ./configure --without-bzip2 CFLAGS="-O3 -DREUSEPORT" --enable-multithreading
+
+Please remember to adjust lighttpd.conf file carefully.
+Fields to adjust are:
+  - server.bind
+  - server.event-handler ("linux-sysepoll")
+  - server.network-backend ("linux-sendfile")
+
+Please turn OFF server.listen-backlog
+
+Please use the following command to run lighttpd:
+  $ sudo ./src/lighttpd -D -f ${PATH_OF_CONFIG_FILE} -n ${NO_OF_CORES}
+
+================================================================================
+
+                    Contact: mtcp at list.ndsl.kaist.edu
+                               April 2, 2014. 
+              Muhammad Asim Jamshed <ajamshed at ndsl.kaist.edu>

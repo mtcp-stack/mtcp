@@ -11,7 +11,7 @@ MTCP_HDR = mtcp_api.h mtcp_epoll.h
 
 ### GCC ###
 GCC = gcc
-GCC_OPT = -m64 -Wall
+GCC_OPT = -m64 -Wall -fPIC
 
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE -DTSTAT -DAPP -DEPOLL
 #DBG_OPT += -DPKTDUMP
@@ -51,7 +51,6 @@ DEPS = $(patsubst %.c,.%.d,$(SRCS))
 
 ### GOALS ###
 default: $(OBJS) $(MTCP_HDR)
-	mkdir -p $(MTCP_LIB_DIR)
 	ar rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
 
 $(OBJS): %.o: %.c Makefile

@@ -1,0 +1,16 @@
+# Microsoft Developer Studio Generated Dependency File, included by ab.mak
+
+.\ab.c : \
+	"..\include\ap_release.h"\
+	"..\srclib\apr-util\include\apr_base64.h"\
+	"..\srclib\apr\include\apr_getopt.h"\
+	"..\srclib\apr\include\apr_lib.h"\
+	"..\srclib\apr\include\apr_poll.h"\
+	"..\srclib\apr\include\apr_portable.h"\
+	"..\srclib\apr\include\apr_signal.h"\
+	"..\srclib\apr\include\apr_strings.h"\
+	
+
+..\build\win32\httpd.rc : \
+	"..\include\ap_release.h"\
+	

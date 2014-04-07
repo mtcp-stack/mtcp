@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="mTCP : mTCP: A Highly Scalable User-level TCP Stack for Multicore Systems" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>mTCP</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/eunyoung14/mtcp">View on GitHub</a>
+
+          <h1 id="project_title">mTCP</h1>
+          <h2 id="project_tagline">mTCP: A Highly Scalable User-level TCP Stack for Multicore Systems</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/eunyoung14/mtcp/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/eunyoung14/mtcp/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <hr><h3>
+<a name="what-is-mtcp" class="anchor" href="#what-is-mtcp"><span class="octicon octicon-link"></span></a>What is mTCP?</h3>
+
+<p>mTCP is a high-performance user-level TCP stack for multicore systems. Scaling the performance of short TCP connections is fundamentally challenging due to inefficiencies in the kernel. mTCP addresses these inefficiencies from the ground up - from packet I/O and TCP connection management all the way to the application interface.</p>
+
+<div align="center">
+    <img src="http://shader.kaist.edu/mtcp/overview.png" height="350"><div><b> Figure 1. mTCP overview </b></div>
+</div>
+
+<p>Besides adopting well-known techniques, our mTCP stack (1) translates expensive system calls to shared memory access between two threads within the same CPU core, (2) allows efficient flow-level event aggregation, and (3) performs batch processing of RX/TX packets for high I/O efficiency. mTCP on an 8-core machine improves the performance of small message transactions by a factor 25 (compared with the latest Linux TCP stack (kernel version 3.10.12)) and 3 (compared with with the best-performing research system). It also improves the performance of various popular applications by 33% (SSLShader) to 320% (lighttpd) compared with those on the Linux stack.</p>
+
+<h3>
+<a name="why-user-level-tcp" class="anchor" href="#why-user-level-tcp"><span class="octicon octicon-link"></span></a>Why user-level TCP?</h3>
+
+<p>Many high-performance network applications spend a significant portion of CPU cycles for TCP processing in the kernel. (e.g., ~80% inside kernel for lighttpd) Even worse, these CPU cycles are not utilized effectively; according to our measurements, Linux spends more than 4x the cycles than mTCP in handling the same number of TCP transactions.</p>
+
+<p>Then, can we design a user-level TCP stack that incorporates all existing optimizations into a single system? Can we bring the performance of existing packet I/O libraries to the TCP stack? To answer these questions, we build a TCP stack in the user level. User-level TCP is attractive for many reasons.</p>
+
+<ul>
+<li>Easily depart from the kernel's complexity</li>
+<li>Directly benefit from the optimizations in the high performance packet I/O libraries</li>
+<li>Naturally aggregate flow-level events by packet-level I/O batching</li>
+<li>Easily preserve the existing application programming interface</li>
+</ul>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">mTCP maintained by <a href="https://github.com/eunyoung14">eunyoung14</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>

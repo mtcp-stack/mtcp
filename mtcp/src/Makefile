@@ -1,4 +1,3 @@
-
 .PHONY: clean
 
 ### TARGET ###
@@ -51,6 +50,7 @@ DEPS = $(patsubst %.c,.%.d,$(SRCS))
 
 ### GOALS ###
 default: $(OBJS) $(MTCP_HDR)
+	mkdir -p $(MTCP_LIB_DIR)
 	ar rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
 
 $(OBJS): %.o: %.c Makefile

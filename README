@@ -21,7 +21,7 @@ Compling PSIO driver requires kernel headers.
   - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
 
 ** PSIO requires Intel 82599-based 10 GbE cards and Linux 2.6 kernel **
-  = Please refer to http://shader.kaist.edu/packetshader/io_engine/
+  - Please refer to http://shader.kaist.edu/packetshader/io_engine/
 
 ========================================================================
  INCLUDED DIRECTORIES

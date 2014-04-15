@@ -16,8 +16,12 @@ We require the following libraries to run mTCP.
  - libnuma
  - libpthread
  - librt
- Compling PSIO driver requires kernel headers.
+
+Compling PSIO driver requires kernel headers.
   - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
+
+** PSIO requires Intel 82599-based 10 GbE cards and Linux 2.6 kernel **
+  = Please refer to http://shader.kaist.edu/packetshader/io_engine/
 
 ========================================================================
  INCLUDED DIRECTORIES
@@ -53,7 +57,7 @@ config - sample mTCP configuration files (may not be necessary)
 
 2. install the driver
   - ./install.py <# cores> <# cores>
-  - refer to http://shader.kaist.edu/packetshader/io_enigne/
+  - refer to http://shader.kaist.edu/packetshader/io_engine/
   - you may need to change the ip address in install.py:46
 
 3. make in io_engine/lib

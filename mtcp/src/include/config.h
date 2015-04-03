@@ -6,7 +6,6 @@
 int num_cpus;
 int num_queues;
 int num_devices;
-struct ps_device devices[MAX_DEVICES];
 
 int num_devices_attached;
 int devices_attached[MAX_DEVICES];
@@ -39,5 +38,15 @@ PrintRoutingTable();
 /* set socket modes */
 int
 SetSocketMode(int8_t socket_mode);
+
+/* fetch mask from prefix */
+uint32_t 
+MaskFromPrefix(int prefix);
+
+void
+ParseMACAddress(unsigned char *haddr, char *haddr_str);
+
+int 
+ParseIPAddress(uint32_t *ip_addr, char *ip_str);
 
 #endif /* __CONFIG_H_ */

@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <assert.h>
+#include "mtcp_api.h"
 
 #define MAX_FILE_NAME 1024
 
@@ -36,6 +37,7 @@ mtcp_core_affinitize(int cpu)
 	int phy_id;
 	size_t n;
 	int ret;
+	int unused;
 
 	n = GetNumCPUs();
 
@@ -64,7 +66,7 @@ mtcp_core_affinitize(int cpu)
 		errno = EFAULT;
 		return -1;
 	}
-	fscanf(fp, "%d", &phy_id);
+	unused = fscanf(fp, "%d", &phy_id);
 
 	numa_bitmask_setbit(bmask, phy_id);
 	numa_set_membind(bmask);
@@ -72,5 +74,6 @@ mtcp_core_affinitize(int cpu)
 
 	fclose(fp);
 
+	UNUSED(unused);
 	return ret;
 }

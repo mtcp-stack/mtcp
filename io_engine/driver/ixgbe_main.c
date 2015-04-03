@@ -8002,6 +8002,7 @@ int ps_select(struct ps_context *context,
 	int i;
 	long slack = 0;
 	ktime_t expires, *to = NULL;
+	struct ixgbe_adapter *adapter;
 	nids_set rx_set, tx_set;
 
 	DEFINE_WAIT(wait);
@@ -8030,6 +8031,16 @@ int ps_select(struct ps_context *context,
 
 	if (max_rx_nid >= adapters_found || max_tx_nid >= adapters_found) {
 		return -EINVAL;
+	}
+	
+	/* DANGER */
+	// every interface should have same number of queues
+	// in the current (& default) PSIO install script 
+	adapter = adapters[0]; 
+	if (event.qidx < 0 || 
+			((event.qidx >= adapter->num_rx_queues) && event.rx_nids) || 
+			((event.qidx >= adapter->num_tx_queues) && event.tx_nids) ) {
+		return -EINVAL;	
 	}
 
 	if (event.timeout > 0) {

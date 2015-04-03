@@ -1,0 +1,21 @@
+========================================================================
+ TODOs list for mTCP
+========================================================================
+
+* Complete the multi-process support for mTCP-dpdk
+
+* Compile the ARP table submodule
+
+* Add I/O module for netmap
+
+* Add I/O module for libpcap
+
+** This is only a small list of ideas that we have in our mind. Please 
+contact the authors if you want to help develop mTCP even further.
+
+========================================================================
+
+                   Contact: mtcp at list.ndsl.kaist.edu
+                             April 2, 2015. 
+                 EunYoung Jeong <notav at ndsl.kaist.edu>
+		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

@@ -171,6 +171,9 @@ signal_handler(int sig) {
 	case SIGHUP:  handle_sig_hup = 1; break;
 	case SIGCHLD:  break;
 	}
+#ifdef HAVE_LIBDPDK
+        exit(EXIT_SUCCESS);
+#endif
 }
 #endif
 /*----------------------------------------------------------------------------*/

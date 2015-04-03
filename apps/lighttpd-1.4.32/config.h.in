@@ -114,6 +114,9 @@
 /* libdl */
 #undef HAVE_LIBDL
 
+/* libdpdk support */
+#undef HAVE_LIBDPDK
+
 /* libev support */
 #undef HAVE_LIBEV
 

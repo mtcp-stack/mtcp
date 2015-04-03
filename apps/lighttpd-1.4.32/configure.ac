@@ -678,6 +678,28 @@ fi
 AC_SUBST(LIBPSIO_CFLAGS)
 AC_SUBST(LIBPSIO_LIBS)
 
+
+AC_MSG_CHECKING(for dpdk support)
+AC_ARG_WITH(libdpdk,
+    AC_HELP_STRING([--with-libdpdk@<:@=PATH@:>@],[Include libdpdk support in PATH/include and PATH/lib]),
+    [WITH_LIBDPDK=$withval],[WITH_LIBDPDK=no])
+
+LIBDPDK_CFLAGS=""
+LIBDPDK_LIBS=""
+
+if test "$WITH_LIBDPDK" != "no"; then
+	LIBDPDK_CFLAGS="-I$WITH_LIBDPDK/include/"
+	LIBDPDK_LIBS="-L$WITH_LIBDPDK/lib/ -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic -Wl,-lnuma -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,--whole-archive -Wl,-lrte_distributor -Wl,-lrte_kni -Wl,-lrte_pipeline -Wl,-lrte_table -Wl,-lrte_port -Wl,-lrte_timer -Wl,-lrte_hash -Wl,-lrte_lpm -Wl,-lrte_power -Wl,-lrte_acl -Wl,-lrte_meter -Wl,-lrte_sched -Wl,-lm -Wl,-lrt -Wl,--start-group -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_ip_frag -Wl,-lethdev -Wl,-lrte_malloc -Wl,-lrte_mempool -Wl,-lrte_ring -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_cfgfile -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_pmd_virtio_uio -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ring -Wl,-lrt -Wl,-lm -Wl,-ldl -Wl,--end-group -Wl,--no-whole-archive"
+	CFLAGS="${CFLAGS} ${LIBDPDK_CFLAGS}"
+	AC_DEFINE([HAVE_LIBDPDK], [1], [libdpdk support])
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+fi
+
+AC_SUBST(LIBDPDK_CFLAGS)
+AC_SUBST(LIBDPDK_LIBS)
+
 dnl build version-id
 LIGHTTPD_VERSION_ID=`echo $PACKAGE_VERSION | $AWK -F '.' '{print "(" $1 " << 16 | " $2 " << 8 | " $3 ")"}'`
 AC_DEFINE_UNQUOTED([LIGHTTPD_VERSION_ID], [$LIGHTTPD_VERSION_ID], [lighttpd-version-id])

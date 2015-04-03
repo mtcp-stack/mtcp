@@ -5,7 +5,8 @@ import os
 import subprocess
 import time
 
-ITR = 956	# interrupt throttling rate
+#ITR = 12500 #956	# interrupt throttling rate
+ITR = 956
 
 def execute(cmd):
 	try:
@@ -43,7 +44,7 @@ if len(sys.argv) < 3:
 
 num_rx_queues = int(sys.argv[1])
 num_tx_queues = int(sys.argv[2])
-postfix = '43'
+postfix = '3'
 
 assert 0 <= num_rx_queues <= 16
 
@@ -58,7 +59,8 @@ execute('insmod ./ps_ixgbe.ko RXQ=%s TXQ=%s InterruptThrottleRate=%s' %
 	)
 
 time.sleep(3)
-for i in range(num_ifs):
+#for i in range(num_ifs):
+for i in range(2):
 	ifname = 'xge%d' % i
 	print 'setting %s...' % ifname
 	

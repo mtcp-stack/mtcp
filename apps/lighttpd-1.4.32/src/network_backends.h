@@ -44,7 +44,7 @@
 # define USE_AIX_SENDFILE
 #endif
 
-#if defined HAVE_LIBMTCP && HAVE_LIBPSIO
+#if defined HAVE_LIBMTCP && (HAVE_LIBPSIO | HAVE_LIBDPDK)
 # define USE_MTCP
 #include <sys/socket.h>
 #include <mtcp_api.h>

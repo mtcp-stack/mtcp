@@ -18,6 +18,7 @@
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
 
+#include "cpu.h"
 #include "http_parsing.h"
 #include "debug.h"
 
@@ -414,7 +415,7 @@ RunServerThread(void *arg)
 	ctx = InitializeServerThread(core);
 	if (!ctx) {
 		TRACE_ERROR("Failed to initialize server thread.\n");
-		exit(-1);
+		return NULL;
 	}
 	mctx = ctx->mctx;
 	ep = ctx->ep;
@@ -637,19 +638,19 @@ main(int argc, char **argv)
 	for (i = 0; i < core_limit; i++) {
 		cores[i] = i;
 		done[i] = FALSE;
-
+		
 		if (pthread_create(&app_thread[i], 
-					NULL, RunServerThread, (void *)&cores[i])) {
+				   NULL, RunServerThread, (void *)&cores[i])) {
 			perror("pthread_create");
 			TRACE_ERROR("Failed to create server thread.\n");
 			exit(-1);
 		}
 	}
-
+	
 	for (i = 0; i < core_limit; i++) {
 		pthread_join(app_thread[i], NULL);
 	}
-
+	
 	mtcp_destroy();
 	closedir(dir);
 	return 0;

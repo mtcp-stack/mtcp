@@ -1,0 +1,12 @@
+2015-02-04 Muhammad Asim Jamshed <ajamshed at ndsl.kaist.edu>
+mTCPv3
+	* Updated the I/O abstraction layer.
+	* Added DPDK support
+
+
+2014-02-04 Eunyoung Jeong <notav at ndsl.kaist.edu>
+mTCPv2
+	* First stable version of mTCP released
+
+	* Please see README & http://shader.kaist.edu/mtcp/
+	  for more details.

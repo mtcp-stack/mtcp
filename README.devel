@@ -1,0 +1,20 @@
+========================================================================
+ README for mTCP development
+========================================================================
+
+This file will be updated in coming revisions. In the mean time please
+have a look @:
+
+     1 - http://www.ndsl.kaist.edu/~kyoungsoo/papers/mtcp.pdf
+
+     2 - apps/example/epserver.c OR apps/example/epwget.c example 
+         applications 
+
+to see how to use mTCP API.
+
+========================================================================
+
+                   Contact: mtcp at list.ndsl.kaist.edu
+                             April 2, 2015. 
+                 EunYoung Jeong <notav at ndsl.kaist.edu>
+		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

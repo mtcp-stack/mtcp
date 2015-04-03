@@ -35,6 +35,7 @@
 enum ETH_BUFFER_RETURN {BUF_RET_MAYBE, BUF_RET_ALWAYS};
 /*----------------------------------------------------------------------------*/
 #if !(E_PSIO || USE_CHUNK_BUF)
+/* XXX - ignored at the moment (this is disabled by default) */
 inline void 
 InitWriteChunks(struct ps_handle* handle, struct ps_chunk *w_chunk) 
 {
@@ -176,44 +177,6 @@ GetWriteBuffer(struct mtcp_thread_context *ctx, int method, int ifidx, int len)
 int 
 FlushSendChunkBuf(mtcp_manager_t mtcp, int nif)
 {
-	struct ps_chunk_buf *c_buf;
-	int send_cnt, to_send_cnt = 0;
-	int start_idx;
-	int i;
-
-	c_buf = &mtcp->ctx->w_chunk_buf[nif];
-	if (!c_buf)
-		return -1;
-
-	to_send_cnt = c_buf->cnt;
-	if (to_send_cnt > 0) {
-		STAT_COUNT(mtcp->runstat.rounds_tx_try);
-		start_idx = c_buf->next_to_send;
-		send_cnt = ps_send_chunk_buf(mtcp->ctx->handle, c_buf);
-
-		for (i = 0; i < send_cnt; i++) {
-#ifdef NETSTAT
-			mtcp->nstat.tx_bytes[nif] += c_buf->info[start_idx].len + 24;
-#endif
-#if PKTDUMP
-			DumpPacket(mtcp, c_buf->buf + c_buf->info[start_idx].offset, 
-					c_buf->info[start_idx].len, "OUT", nif);
-
-#endif
-			start_idx = (start_idx + 1) % ENTRY_CNT;
-		}
-		if (send_cnt < 0) {
-			TRACE_ERROR("ps_send_chunk_buf failed. "
-					"ret: %d, error: %s\n", send_cnt, strerror(errno));
-#ifdef NETSTAT
-		} else {
-			mtcp->nstat.tx_packets[nif] += send_cnt;
-#endif
-		}
-
-		return send_cnt;
-	}
-
 	return 0;
 }
 #endif /* E_PSIO */
@@ -222,14 +185,12 @@ uint8_t *
 EthernetOutput(struct mtcp_manager *mtcp, uint16_t h_proto, 
 		int nif, unsigned char* dst_haddr, uint16_t iplen)
 {
-	char *buf;
+	uint8_t *buf;
 	struct ethhdr *ethh;
 	int i;
 
 #if E_PSIO || USE_CHUNK_BUF
-	struct ps_chunk_buf *c_buf = &mtcp->ctx->w_chunk_buf[nif];
-
-	buf = ps_assign_chunk_buf(c_buf, iplen + ETHERNET_HEADER_LEN);
+	buf = mtcp->iom->get_wptr(mtcp->ctx, nif, iplen + ETHERNET_HEADER_LEN);
 #else
 	buf = GetWriteBuffer(mtcp->ctx, 
 			BUF_RET_MAYBE, nif, iplen + ETHERNET_HEADER_LEN);

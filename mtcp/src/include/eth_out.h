@@ -10,6 +10,7 @@
 #define MAX_SEND_PCK_CHUNK 64
 
 #if !(E_PSIO || USE_CHUNK_BUF)
+/* XXX - this is not used by default... will come to this later then */
 inline void 
 InitWriteChunks(struct ps_handle* handle, struct ps_chunk *w_chunk);
 

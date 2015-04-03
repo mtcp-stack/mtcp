@@ -526,6 +526,8 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		SBUF_UNLOCK(&sndvar->write_lock);
 		UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 	}
+
+	UNUSED(ret);
 }
 /*----------------------------------------------------------------------------*/
 /* ProcessTCPPayload: merges TCP payload using receive ring buffer            */
@@ -1111,6 +1113,7 @@ Handle_TCP_ST_CLOSING (mtcp_manager_t mtcp, uint32_t cur_ts,
 		}
 		
 		cur_stream->sndvar->snd_una = ack_seq;
+		cur_stream->snd_nxt = ack_seq;
 		UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 
 		cur_stream->state = TCP_ST_TIME_WAIT;

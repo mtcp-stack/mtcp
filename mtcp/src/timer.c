@@ -413,6 +413,8 @@ CheckRtmTimeout(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh)
 	}
 
 	TRACE_ROUND("Checking retransmission timeout. cnt: %d\n", cnt);
+
+	UNUSED(ret);
 }
 /*----------------------------------------------------------------------------*/
 void 

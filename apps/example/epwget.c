@@ -18,6 +18,7 @@
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
+#include "cpu.h"
 #include "rss.h"
 #include "http_parsing.h"
 #include "debug.h"

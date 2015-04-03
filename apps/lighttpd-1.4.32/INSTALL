@@ -38,18 +38,40 @@ make your own copy of that file and modify it for your needs.
 ================================================================================
  mTCP version
 ================================================================================
+You may need to install the following packages to compile lighttpd:
+  - gcc (Ubuntu package: gcc)
+  - gdb (Ubuntu package: gdb)
+  - make (Ubuntu package: make)
+  - libpcre-dev (Ubuntu package: libpcre3-dev libpcre++-dev)
+
 
 Configure the program with the following arguments:
 
   $ ./configure --without-bzip2 CFLAGS="-O3" \
     --with-libmtcp=${PATH_TO_LIBMTCP} \
-    --with-libpsio=${PATH_TO_LIBPSIO}
+    --with-libpsio=${PATH_TO_LIBPSIO} \
+    --with-libdpdk=${PATH_TO_LIBDPDK}
+    
+  (e.g.
+	$ ./configure --without-bzip2 CFLAGS="-g -O3" \
+	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
+	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
+  )
 
 The path should be absolute.
 
   ## For debugging
   $ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
-    --with-libmtcp=${PATH_TO_LIBMTCP} --with-libpsio=${PATH_TO_LIBPSIO}
+    --with-libmtcp=${PATH_TO_LIBMTCP} --with-libpsio=${PATH_TO_LIBPSIO} \
+    --with-libdpdk=${PATH_TO_LIBDPDK}
+
+  (e.g.
+	$ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
+	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
+	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
+  )
 
 Please remember to adjust lighttpd.conf file carefully.
 Fields to adjust are:
@@ -57,9 +79,12 @@ Fields to adjust are:
   - server.event-handler
   - server.network-backend
   - server.listen-backlog
+  - server.document-root
   - server.infinite-keep-alive-requests
+	-- set it to "enable" for better performance
 
 Also, remember to locate the 'mtcp.conf' at the directory where the binary lies.
+  -- This should be $<path_to_lighttpd>/src/mtcp.conf
 
 Sample lighttpd configuration files are placed at doc/config/. The default 
 config file assumes that it host web pages in /srv/www/htdocs directory while
@@ -69,8 +94,8 @@ the directories are created before running lighttpd.
  - For mTCP: m-lighttpd.conf
 
 Please use the following command to run lighttpd:
-  $ sudo ./src/lighttpd -D -f ${PATH_OF_CONFIG_FILE} -n ${NO_OF_CORES}
-  (e.g., $ sudo ./src/lightpd -D -f docs/config/m-lighttpd.conf -n 8)
+  $ sudo ./lighttpd -D -f ${PATH_TO_CONFIG_FILE} -n ${NO_OF_CORES}
+  (e.g., $ sudo ./lighttpd -D -f ../docs/config/m-lighttpd.conf -n 8)
 
 Both PATH_OF_CONFIG_FILE and NO_OF_CORES options are required.
 
@@ -118,6 +143,7 @@ Fields to adjust are:
   - server.bind
   - server.event-handler ("linux-sysepoll")
   - server.network-backend ("linux-sendfile")
+  - server.document-root
 
 Please turn OFF server.listen-backlog
 

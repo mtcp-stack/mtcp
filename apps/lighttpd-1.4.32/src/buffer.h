@@ -127,6 +127,8 @@ int light_isalnum(int c);
 
 
 #define SEGFAULT() do { fprintf(stderr, "%s.%d: aborted\n", __FILE__, __LINE__); abort(); } while(0)
+#ifndef UNUSED
 #define UNUSED(x) ( (void)(x) )
+#endif
 
 #endif

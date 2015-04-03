@@ -18,6 +18,7 @@
 #include "ps.h"
 #include "logger.h"
 #include "stat.h"
+#include "io_module.h"
 
 #ifndef TRUE
 #define TRUE (1)
@@ -136,6 +137,7 @@ struct mtcp_config
 	struct arp_table arp;
 
 	int num_cores;
+	int num_mem_ch;
 	int max_concurrency;
 
 	int max_num_buffers;
@@ -144,6 +146,11 @@ struct mtcp_config
 	
 	int tcp_timewait;
 	int tcp_timeout;
+
+	/* adding multi-process support */
+	uint8_t multi_process;
+	uint8_t multi_process_is_master;
+	uint8_t multi_process_curr_core;
 };
 /*----------------------------------------------------------------------------*/
 struct mtcp_context
@@ -247,6 +254,7 @@ struct mtcp_manager
 
 	struct time_stat rtstat;
 #endif /* NETSTAT */
+	struct io_module_func *iom;
 };
 /*----------------------------------------------------------------------------*/
 typedef struct mtcp_manager* mtcp_manager_t;
@@ -262,9 +270,11 @@ struct mtcp_thread_context
 			exit:1, 
 			interrupt:1;
 
-	struct ps_handle *handle;
 	struct mtcp_manager* mtcp_manager;
 
+	void *io_private_context;
+#if 0 /* XXX */
+	struct ps_handle *handle;
 #if E_PSIO || USE_CHUNK_BUF
 	struct ps_chunk_buf w_chunk_buf[ETH_NUM];
 #else
@@ -272,7 +282,7 @@ struct mtcp_thread_context
 	uint32_t w_off[ETH_NUM];
 	int16_t w_cur_idx[ETH_NUM];
 #endif
-
+#endif /* XXX */
 	pthread_mutex_t smap_lock;
 	pthread_mutex_t flow_pool_lock;
 	pthread_mutex_t socket_pool_lock;

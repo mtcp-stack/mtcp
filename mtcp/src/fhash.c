@@ -117,6 +117,7 @@ HTSearch(struct hashtable *ht, const tcp_stream *item)
 			return walk;
 	}
 
+	UNUSED(idx);
 	return NULL;
 }
 /*----------------------------------------------------------------------------*/

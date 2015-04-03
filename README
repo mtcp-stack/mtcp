@@ -12,16 +12,17 @@ driver and ported applications may differ from the mTCP’s.
 ========================================================================
 
 We require the following libraries to run mTCP.
- - libps (PacketShader I/O engine library)
+ - libps (PacketShader I/O engine library) OR libdpdk (Intel's DPDK package*)
  - libnuma
  - libpthread
  - librt
-
-Compling PSIO driver requires kernel headers.
+ Compling PSIO/DPDK driver requires kernel headers.
   - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
 
-** PSIO requires Intel 82599-based 10 GbE cards and Linux 2.6 kernel **
-  - Please refer to http://shader.kaist.edu/packetshader/io_engine/
+
+* We have modified the dpdk-1.8.0 package to export net_device stat data 
+to the OS. To achieve this, the dpdk-1.8.0/lib/librte_eal/linuxapp/igb_uio/
+directory was updated. We recommend using our package for DPDK installation. 
 
 ========================================================================
  INCLUDED DIRECTORIES
@@ -39,10 +40,18 @@ io_engine/lib - io_engine library
 io_engine/include - io_engine header files
 io_engine/samples - sample io_engine applications (not mTCP’s)
 
+dpdk-1.8.0 - Intel's Data Plane Development Kit* (modified)
+dpdk-1.8.0/...
+
+dpdk/ - Holds soft links to the compiled dpdk-1.8.0 include/ and lib/ paths
+dpdk/include - the header files
+dpdk/lib - the libraries that need to be linked
+
 apps - mTCP applications
 apps/example - example applications (see README)
 apps/lighttpd-1.4.32 - mTCP-ported lighttpd (see INSTALL)
-apps/apache_benchmark - mTCP-ported apach benchmark (ab) (see README-mtcp)
+apps/apache_benchmark - mTCP-ported apache benchmark (ab) (see README-mtcp) [DEPRECATED]
+		       (May be revived based on users' feedback).
 
 util - useful source code for applications
 
@@ -51,38 +60,112 @@ config - sample mTCP configuration files (may not be necessary)
 ========================================================================
  INSTALL GUIDES
 ========================================================================
+mTCP can be prepared in two ways.
 
-1. make in io_engine/driver
+- PSIO VERSION -
+----------------
+1. make in io_engine/driver:
+   	   # make
   - check ps_ixgbe.ko
 
-2. install the driver
-  - ./install.py <# cores> <# cores>
+2. install the driver:
+   	   # ./install.py <# cores> <# cores>
   - refer to http://shader.kaist.edu/packetshader/io_engine/
   - you may need to change the ip address in install.py:46
 
-3. make in io_engine/lib
+3. make in io_engine/lib:
+   	   # make 
   - check libps.a
 
-4. make in mtcp/src
+4. Setup mtcp library:
+   	   # ./configure --with-psio-lib=<$path_to_ioengine>
+	     ## e.g. ./configure --with-psio-lib=`echo $PWD`/io_engine
+	   # cd mtcp/src
+   	   # make
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
 
-5. make in apps/example
+5. make in util/:
+   	   # make
+
+6. make in apps/example:
+   	   # make
   - check example binary files
 
-6. Check the configurations
+7. Check the configurations
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
+  - please see README.config for more details
 
-7. Run the applications!
+8. Run the applications!
+
+
+- DPDK VERSION -
+----------------
+1. Set up Intel's DPDK driver. Please use our version of DPDK.
+   We have only changed the lib/igb_uio/ submodule. The best
+   method to compile DPDK package is to use DPDK's tools/setup.sh
+   script. Please compile your package based on your own hardware
+   configuration. We tested the mTCP stack on Intel Xeon E5-2690
+   (x86_64) machine with Intel 82599 Ethernet adapters (10G). We
+   used the following steps in the setup.sh script for our setup:
+   
+	   - Press [9] to compile the package
+      	   - Press [11] to install the driver
+      	   - Press [15] to setup 1024 2MB hugepages
+      	   - Press [17] to register the Ethernet ports
+      	   - Press [29] to quit the tool
+
+  - check that DPDK package creates a new directory of compiled
+  libraries. For x86_64 machines, the new subdirectory should be
+  *dpdk-1.8.0/x86_64-native-linuxapp-gcc*
+
+2. Next bring the dpdk-registered interfaces up. Please use the
+   setup_iface_single_process.sh script file present in dpdk-1.8.0/tools/
+   directory for this purpose. Please change lines 49-51 to change the IP	
+   address. Under default settings, run the script as:
+   	   # ./setup_iface_single_process.sh 3
+
+   This sets the IP address of your interfaces as 10.0.x.3.
+
+3. Create soft links for include/ and lib/ directories inside
+   empty dpdk/ directory:
+   	   # cd dpdk/
+	   # ln -s <path_to_dpdk_1_8_0_directory>/x86_64-native-linuxapp-gcc/lib lib
+	   # ln -s <path_to_dpdk_1_8_0_directory>/x86_64-native-linuxapp-gcc/include include
+
+4. Setup mtcp library:
+	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
+	     ## And not dpdk-1.8.0!
+	     ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
+	   # cd mtcp/src
+   	   # make
+  - check libmtcp.a in mtcp/lib
+  - check header files in mtcp/include
+
+5. make in util/:
+   	   # make
+
+6. make in apps/example:
+   	   # make
+  - check example binary files
+
+7. Check the configurations
+  - epserver.conf for server-side configuration
+  - epwget.conf for client-side configuration
+  - you may write your own configuration file for your application
+  - please see README.config for more details
+
+8. Run the applications!
 
 ========================================================================
  TESTED ENVIRONMENTS
 ========================================================================
 
-mTCP runs on Linux-2.6-based operating systems with generic x86_64 CPUs,
-but to help evaluation, we provide our tested environments as follows.
+mTCP runs on Linux-based operating systems (2.6.x for PSIO) with generic 
+x86_64 CPUs, but to help evaluation, we provide our tested environments 
+as follows.
 
 Intel Xeon E5-2690 octacore CPU @ 2.90 GHz
 32 GB of RAM (4 memory channels)
@@ -97,6 +180,7 @@ Ubuntu 10.04 (Linux 2.6.32-47)
 Event-driven PacketShader I/O engine (extended io_engine-0.2)
  - PSIO is currently only compatible with Linux-2.6.
 
+We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 ========================================================================
  NOTES
 ========================================================================
@@ -142,14 +226,15 @@ Event-driven PacketShader I/O engine (extended io_engine-0.2)
  CAUTION
 ========================================================================
 
-1. Do not remove ps_ixgbe driver while running mTCP applications. The 
-   application will go panic.
+1. Do not remove I/O driver (ps_ixgbe/igb_uio) while running mTCP 
+   applications. The application will panic!
 
-2. Use the ps_ixgbe driver contained in this package, not the one from 
-   some other place (e.g., from io_engine github).
+2. Use the ps_ixgbe/dpdk driver contained in this package, not the one 
+   from some other place (e.g., from io_engine github).
 
 ========================================================================
 
                    Contact: mtcp at list.ndsl.kaist.edu
-                             April 2, 2014. 
+                             April 2, 2015. 
                  EunYoung Jeong <notav at ndsl.kaist.edu>
+		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

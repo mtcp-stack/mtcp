@@ -115,6 +115,8 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	uint32_t saddr_h, daddr_h;
 	uint16_t sport_h, dport_h;
 	int rss_core;
+	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
+		0 : 1;
 
 	ap = (addr_pool_t)calloc(1, sizeof(struct addr_pool));
 	if (!ap)
@@ -162,7 +164,7 @@ CreateAddressPoolPerCore(int core, int num_queues,
 				break;
 
 			sport_h = j;
-			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues);
+			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues, endian_check);
 			if (rss_core != core)
 				continue;
 
@@ -217,6 +219,8 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 	struct addr_entry *walk, *next;
 	int rss_core;
 	int ret = -1;
+	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
+		0 : 1;
 
 	if (!ap || !daddr || !saddr)
 		return -1;
@@ -228,8 +232,8 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 		next = TAILQ_NEXT(walk, addr_link);
 
 		rss_core = GetRSSCPUCore(ntohl(walk->addr.sin_addr.s_addr), 
-				ntohl(daddr->sin_addr.s_addr), ntohs(walk->addr.sin_port), 
-				ntohs(daddr->sin_port), num_queues);
+					 ntohl(daddr->sin_addr.s_addr), ntohs(walk->addr.sin_port), 
+					 ntohs(daddr->sin_port), num_queues, endian_check);
 
 		if (core == rss_core)
 			break;

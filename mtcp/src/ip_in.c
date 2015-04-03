@@ -35,12 +35,7 @@ ProcessIPv4Packet(mtcp_manager_t mtcp, uint32_t cur_ts,
 
 	// see if the version is correct
 	if (iph->version != 0x4 ) {
-		struct ps_packet packet;
-		packet.ifindex = ifidx;
-		packet.len = len;
-		packet.buf = (char *)pkt_data;
-		ps_slowpath_packet(mtcp->ctx->handle, &packet);
-
+		mtcp->iom->release_pkt(mtcp->ctx, ifidx, pkt_data, len);
 		return FALSE;
 	}
 	

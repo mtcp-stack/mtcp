@@ -1,0 +1,548 @@
+/*-
+ * GPL LICENSE SUMMARY
+ *
+ *   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of version 2 of the GNU General Public License as
+ *   published by the Free Software Foundation.
+ *
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *   General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ *   The full GNU General Public License is included in this distribution
+ *   in the file called LICENSE.GPL.
+ *
+ *   Contact Information:
+ *   Intel Corporation
+ */
+
+#include <linux/device.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/uio_driver.h>
+#include <linux/io.h>
+#include <linux/msi.h>
+#include <linux/version.h>
+#include <linux/rtnetlink.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include "ixgbe.h"
+#include "e1000.h"
+#ifdef CONFIG_XEN_DOM0
+#include <xen/xen.h>
+#endif
+#include <rte_pci_dev_features.h>
+#include "compat.h"
+/*----------------------------------------------------------------------------*/
+/**
+ * struct to hold adapter-specific parameters 
+ * it currently supports Intel 1/10 Gbps adapters
+ */
+enum dev_type {IXGBE, IGB};
+/*----------------------------------------------------------------------------*/
+/* list of 1 Gbps cards */
+static struct pci_device_id e1000_pci_tbl[] = {
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82542),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82543GC_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82543GC_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82544EI_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82544EI_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82544GC_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82544GC_LOM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82540EM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82545EM_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546EB_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82545EM_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546EB_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541EI),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541ER_LOM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82540EM_LOM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82540EP_LOM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82540EP),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541EI_MOBILE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82547EI),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82547EI_MOBILE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546EB_QUAD_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82540EP_LP),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82545GM_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82545GM_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82545GM_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82547GI),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541GI),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541GI_MOBILE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541ER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546GB_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546GB_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546GB_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82541GI_LF),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546GB_PCIE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546GB_QUAD_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_SERDES_DUAL),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_SERDES_QUAD),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_QUAD_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571PT_QUAD_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_QUAD_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82571EB_QUAD_COPPER_LP),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82572EI_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82572EI_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82572EI_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82572EI),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82573E),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82573E_IAMT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82573L),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82574L),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82574LA),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82583V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_80003ES2LAN_COPPER_DPT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_80003ES2LAN_SERDES_DPT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_80003ES2LAN_COPPER_SPT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_80003ES2LAN_SERDES_SPT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_82567V_3),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IGP_M_AMT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IGP_AMT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IGP_C),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IFE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IFE_GT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IFE_G),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH8_IGP_M),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IGP_M),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IGP_M_AMT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IGP_M_V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IGP_AMT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_BM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IGP_C),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IFE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IFE_GT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH9_IFE_G),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH10_R_BM_LM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH10_R_BM_LF),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH10_R_BM_V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH10_D_BM_LM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH10_D_BM_LF),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_ICH10_D_BM_V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_M_HV_LM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_M_HV_LC),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_D_HV_DM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_D_HV_DC),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH2_LV_LM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH2_LV_V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_LPT_I217_LM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_LPT_I217_V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_LPTLP_I218_LM),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_PCH_LPTLP_I218_V),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_QUAD_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_QUAD_COPPER_ET2),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_NS),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_NS_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_SERDES_QUAD),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_VF),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82576_VF_HV),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_VF),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_VF_HV),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82575EB_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82575EB_FIBER_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82575GB_QUAD_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82580_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82580_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82580_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82580_SGMII),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82580_COPPER_DUAL),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_82580_QUAD_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_SGMII),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I350_DA4),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_COPPER_OEM1),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_COPPER_IT),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_FIBER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_SGMII),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_COPPER_FLASHLESS),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I210_SERDES_FLASHLESS),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I211_COPPER),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I354_BACKPLANE_1GBPS),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I354_SGMII),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_I354_BACKPLANE_2_5GBPS),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_DH89XXCC_SGMII),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_DH89XXCC_SERDES),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_DH89XXCC_BACKPLANE),
+	INTEL_E1000_ETHERNET_DEVICE(E1000_DEV_ID_DH89XXCC_SFP),
+	/* required last entry */
+	{0,}
+};
+/*----------------------------------------------------------------------------*/
+/* list of 1 Gbps cards */
+static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_SINGLE_PORT)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AT2)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_CX4)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_CX4_DUAL_PORT)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_DA_DUAL_PORT)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_XF_LR)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598EB_SFP_LOM)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_BX)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_XAUI_LOM)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KR)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_EM)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_KX4_MEZZ)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BACKPLANE_FCOE)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_FCOE)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_T3_LOM)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_BYPASS)},
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BYPASS)},
+	/* required last entry */
+	{0, }
+};
+/*----------------------------------------------------------------------------*/
+/**
+ * net adapter private struct 
+ */
+struct net_adapter {
+	struct net_device *netdev;
+	struct pci_dev *pdev;
+	enum dev_type type;
+	union {
+		struct ixgbe_hw _ixgbe_hw;
+		struct e1000_hw _e1000_hw;
+	} hw;
+	u16 bd_number;
+	bool netdev_registered;
+	struct net_device_stats nstats;
+};
+/*----------------------------------------------------------------------------*/
+/**
+ * stats struct passed on from user space to the driver
+ */
+struct stats_struct {
+	uint64_t tx_bytes;
+	uint64_t tx_pkts;
+	uint64_t rx_bytes;
+	uint64_t rx_pkts;
+	uint8_t qid;
+	uint8_t dev;
+};
+/* max qid */
+#define MAX_QID			16
+#define MAX_DEVICES		16
+/* ioctl# */
+#define SEND_STATS		 0
+/* major number */
+#define MAJOR_NO		1110
+/* dev name */
+#define DEV_NAME		"dpdk-iface"
+/* sarray declaration */
+extern struct stats_struct sarrays[MAX_DEVICES][MAX_QID];
+/*----------------------------------------------------------------------------*/
+/**
+ * dummy function whenever a device is `opened'
+ */
+static int 
+netdev_open(struct net_device *netdev) 
+{
+	(void)netdev;
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * dummy function for retrieving net stats
+ */
+static struct net_device_stats *
+netdev_stats(struct net_device *netdev) 
+{
+	struct net_adapter *adapter;
+	int i, ifdx;
+	
+	adapter = netdev_priv(netdev);
+	ifdx = adapter->bd_number;
+	
+	for (i = 0; i < MAX_QID; i++) {
+		adapter->nstats.rx_packets += sarrays[ifdx][i].rx_pkts;
+		adapter->nstats.rx_bytes += sarrays[ifdx][i].rx_bytes;
+		adapter->nstats.tx_packets += sarrays[ifdx][i].tx_pkts;
+		adapter->nstats.tx_bytes += sarrays[ifdx][i].tx_bytes;
+	}
+
+#if 0	
+	printk(KERN_ALERT "ifdx: %d, rxp: %llu, rxb: %llu, txp: %llu, txb: %llu\n",
+	       ifdx,
+	       (long long unsigned int)adapter->nstats.rx_packets,
+	       (long long unsigned int)adapter->nstats.rx_bytes,
+	       (long long unsigned int)adapter->nstats.tx_packets,
+	       (long long unsigned int)adapter->nstats.tx_bytes);
+#endif
+	return &adapter->nstats;
+}
+/*----------------------------------------------------------------------------*/
+/** 
+ * dummy function for setting features
+ */
+static int 
+netdev_set_features(struct net_device *netdev, netdev_features_t features) 
+{
+	(void)netdev;
+	(void)features;
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * dummy function for fixing features
+ */
+static netdev_features_t 
+netdev_fix_features(struct net_device *netdev, netdev_features_t features) 
+{
+	(void)netdev;
+	(void)features;
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * dummy function that returns void
+ */
+static void 
+netdev_no_ret(struct net_device *netdev) 
+{
+	(void)netdev;
+	return;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * dummy tx function
+ */
+static int 
+netdev_xmit(struct sk_buff *skb, struct net_device *netdev) {
+	(void)netdev;
+	(void)skb;
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * A naive net_device_ops struct to get the interface visible to the OS
+ */
+static const struct net_device_ops netdev_ops = {
+        .ndo_open               = netdev_open,
+        .ndo_stop               = netdev_open,
+        .ndo_start_xmit         = netdev_xmit,
+        .ndo_set_rx_mode        = netdev_no_ret,
+        .ndo_validate_addr      = netdev_open,
+        .ndo_set_mac_address    = NULL,
+        .ndo_change_mtu         = NULL,
+        .ndo_tx_timeout         = netdev_no_ret,
+        .ndo_vlan_rx_add_vid    = NULL,
+        .ndo_vlan_rx_kill_vid   = NULL,
+        .ndo_do_ioctl           = NULL,
+        .ndo_set_vf_mac         = NULL,
+        .ndo_set_vf_vlan        = NULL,
+        .ndo_set_vf_tx_rate     = NULL,
+        .ndo_set_vf_spoofchk    = NULL,
+        .ndo_get_vf_config      = NULL,
+        .ndo_get_stats          = netdev_stats,
+        .ndo_setup_tc           = NULL,
+        .ndo_poll_controller    = netdev_no_ret,
+        .ndo_set_features 	= netdev_set_features,
+        .ndo_fix_features 	= netdev_fix_features,
+        .ndo_fdb_add            = NULL,
+};
+/*----------------------------------------------------------------------------*/
+/**
+ * assignment function
+ */
+void
+netdev_assign_netdev_ops(struct net_device *dev)
+{
+	dev->netdev_ops = &netdev_ops;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ *  e1000_translate_register_82542 - Translate the proper register offset
+ *  @reg: e1000 register to be read
+ *
+ *  Registers in 82542 are located in different offsets than other adapters
+ *  even though they function in the same manner.  This function takes in
+ *  the name of the register to read and returns the correct offset for
+ *  82542 silicon.
+ **/
+u32 
+e1000_translate_register_82542(u32 reg)
+{
+	/*
+	 * Some of the 82542 registers are located at different
+	 * offsets than they are in newer adapters.
+	 * Despite the difference in location, the registers
+	 * function in the same manner.
+	 */
+	switch (reg) {
+	case E1000_RA:
+		reg = 0x00040;
+		break;
+	case E1000_RDTR:
+		reg = 0x00108;
+		break;
+	case E1000_RDBAL(0):
+		reg = 0x00110;
+		break;
+	case E1000_RDBAH(0):
+		reg = 0x00114;
+		break;
+	case E1000_RDLEN(0):
+		reg = 0x00118;
+		break;
+	case E1000_RDH(0):
+		reg = 0x00120;
+		break;
+	case E1000_RDT(0):
+		reg = 0x00128;
+		break;
+	case E1000_RDBAL(1):
+		reg = 0x00138;
+		break;
+	case E1000_RDBAH(1):
+		reg = 0x0013C;
+		break;
+	case E1000_RDLEN(1):
+		reg = 0x00140;
+		break;
+	case E1000_RDH(1):
+		reg = 0x00148;
+		break;
+	case E1000_RDT(1):
+		reg = 0x00150;
+		break;
+	case E1000_FCRTH:
+		reg = 0x00160;
+		break;
+	case E1000_FCRTL:
+		reg = 0x00168;
+		break;
+	case E1000_MTA:
+		reg = 0x00200;
+		break;
+	case E1000_TDBAL(0):
+		reg = 0x00420;
+		break;
+	case E1000_TDBAH(0):
+		reg = 0x00424;
+		break;
+	case E1000_TDLEN(0):
+		reg = 0x00428;
+		break;
+	case E1000_TDH(0):
+		reg = 0x00430;
+		break;
+	case E1000_TDT(0):
+		reg = 0x00438;
+		break;
+	case E1000_TIDV:
+		reg = 0x00440;
+		break;
+	case E1000_VFTA:
+		reg = 0x00600;
+		break;
+	case E1000_TDFH:
+		reg = 0x08010;
+		break;
+	case E1000_TDFT:
+		reg = 0x08018;
+		break;
+	default:
+		break;
+	}
+
+	return reg;
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * A device specific function that retrieves mac address from each NIC interface
+ */
+void
+retrieve_dev_addr(struct net_device *netdev, struct net_adapter *adapter)
+{
+	struct ixgbe_hw *hw_i;
+	struct e1000_hw *hw_e;
+	u32 rar_high;
+	u32 rar_low;
+	u16 i;
+
+	switch (adapter->type) {
+	case IXGBE:
+		hw_i = &adapter->hw._ixgbe_hw;
+		rar_high = IXGBE_READ_REG(hw_i, IXGBE_RAH(0));
+		rar_low = IXGBE_READ_REG(hw_i, IXGBE_RAL(0));
+		
+		for (i = 0; i < 4; i++)
+			netdev->dev_addr[i] = (u8)(rar_low >> (i*8));
+		
+		for (i = 0; i < 2; i++)
+			netdev->dev_addr[i+4] = (u8)(rar_high >> (i*8));
+		break;
+	case IGB:
+		hw_e = &adapter->hw._e1000_hw;
+		rar_high = E1000_READ_REG(hw_e, E1000_RAH(0));
+		rar_low = E1000_READ_REG(hw_e, E1000_RAL(0));
+		
+		for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+			netdev->dev_addr[i] = (u8)(rar_low >> (i*8));
+
+		for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+			netdev->dev_addr[i+4] = (u8)(rar_high >> (i*8));
+		break;
+	}
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * function that extracts the device type from the registers
+ */
+enum dev_type
+retrieve_dev_specs(const struct pci_device_id *id)
+{
+	int i;
+	enum dev_type res = 0xFF;
+	int no_of_elements;
+	
+	no_of_elements = sizeof(e1000_pci_tbl)/sizeof(struct pci_device_id);
+	for (i = 0; i < no_of_elements; i++) {
+		if (e1000_pci_tbl[i].vendor == id->vendor &&
+		    e1000_pci_tbl[i].device == id->device) {
+			return IGB;
+		}
+			
+	}
+
+	no_of_elements = sizeof(ixgbe_pci_tbl)/sizeof(struct pci_device_id);
+	for (i = 0; i < no_of_elements; i++) {
+		if (ixgbe_pci_tbl[i].vendor == id->vendor &&
+		    ixgbe_pci_tbl[i].device == id->device) {
+			return IXGBE;
+		}
+			
+	}
+
+	return res;
+}
+/*----------------------------------------------------------------------------*/

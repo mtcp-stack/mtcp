@@ -320,6 +320,8 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 			da[0], da[1], da[2], da[3], ntohs(stream->dport), 
 			stream->sndvar->iss);
 
+	UNUSED(da);
+	UNUSED(sa);
 	return stream;
 }
 /*---------------------------------------------------------------------------*/
@@ -498,6 +500,8 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 #endif /* NETSTAT_PERTHREAD */
 #endif /* NETSTAT */
 
+	UNUSED(da);
+	UNUSED(sa);
 }
 /*---------------------------------------------------------------------------*/
 void 

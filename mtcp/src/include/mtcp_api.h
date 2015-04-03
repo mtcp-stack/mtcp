@@ -5,6 +5,8 @@
 #include <netinet/in.h>
 #include <sys/uio.h>
 
+#define UNUSED(x)	(void)x
+
 #ifdef __cplusplus
 extern "C" {
 #endif

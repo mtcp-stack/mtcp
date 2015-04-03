@@ -15,9 +15,13 @@
 #include "tcp_in.h"
 #include "arp.h"
 #include "debug.h"
+/* for setting up io modules */
+#include "io_module.h"
+/* for if_nametoindex */
+#include <net/if.h>
 
 #define MAX_OPTLINE_LEN 1024
-#define MAX_PROCLINE_LEN 1024
+#define ALL_STRING "all"
 
 static const char *route_file = "config/route.conf";
 static const char *arp_file = "config/arp.conf";
@@ -33,7 +37,7 @@ GetIntValue(char* value)
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
-static inline uint32_t 
+inline uint32_t 
 MaskFromPrefix(int prefix)
 {
 	uint32_t mask = 0;
@@ -58,26 +62,37 @@ EnrollRouteTableEntry(char *optstr)
 	int ifidx;
 	int ridx;
 	int i;
+	char * saveptr;
 
-	daddr_s = strtok(optstr, "/");
-	prefix = strtok(NULL, " ");
-	dev = strtok(NULL, "\n");
+	daddr_s = strtok_r(optstr, "/", &saveptr);
+	prefix = strtok_r(NULL, " ", &saveptr);
+	dev = strtok_r(NULL, "\n", &saveptr);
 
 	assert(daddr_s != NULL);
 	assert(prefix != NULL);
 	assert(dev != NULL);
 
 	ifidx = -1;
-	for (i = 0; i < num_devices; i++) {
-		if (strcmp(dev, devices[i].name) != 0)
-			continue;
-		
-		ifidx = devices[i].ifindex;
-		break;
-	}
-	if (ifidx == -1) {
-		TRACE_CONFIG("Interface %s does not exist!\n", dev);
-		exit(4);
+	/* XXX - This needs to be revised */
+	if (current_iomodule_func == &ps_module_func) {
+		for (i = 0; i < num_devices; i++) {
+			if (strcmp(dev, devices[i].name) != 0)
+				continue;
+			
+			ifidx = devices[i].ifindex;
+			break;
+		}
+		if (ifidx == -1) {
+			TRACE_CONFIG("Interface %s does not exist!\n", dev);
+			exit(4);
+		}
+	} else if (current_iomodule_func == &dpdk_module_func) {
+		for (i = 0; i < num_devices; i++) {
+			if (strcmp(CONFIG.eths[i].dev_name, dev))
+				continue;
+			ifidx = CONFIG.eths[i].ifindex;
+			break;
+		}
 	}
 
 	ridx = CONFIG.routes++;
@@ -163,7 +178,7 @@ PrintRoutingTable()
 		m = (uint8_t *)&CONFIG.rtable[i].mask;
 		md = (uint8_t *)&CONFIG.rtable[i].masked;
 		TRACE_CONFIG("Destination: %u.%u.%u.%u/%d, Mask: %u.%u.%u.%u, "
-				"Masked: %u.%u.%u.%u, Route: xge%d\n", 
+				"Masked: %u.%u.%u.%u, Route: ifdx-%d\n", 
 				da[0], da[1], da[2], da[3], CONFIG.rtable[i].prefix, 
 				m[0], m[1], m[2], m[3], md[0], md[1], md[2], md[3], 
 				CONFIG.rtable[i].nif);
@@ -175,14 +190,15 @@ PrintRoutingTable()
 			"-----------------------\n");
 }
 /*----------------------------------------------------------------------------*/
-static void
+void
 ParseMACAddress(unsigned char *haddr, char *haddr_str)
 {
 	int i;
 	char *str;
 	unsigned int temp;
+	char *saveptr = NULL;
 
-	str = strtok(haddr_str, ":");
+	str = strtok_r(haddr_str, ":", &saveptr);
 	i = 0;
 	while (str != NULL) {
 		if (i >= ETH_ALEN) {
@@ -191,7 +207,7 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str)
 		}
 		sscanf(str, "%x", &temp);
 		haddr[i++] = temp;
-		str = strtok(NULL, ":");
+		str = strtok_r(NULL, ":", &saveptr);
 	}
 	if (i < ETH_ALEN) {
 		TRACE_CONFIG("MAC address length is less than %d!\n", ETH_ALEN);
@@ -199,7 +215,7 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str)
 	}
 }
 /*----------------------------------------------------------------------------*/
-static int 
+int 
 ParseIPAddress(uint32_t *ip_addr, char *ip_str)
 {
 	if (ip_str == NULL) {
@@ -224,137 +240,31 @@ SetRoutingTable()
 	unsigned int c;
 
 	CONFIG.routes = 0;
-	
 	CONFIG.rtable = (struct route_table *)
 			calloc(MAX_DEVICES, sizeof(struct route_table));
 	if (!CONFIG.rtable) 
 		exit(EXIT_FAILURE);
-	
+
 	/* set default routing table */
 	for (i = 0; i < CONFIG.eths_num; i ++) {
-
+		
 		ridx = CONFIG.routes++;
 		CONFIG.rtable[ridx].daddr = CONFIG.eths[i].ip_addr & CONFIG.eths[i].netmask;
-			
+		
 		CONFIG.rtable[ridx].prefix = 0;
 		c = CONFIG.eths[i].netmask;
 		while ((c = (c >> 1))){
 			CONFIG.rtable[ridx].prefix++;
 		}
 		CONFIG.rtable[ridx].prefix++;
-
+		
 		CONFIG.rtable[ridx].mask = CONFIG.eths[i].netmask;
 		CONFIG.rtable[ridx].masked = CONFIG.rtable[ridx].daddr;
-		CONFIG.rtable[ridx].nif = devices[i].ifindex;
+		CONFIG.rtable[ridx].nif = CONFIG.eths[ridx].ifindex;
 	}
 
 	/* set additional routing table */
 	SetRoutingTableFromFile();
-
-	return 0;
-}
-/*----------------------------------------------------------------------------*/
-int 
-GetNumQueues()
-{
-	FILE *fp;
-	char buf[MAX_PROCLINE_LEN];
-	int queue_cnt;
-		
-	fp = fopen("/proc/interrupts", "r");
-	if (!fp) {
-		TRACE_CONFIG("Failed to read data from /proc/interrupts!\n");
-		return -1;
-	}
-
-	/* count number of NIC queues from /proc/interrupts */
-	queue_cnt = 0;
-	while (!feof(fp)) {
-		if (fgets(buf, MAX_PROCLINE_LEN, fp) == NULL)
-			break;
-
-		/* "xge0-rx" is the keyword for counting queues */
-		if (strstr(buf, "xge0-rx")) {
-			queue_cnt++;
-		}
-	}
-	fclose(fp);
-
-	return queue_cnt;
-}
-/*----------------------------------------------------------------------------*/
-int
-SetInterfaceInfo() 
-{
-	struct ifreq ifr;
-	int eidx = 0;
-	int i, j;
-	
-	TRACE_CONFIG("Loading interface setting\n");
-			
-	CONFIG.eths = (struct eth_table *)
-			calloc(MAX_DEVICES, sizeof(struct eth_table));
-	if (!CONFIG.eths) 
-		exit(EXIT_FAILURE);
-
-	// Create socket 
-	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-	if (sock == -1) {
-		perror("socket");
-	}
-
-	for (i = 0; i < num_devices; i++) {
-		strcpy(ifr.ifr_name, devices[i].name);
-
-		//getting interface information
-		if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
-			
-			// Setting informations
-			eidx = CONFIG.eths_num++;
-			strcpy(CONFIG.eths[eidx].dev_name, ifr.ifr_name);
-			CONFIG.eths[eidx].ifindex = devices[i].ifindex;
-			
-			//geting address
-			if (ioctl(sock, SIOCGIFADDR, &ifr) == 0 ) {
-				struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
-				CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
-			}
-
-			if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0 ) {
-				for (j = 0; j < 6; j ++) {
-					CONFIG.eths[eidx].haddr[j] = ifr.ifr_addr.sa_data[j];
-				}
-			}
-			
-			/* Net MASK */
-			if (ioctl(sock, SIOCGIFNETMASK, &ifr) == 0) {
-				struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
-				CONFIG.eths[eidx].netmask = *(uint32_t *)&sin;
-			}
-
-			// add to attached devices
-			for (j = 0; j < num_devices_attached; j++) {
-				if (devices_attached[j] == devices[i].ifindex) {
-					break;
-				}
-			}			
-			devices_attached[num_devices_attached] = devices[i].ifindex;
-			num_devices_attached++;
-
-		} else { 
-			perror("SIOCGIFFLAGS");
-		}
-	}
-
-	num_queues = GetNumQueues();
-	if (num_queues <= 0) {
-		TRACE_CONFIG("Failed to find NIC queues!\n");
-		return -1;
-	}
-	if (num_queues > num_cpus) {
-		TRACE_CONFIG("Too many NIC queues available.\n");
-		return -1;
-	}
 
 	return 0;
 }
@@ -402,15 +312,20 @@ EnrollARPTableEntry(char *optstr)
 	uint32_t dip_mask;
 	int idx;
 
-	dip_s = strtok(optstr, "/");
-	prefix_s = strtok(NULL, " ");
-	daddr_s = strtok(NULL, "\n");
+	char *saveptr;
+
+	dip_s = strtok_r(optstr, "/", &saveptr);
+	prefix_s = strtok_r(NULL, " ", &saveptr);
+	daddr_s = strtok_r(NULL, "\n", &saveptr);
 
 	assert(dip_s != NULL);
 	assert(prefix_s != NULL);
 	assert(daddr_s != NULL);
 
-	prefix = atoi(prefix_s);
+	if (prefix_s == NULL)
+		prefix = 32;
+	else
+		prefix = atoi(prefix_s);
 
 	if (prefix > 32 || prefix < 0) {
 		TRACE_CONFIG("Prefix length should be between 0 - 32.\n");
@@ -512,21 +427,46 @@ LoadARPTable()
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+static int
+SetMultiProcessSupport(char *multiprocess_details)
+{
+	char *token = " =";
+	char *sample;
+	char *saveptr;
+
+	TRACE_CONFIG("Loading multi-process configuration\n");
+
+	sample = strtok_r(multiprocess_details, token, &saveptr);
+	if (sample == NULL) {
+		TRACE_CONFIG("No option for multi-process support given!\n");
+		return -1;
+	}
+	CONFIG.multi_process_curr_core = atoi(sample);
+	
+	sample = strtok_r(NULL, token, &saveptr);
+	if (sample != NULL && !strcmp(sample, "master"))
+		CONFIG.multi_process_is_master = 1;
+	
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
 static int 
 ParseConfiguration(char *line)
 {
 	char optstr[MAX_OPTLINE_LEN];
 	char *p, *q;
 
+	char *saveptr;
+
 	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
 
-	p = strtok(optstr, " \t=");
+	p = strtok_r(optstr, " \t=", &saveptr);
 	if (p == NULL) {
 		TRACE_CONFIG("No option name found for the line: %s\n", line);
 		return -1;
 	}
 
-	q = strtok(NULL, " \t=");
+	q = strtok_r(NULL, " \t=", &saveptr);
 	if (q == NULL) {
 		TRACE_CONFIG("No option value found for the line: %s\n", line);
 		return -1;
@@ -585,6 +525,19 @@ ParseConfiguration(char *line)
 				CONFIG.eths[i].stat_print = TRUE;
 			}
 		}
+	} else if (strcmp(p, "port") == 0) {
+		if(strncmp(q, ALL_STRING, sizeof(ALL_STRING)) == 0) {
+			SetInterfaceInfo(q);
+		} else {
+			SetInterfaceInfo(line + strlen(p) + 1);
+		}
+	} else if (strcmp(p, "io") == 0) {
+		AssignIOModule(q);
+	} else if (strcmp(p, "num_mem_ch") == 0) {
+		CONFIG.num_mem_ch = atoi(q);
+	} else if (strcmp(p, "multiprocess") == 0) {
+		CONFIG.multi_process = 1;
+		SetMultiProcessSupport(line + strlen(p) + 1);
 	} else {
 		TRACE_CONFIG("Unknown option type: %s\n", line);
 		return -1;
@@ -618,6 +571,7 @@ LoadConfiguration(char *fname)
 	CONFIG.sndbuf_size = 8192;
 	CONFIG.tcp_timeout = TCP_TIMEOUT;
 	CONFIG.tcp_timewait = TCP_TIMEWAIT;
+	CONFIG.num_mem_ch = 0;
 
 	while (1) {
 		char *p;
@@ -659,7 +613,14 @@ PrintConfiguration()
 	TRACE_CONFIG("Number of CPU cores to use: %d\n", CONFIG.num_cores);
 	TRACE_CONFIG("Maximum number of concurrency per core: %d\n", 
 			CONFIG.max_concurrency);
-
+	if (CONFIG.multi_process == 1) {
+		TRACE_CONFIG("Multi-process support is enabled and current core is: %d\n",
+			     CONFIG.multi_process_curr_core);
+		if (CONFIG.multi_process_is_master == 1)
+			TRACE_CONFIG("Current core is master (for multi-process)\n");
+		else
+			TRACE_CONFIG("Current core is not master (for multi-process)\n");
+	}
 	TRACE_CONFIG("Maximum number of preallocated buffers per core: %d\n", 
 			CONFIG.max_num_buffers);
 	TRACE_CONFIG("Receive buffer size: %d\n", CONFIG.rcvbuf_size);

@@ -97,6 +97,7 @@ mTCP can be prepared in two ways.
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
   - please see README.config for more details
+    -- for the latest version, dyanmic ARP learning is *DISABLED*
 
 8. Run the applications!
 
@@ -156,6 +157,7 @@ mTCP can be prepared in two ways.
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
   - please see README.config for more details
+    -- for the latest version, dyanmic ARP learning is *DISABLED*
 
 8. Run the applications!
 

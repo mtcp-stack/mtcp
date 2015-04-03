@@ -4,7 +4,7 @@
 
 * Complete the multi-process support for mTCP-dpdk
 
-* Compile the ARP table submodule
+* Complete the ARP table submodule
 
 * Add I/O module for netmap
 

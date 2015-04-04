@@ -6,6 +6,8 @@
 
 * Complete the ARP table submodule
 
+* Add ICMP submodule
+
 * Add I/O module for netmap
 
 * Add I/O module for libpcap

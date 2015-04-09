@@ -2,6 +2,8 @@
  TODOs list for mTCP
 ========================================================================
 
+* Add support for DPDK-2.0.0
+
 * Complete the multi-process support for mTCP-dpdk
 
 * Complete the ARP table submodule

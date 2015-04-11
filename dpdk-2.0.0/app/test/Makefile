@@ -1,0 +1,177 @@
+#   BSD LICENSE
+#
+#   Copyright(c) 2010-2014 Intel Corporation. All rights reserved.
+#   All rights reserved.
+#
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions
+#   are met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in
+#       the documentation and/or other materials provided with the
+#       distribution.
+#     * Neither the name of Intel Corporation nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+#   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+#   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+#   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+#   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+#   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+include $(RTE_SDK)/mk/rte.vars.mk
+
+ifeq ($(CONFIG_RTE_APP_TEST),y)
+
+#
+# library name
+#
+APP = test
+
+#
+# all sources are stored in SRCS-y
+#
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) := commands.c
+SRCS-y += test.c
+SRCS-y += test_pci.c
+SRCS-y += test_prefetch.c
+SRCS-y += test_byteorder.c
+SRCS-y += test_per_lcore.c
+SRCS-y += test_atomic.c
+SRCS-y += test_malloc.c
+SRCS-y += test_cycles.c
+SRCS-y += test_spinlock.c
+SRCS-y += test_memory.c
+SRCS-y += test_memzone.c
+
+SRCS-y += test_ring.c
+SRCS-y += test_ring_perf.c
+SRCS-y += test_pmd_perf.c
+
+ifeq ($(CONFIG_RTE_LIBRTE_TABLE),y)
+SRCS-y += test_table.c
+SRCS-$(CONFIG_RTE_LIBRTE_PIPELINE) += test_table_pipeline.c
+SRCS-y += test_table_tables.c
+SRCS-y += test_table_ports.c
+SRCS-y += test_table_combined.c
+SRCS-$(CONFIG_RTE_LIBRTE_ACL) += test_table_acl.c
+endif
+
+SRCS-y += test_rwlock.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_TIMER) += test_timer.c
+SRCS-$(CONFIG_RTE_LIBRTE_TIMER) += test_timer_perf.c
+
+SRCS-y += test_mempool.c
+SRCS-y += test_mempool_perf.c
+
+SRCS-y += test_mbuf.c
+SRCS-y += test_logs.c
+
+SRCS-y += test_memcpy.c
+SRCS-y += test_memcpy_perf.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_HASH) += test_hash.c
+SRCS-$(CONFIG_RTE_LIBRTE_HASH) += test_hash_perf.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm.c
+SRCS-$(CONFIG_RTE_LIBRTE_LPM) += test_lpm6.c
+
+SRCS-y += test_debug.c
+SRCS-y += test_errno.c
+SRCS-y += test_tailq.c
+SRCS-y += test_string_fns.c
+SRCS-y += test_cpuflags.c
+SRCS-y += test_mp_secondary.c
+SRCS-y += test_eal_flags.c
+SRCS-y += test_eal_fs.c
+SRCS-y += test_alarm.c
+SRCS-y += test_interrupts.c
+SRCS-y += test_version.c
+SRCS-y += test_func_reentrancy.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_num.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_etheraddr.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_portlist.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_ipaddr.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_cirbuf.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_string.c
+SRCS-$(CONFIG_RTE_LIBRTE_CMDLINE) += test_cmdline_lib.c
+
+ifeq ($(CONFIG_RTE_LIBRTE_SCHED),y)
+SRCS-y += test_red.c
+SRCS-$(CONFIG_RTE_ARCH_X86_64) += test_sched.c
+endif
+
+SRCS-$(CONFIG_RTE_LIBRTE_METER) += test_meter.c
+SRCS-$(CONFIG_RTE_LIBRTE_KNI) += test_kni.c
+SRCS-$(CONFIG_RTE_LIBRTE_POWER) += test_power.c test_power_acpi_cpufreq.c
+SRCS-$(CONFIG_RTE_LIBRTE_POWER) += test_power_kvm_vm.c
+SRCS-y += test_common.c
+SRCS-$(CONFIG_RTE_LIBRTE_IVSHMEM) += test_ivshmem.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_DISTRIBUTOR) += test_distributor.c
+SRCS-$(CONFIG_RTE_LIBRTE_DISTRIBUTOR) += test_distributor_perf.c
+
+SRCS-$(CONFIG_RTE_LIBRTE_REORDER) += test_reorder.c
+
+SRCS-y += test_devargs.c
+SRCS-y += virtual_pmd.c
+SRCS-y += packet_burst_generator.c
+SRCS-$(CONFIG_RTE_LIBRTE_ACL) += test_acl.c
+
+ifeq ($(CONFIG_RTE_LIBRTE_PMD_RING),y)
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_BOND) += test_link_bonding.c
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_BOND) += test_link_bonding_mode4.c
+endif
+
+SRCS-$(CONFIG_RTE_LIBRTE_PMD_RING) += test_pmd_ring.c
+SRCS-$(CONFIG_RTE_LIBRTE_KVARGS) += test_kvargs.c
+
+CFLAGS += -O3
+CFLAGS += $(WERROR_FLAGS)
+
+# Disable warnings of deprecated-declarations in test_kni.c
+ifeq ($(CC), icc)
+CFLAGS_test_kni.o += -wd1478
+else
+CFLAGS_test_kni.o += -Wno-deprecated-declarations
+endif
+CFLAGS += -D_GNU_SOURCE
+
+# Disable VTA for memcpy test
+ifeq ($(CC), gcc)
+ifeq ($(shell test $(GCC_VERSION) -ge 44 && echo 1), 1)
+CFLAGS_test_memcpy.o += -fno-var-tracking-assignments
+CFLAGS_test_memcpy_perf.o += -fno-var-tracking-assignments
+endif
+endif
+
+# this application needs libraries first
+DEPDIRS-y += lib
+
+# Link against shared libraries when needed
+ifeq ($(CONFIG_RTE_LIBRTE_PMD_BOND),y)
+ifneq ($(CONFIG_RTE_LIBRTE_PMD_RING),y)
+$(error Link bonding tests require CONFIG_RTE_LIBRTE_PMD_RING=y)
+else
+ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
+LDLIBS += -lrte_pmd_ring
+endif
+endif
+endif
+
+include $(RTE_SDK)/mk/rte.app.mk
+
+endif

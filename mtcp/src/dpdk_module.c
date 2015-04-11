@@ -86,7 +86,7 @@ static struct rte_eth_conf port_conf = {
 	.rx_adv_conf = {
 		.rss_conf = {
 			.rss_key = 	NULL,
-			.rss_hf = 	ETH_RSS_IPV4_TCP
+			.rss_hf = 	ETH_RSS_TCP
 		},
 	},
 	.txmode = {
@@ -96,7 +96,7 @@ static struct rte_eth_conf port_conf = {
                 .mode = RTE_FDIR_MODE_PERFECT,
                 .pballoc = RTE_FDIR_PBALLOC_256K,
                 .status = RTE_FDIR_REPORT_STATUS_ALWAYS,
-                .flexbytes_offset = 0x6,
+                //.flexbytes_offset = 0x6,
                 .drop_queue = 127,
         },
 };

@@ -359,7 +359,11 @@ static const struct net_device_ops netdev_ops = {
         .ndo_do_ioctl           = NULL,
         .ndo_set_vf_mac         = NULL,
         .ndo_set_vf_vlan        = NULL,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 15, 0)
         .ndo_set_vf_tx_rate     = NULL,
+#else
+	.ndo_set_vf_rate	= NULL,
+#endif
         .ndo_set_vf_spoofchk    = NULL,
         .ndo_get_vf_config      = NULL,
         .ndo_get_stats          = netdev_stats,

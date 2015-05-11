@@ -288,7 +288,11 @@ igbuio_dom0_mmap_phys(struct uio_info *info, struct vm_area_struct *vma)
 
 	idx = (int)vma->vm_pgoff;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 17, 0)
 	vma->vm_page_prot.pgprot |= _PAGE_IOMAP;
+#else
+	vma->vm_page_prot.pgprot |= _PAGE_SOFTW2;
+#endif
 
 	return remap_pfn_range(vma,
 			vma->vm_start,

@@ -67,6 +67,8 @@ mTCP can be prepared in two ways.
 1. make in io_engine/driver:
    	   # make
   - check ps_ixgbe.ko
+  - please note that psio only runs on linux-2.6.x kernels
+    (linux-2.6.32 ~ linux-2.6.38)
 
 2. install the driver:
    	   # ./install.py <# cores> <# cores>

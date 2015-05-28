@@ -180,7 +180,7 @@ KKVER := $(shell echo $(KVER) | \
          awk '{ if ($$0 ~ /2\.[4-9]\./) print "1"; else print "0"}')
 ifeq ($(KKVER), 0)
   $(error *** Aborting the build. \
-          *** This driver is not supported on kernel versions older than 2.4.0)
+          *** This driver is not supported on kernel versions older than 2.6.32 and newer than 2.6.38)
 endif
 
 # Add DCB netlink source if our kernel is 2.6.23 or newer

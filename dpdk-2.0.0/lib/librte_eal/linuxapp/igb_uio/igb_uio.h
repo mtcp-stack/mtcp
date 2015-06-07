@@ -259,6 +259,7 @@ struct stats_struct {
 #define DEV_NAME		"dpdk-iface"
 /* sarray declaration */
 extern struct stats_struct sarrays[MAX_DEVICES][MAX_QID];
+extern struct stats_struct old_sarrays[MAX_DEVICES][MAX_QID];
 /*----------------------------------------------------------------------------*/
 /**
  * dummy function whenever a device is `opened'
@@ -281,12 +282,15 @@ netdev_stats(struct net_device *netdev)
 	
 	adapter = netdev_priv(netdev);
 	ifdx = adapter->bd_number;
+
+	adapter->nstats.rx_packets = adapter->nstats.tx_packets = 0;
+	adapter->nstats.rx_bytes = adapter->nstats.tx_bytes = 0;
 	
 	for (i = 0; i < MAX_QID; i++) {
-		adapter->nstats.rx_packets += sarrays[ifdx][i].rx_pkts;
-		adapter->nstats.rx_bytes += sarrays[ifdx][i].rx_bytes;
-		adapter->nstats.tx_packets += sarrays[ifdx][i].tx_pkts;
-		adapter->nstats.tx_bytes += sarrays[ifdx][i].tx_bytes;
+		adapter->nstats.rx_packets += sarrays[ifdx][i].rx_pkts + old_sarrays[ifdx][i].rx_pkts;
+		adapter->nstats.rx_bytes += sarrays[ifdx][i].rx_bytes + old_sarrays[ifdx][i].rx_bytes;
+		adapter->nstats.tx_packets += sarrays[ifdx][i].tx_pkts + old_sarrays[ifdx][i].tx_pkts;
+		adapter->nstats.tx_bytes += sarrays[ifdx][i].tx_bytes + old_sarrays[ifdx][i].tx_bytes;
 	}
 
 #if 0	
@@ -362,7 +366,7 @@ static const struct net_device_ops netdev_ops = {
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 15, 0)
         .ndo_set_vf_tx_rate     = NULL,
 #else
-	.ndo_set_vf_rate	= NULL,
+        .ndo_set_vf_rate        = NULL,
 #endif
         .ndo_set_vf_spoofchk    = NULL,
         .ndo_get_vf_config      = NULL,

@@ -60,6 +60,7 @@ struct rte_uio_pci_dev {
 static char *intr_mode = NULL;
 static enum rte_intr_mode igbuio_intr_mode_preferred = RTE_INTR_MODE_MSIX;
 struct stats_struct sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0}}};
+struct stats_struct old_sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0}}};
 
 static inline struct rte_uio_pci_dev *
 igbuio_get_uio_pci_dev(struct uio_info *info)
@@ -288,10 +289,11 @@ igbuio_dom0_mmap_phys(struct uio_info *info, struct vm_area_struct *vma)
 
 	idx = (int)vma->vm_pgoff;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3, 17, 0)
-	vma->vm_page_prot.pgprot |= _PAGE_IOMAP;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+        vma->vm_page_prot.pgprot |= _PAGE_IOMAP;
 #else
-	vma->vm_page_prot.pgprot |= _PAGE_SOFTW2;
+        vma->vm_page_prot.pgprot |= _PAGE_SOFTW2;
 #endif
 
 	return remap_pfn_range(vma,
@@ -691,6 +693,15 @@ update_stats(struct stats_struct __user *stats)
 {
 	uint8_t qid = stats->qid;
 	uint8_t device = stats->dev;
+
+	if (unlikely(sarrays[device][qid].rx_bytes > stats->rx_bytes ||
+		     sarrays[device][qid].tx_bytes > stats->tx_bytes)) {
+		/* mTCP app restarted?? */
+		old_sarrays[device][qid].rx_bytes += sarrays[device][qid].rx_bytes;
+		old_sarrays[device][qid].rx_pkts += sarrays[device][qid].rx_pkts;
+		old_sarrays[device][qid].tx_bytes += sarrays[device][qid].tx_bytes;
+		old_sarrays[device][qid].tx_pkts += sarrays[device][qid].tx_pkts;
+	}
 
 	sarrays[device][qid].rx_bytes = stats->rx_bytes;
 	sarrays[device][qid].rx_pkts = stats->rx_pkts;

@@ -741,6 +741,7 @@ Handle_TCP_ST_SYN_SENT (mtcp_manager_t mtcp, uint32_t cur_ts,
 			}
 			
 			cur_stream->sndvar->nrtx = 0;
+			cur_stream->rcv_nxt = cur_stream->rcvvar->irs + 1;
 			RemoveFromRTOList(mtcp, cur_stream);
 			cur_stream->state = TCP_ST_ESTABLISHED;
 			TRACE_STATE("Stream %d: TCP_ST_ESTABLISHED\n", cur_stream->id);
@@ -797,6 +798,7 @@ Handle_TCP_ST_SYN_RCVD (mtcp_manager_t mtcp, uint32_t cur_ts,
 		
 		//UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 		sndvar->nrtx = 0;
+		cur_stream->rcv_nxt = cur_stream->rcvvar->irs + 1;
 		RemoveFromRTOList(mtcp, cur_stream);
 
 		cur_stream->state = TCP_ST_ESTABLISHED;
@@ -866,7 +868,8 @@ Handle_TCP_ST_ESTABLISHED (mtcp_manager_t mtcp, uint32_t cur_ts,
 
 	if (tcph->fin) {
 		/* process the FIN only if the sequence is valid */
-		if (seq == cur_stream->rcv_nxt) {
+		/* FIN packet is allowed to push payload (should we check for PSH flag)? */
+		if (seq + payloadlen == cur_stream->rcv_nxt) {
 			cur_stream->state = TCP_ST_CLOSE_WAIT;
 			TRACE_STATE("Stream %d: TCP_ST_CLOSE_WAIT\n", cur_stream->id);
 			cur_stream->rcv_nxt++;
@@ -1013,7 +1016,8 @@ Handle_TCP_ST_FIN_WAIT_1 (mtcp_manager_t mtcp, uint32_t cur_ts,
 
 	if (tcph->fin) {
 		/* process the FIN only if the sequence is valid */
-		if (seq == cur_stream->rcv_nxt) {
+		/* FIN packet is allowed to push payload (should we check for PSH flag)? */
+		if (seq + payloadlen == cur_stream->rcv_nxt) {
 			cur_stream->rcv_nxt++;
 
 			if (cur_stream->state == TCP_ST_FIN_WAIT_1) {
@@ -1058,7 +1062,8 @@ Handle_TCP_ST_FIN_WAIT_2 (mtcp_manager_t mtcp, uint32_t cur_ts,
 
 	if (tcph->fin) {
 		/* process the FIN only if the sequence is valid */
-		if (seq == cur_stream->rcv_nxt) {
+		/* FIN packet is allowed to push payload (should we check for PSH flag)? */
+		if (seq + payloadlen == cur_stream->rcv_nxt) {
 			cur_stream->state = TCP_ST_TIME_WAIT;
 			cur_stream->rcv_nxt++;
 			TRACE_STATE("Stream %d: TCP_ST_TIME_WAIT\n", cur_stream->id);

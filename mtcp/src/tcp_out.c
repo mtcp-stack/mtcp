@@ -351,8 +351,11 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		return 0;
 	}
 
+	SBUF_LOCK(&sndvar->write_lock);
+
 	if (sndvar->sndbuf->len == 0) {
-		return 0;
+		packets = 0;
+		goto out;
 	}
 
 	window = MIN(sndvar->cwnd, sndvar->peer_wnd);
@@ -406,17 +409,21 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 					EnqueueACK(mtcp, cur_stream, cur_ts, ACK_OPT_WACK);
 				}
 			}
-			return -3;
+			packets = -3;
+			goto out;
 		}
 	
 		sndlen = SendTCPPacket(mtcp, cur_stream, cur_ts, 
 				TCP_FLAG_ACK, data, len);
 		if (sndlen < 0) {
-			return sndlen;
+			packets = sndlen;
+			goto out;
 		}
 		packets++;
 	}
 
+ out:
+	SBUF_UNLOCK(&sndvar->write_lock);
 	return packets;
 }
 /*----------------------------------------------------------------------------*/

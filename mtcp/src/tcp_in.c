@@ -1178,7 +1178,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	}
 
 	/* Validate sequence. if not valid, ignore the packet */
-	if (cur_stream->state >= TCP_ST_SYN_RCVD) {
+	if (cur_stream->state > TCP_ST_SYN_RCVD) {
 		ret = ValidateSequence(mtcp, cur_stream, 
 				cur_ts, tcph, seq, ack_seq, payloadlen);
 		if (!ret) {
@@ -1226,7 +1226,11 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 		break;
 
 	case TCP_ST_SYN_RCVD:
-		Handle_TCP_ST_SYN_RCVD(mtcp, cur_ts, cur_stream, tcph, ack_seq);
+		/* SYN retransmit implies our SYN/ACK was lost. Resend */
+		if (tcph->syn && seq == cur_stream->rcvvar->irs)
+			Handle_TCP_ST_LISTEN(mtcp, cur_ts, cur_stream, tcph);
+		else
+			Handle_TCP_ST_SYN_RCVD(mtcp, cur_ts, cur_stream, tcph, ack_seq);
 		break;
 
 	case TCP_ST_ESTABLISHED:

@@ -1549,6 +1549,15 @@ mtcp_init(char *config_file)
 	/* getting cpu and NIC */
 	num_cpus = GetNumCPUs();
 	assert(num_cpus >= 1);
+
+	if (num_cpus > MAX_CPUS) {
+		TRACE_ERROR("You cannot run mTCP with more than %d cores due "
+			    "to NIC hardware queues restriction. Please disable "
+			    "the last %d cores in your system\n",
+			    MAX_CPUS, num_cpus - MAX_CPUS);
+		exit(EXIT_FAILURE);
+	}
+	
 	for (i = 0; i < num_cpus; i++) {
 		g_mtcp[i] = NULL;
 		running[i] = FALSE;

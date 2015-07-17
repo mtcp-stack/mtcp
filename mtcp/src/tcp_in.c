@@ -141,7 +141,7 @@ ValidateSequence(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 
 	/* TCP sequence validation */
 	if (!TCP_SEQ_BETWEEN(seq + payloadlen, cur_stream->rcv_nxt, 
-				cur_stream->rcv_nxt + cur_stream->rcvvar->rcv_wnd - 1)) {
+				cur_stream->rcv_nxt + cur_stream->rcvvar->rcv_wnd)) {
 
 		/* if RST bit is set, ignore the segment */
 		if (tcph->rst)
@@ -586,7 +586,7 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 				rcvvar->rcvbuf, rcvvar->rcvbuf->merged_len, AT_MTCP);
 	}
 	cur_stream->rcv_nxt = rcvvar->rcvbuf->head_seq + rcvvar->rcvbuf->merged_len;
-	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - 1 - rcvvar->rcvbuf->last_len;
+	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - rcvvar->rcvbuf->merged_len;
 
 	SBUF_UNLOCK(&rcvvar->read_lock);
 

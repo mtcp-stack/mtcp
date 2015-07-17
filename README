@@ -117,7 +117,7 @@ mTCP can be prepared in two ways.
 	   - Press [9] to compile the package
       	   - Press [12] to install the driver
       	   - Press [16] to setup 1024 2MB hugepages
-      	   - Press [17] to register the Ethernet ports
+      	   - Press [18] to register the Ethernet ports
       	   - Press [30] to quit the tool
 
   - check that DPDK package creates a new directory of compiled

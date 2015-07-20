@@ -6,6 +6,7 @@
 #include "mtcp_api.h"
 #include "ps.h"
 #include "debug.h"
+#include "icmp.h"
 
 #define ETH_P_IP_FRAG   0xF800
 #define ETH_P_IPV6_FRAG 0xF6DD
@@ -42,6 +43,8 @@ ProcessIPv4Packet(mtcp_manager_t mtcp, uint32_t cur_ts,
 	switch (iph->protocol) {
 		case IPPROTO_TCP:
 			return ProcessTCPPacket(mtcp, cur_ts, iph, ip_len);
+		case IPPROTO_ICMP:
+			return ProcessICMPPacket(mtcp, iph, ip_len);
 		default:
 			/* currently drop other protocols */
 			return FALSE;

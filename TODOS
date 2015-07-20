@@ -4,13 +4,13 @@
 
 * Complete the multi-process support for mTCP-dpdk
 
-* Complete the ARP table submodule
-
-* Add ICMP submodule
-
 * Add I/O module for netmap
 
 * Add I/O module for libpcap
+
+* Add virtualization support for mTCP
+
+* Enable TCP SACK
 
 * Test with 1 Gbps links
 

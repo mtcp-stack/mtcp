@@ -42,8 +42,8 @@ struct tcp_recv_vars
 	uint32_t snd_wl2;		/* segment ack number for last window update */
 
 	/* variables for fast retransmission */
-	uint32_t last_ack_seq;	/* highest ackd seq */
 	uint8_t dup_acks;		/* number of duplicated acks */
+	uint32_t last_ack_seq;	/* highest ackd seq */
 	
 	/* timestamps */
 	uint32_t ts_recent;			/* recent peer timestamp */
@@ -87,7 +87,8 @@ struct tcp_send_vars
 	uint16_t mss;			/* maximum segment size */
 	uint16_t eff_mss;		/* effective segment size (excluding tcp option) */
 
-	uint8_t wscale;			/* window scale */
+	uint8_t wscale_mine;	/* my window scale (adertising window) */
+	uint8_t wscale_peer;	/* peer's window scale (advertised window) */
 	int8_t nif_out;			/* cached output network interface */
 	unsigned char *d_haddr;	/* cached destination MAC address */
 

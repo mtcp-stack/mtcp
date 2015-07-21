@@ -40,7 +40,7 @@ ParseTCPOptions(tcp_stream *cur_stream,
 				cur_stream->sndvar->eff_mss -= (TCP_OPT_TIMESTAMP_LEN + 2);
 #endif
 			} else if (opt == TCP_OPT_WSCALE) {
-				cur_stream->sndvar->wscale = *(tcpopt + i++);
+				cur_stream->sndvar->wscale_peer = *(tcpopt + i++);
 			} else if (opt == TCP_OPT_SACK_PERMIT) {
 				cur_stream->sack_permit = TRUE;
 				TRACE_SACK("Remote SACK permited.\n");

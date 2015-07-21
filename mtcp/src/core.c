@@ -1,9 +1,14 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <unistd.h>
 #include <sys/time.h>
 #include <semaphore.h>
 #include <sys/mman.h>
 #include <signal.h>
 #include <assert.h>
+#include <sched.h>
 
 #include "cpu.h"
 #include "ps.h"
@@ -79,9 +84,10 @@ HandleSignal(int signal)
 	int i = 0;
 
 	if (signal == SIGINT) {
-		int core = sched_getcpu();
+		int core;
 		struct timeval cur_ts;
 
+		core = sched_getcpu();
 		gettimeofday(&cur_ts, NULL);
 
 		if (sigint_cnt[core] > 0 && cur_ts.tv_sec > sigint_ts[core].tv_sec) {

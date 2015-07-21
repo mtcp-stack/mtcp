@@ -256,7 +256,8 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	
 	stream->sndvar->ip_id = 0;
 	stream->sndvar->mss = TCP_DEFAULT_MSS;
-	stream->sndvar->wscale = TCP_DEFAULT_WSCALE;
+	stream->sndvar->wscale_mine = TCP_DEFAULT_WSCALE;
+	stream->sndvar->wscale_peer = 0;
 	stream->sndvar->nif_out = GetOutputInterface(stream->daddr);
 
 	stream->sndvar->iss = rand() % TCP_MAX_SEQ;
@@ -560,9 +561,10 @@ DumpStream(mtcp_manager_t mtcp, tcp_stream *stream)
 
 	thread_printf(mtcp, mtcp->log_fp, "========== Send variables ==========\n");
 	thread_printf(mtcp, mtcp->log_fp, 
-			"ip_id: %u, mss: %u, eff_mss: %u, wscale: %u, nif_out: %d\n", 
+			"ip_id: %u, mss: %u, eff_mss: %u, wscale (me, peer): (%u, %u), "
+			"nif_out: %d\n", 
 			sndvar->ip_id, sndvar->mss, sndvar->eff_mss, 
-			sndvar->wscale, sndvar->nif_out);
+			sndvar->wscale_mine, sndvar->wscale_peer, sndvar->nif_out);
 	thread_printf(mtcp, mtcp->log_fp, 
 			"snd_nxt: %u, snd_una: %u, iss: %u, fss: %u\nsnd_wnd: %u, "
 			"peer_wnd: %u, cwnd: %u, ssthresh: %u\n", 

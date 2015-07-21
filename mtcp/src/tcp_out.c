@@ -111,7 +111,7 @@ GenerateTCPOptions(tcp_stream *cur_stream, uint32_t cur_ts,
 		tcpopt[i++] = TCP_OPT_NOP;
 		tcpopt[i++] = TCP_OPT_WSCALE;
 		tcpopt[i++] = TCP_OPT_WSCALE_LEN;
-		tcpopt[i++] = cur_stream->sndvar->wscale;
+		tcpopt[i++] = cur_stream->sndvar->wscale_mine;
 
 	} else {
 
@@ -283,7 +283,7 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	if (flags & TCP_FLAG_SYN) {
 		wscale = 0;
 	} else {
-		wscale = cur_stream->sndvar->wscale;
+		wscale = cur_stream->sndvar->wscale_mine;
 	}
 
 	window32 = cur_stream->rcvvar->rcv_wnd >> wscale;

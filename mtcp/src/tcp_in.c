@@ -314,7 +314,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 
 	cwindow = window;
 	if (!tcph->syn) {
-		cwindow = cwindow << sndvar->wscale;
+		cwindow = cwindow << sndvar->wscale_peer;
 	}
 	right_wnd_edge = sndvar->peer_wnd + cur_stream->rcvvar->snd_wl2;
 
@@ -1199,7 +1199,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 		cur_stream->sndvar->peer_wnd = window;
 	} else {
 		cur_stream->sndvar->peer_wnd = 
-				(uint32_t)window << cur_stream->sndvar->wscale;
+				(uint32_t)window << cur_stream->sndvar->wscale_peer;
 	}
 				
 	cur_stream->last_active_ts = cur_ts;

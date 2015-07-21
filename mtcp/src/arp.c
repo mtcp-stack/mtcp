@@ -118,7 +118,7 @@ GetDestinationHWaddr(uint32_t dip)
 /*----------------------------------------------------------------------------*/
 static int 
 ARPOutput(struct mtcp_manager *mtcp, int nif, int opcode,
-		uint32_t dst_ip, unsigned char *dst_haddr)
+		uint32_t dst_ip, unsigned char *dst_haddr, unsigned char *target_haddr)
 {
 	if (!dst_haddr)
 		return -1;
@@ -141,7 +141,11 @@ ARPOutput(struct mtcp_manager *mtcp, int nif, int opcode,
 	arph->ar_tip = dst_ip;
 
 	memcpy(arph->ar_sha, CONFIG.eths[nif].haddr, arph->ar_hln);
-	memcpy(arph->ar_tha, dst_haddr, arph->ar_hln);
+	if (target_haddr) {
+		memcpy(arph->ar_tha, target_haddr, arph->ar_hln);
+	} else {
+		memcpy(arph->ar_tha, dst_haddr, arph->ar_hln);
+	}
 
 #if DBGMSG
 	DumpARPPacket(arph);
@@ -174,6 +178,7 @@ RequestARP(mtcp_manager_t mtcp, uint32_t ip, int nif, uint32_t cur_ts)
 {
 	struct arp_queue_entry *ent;
 	unsigned char haddr[ETH_ALEN];
+	unsigned char taddr[ETH_ALEN];
 
 	/* if the arp request is in progress, return */
 	TAILQ_FOREACH(ent, &arpm.list, arp_link) {
@@ -189,7 +194,8 @@ RequestARP(mtcp_manager_t mtcp, uint32_t ip, int nif, uint32_t cur_ts)
 
 	/* else, broadcast arp request */
 	memset(haddr, 0xFF, ETH_ALEN);
-	ARPOutput(mtcp, nif, arp_op_request, ip, haddr);
+	memset(taddr, 0x00, ETH_ALEN);
+	ARPOutput(mtcp, nif, arp_op_request, ip, haddr, taddr);
 }
 /*----------------------------------------------------------------------------*/
 static int 
@@ -205,7 +211,7 @@ ProcessARPRequest(mtcp_manager_t mtcp,
 	}
 
 	/* send arp reply */
-	ARPOutput(mtcp, nif, arp_op_reply, arph->ar_sip, arph->ar_sha);
+	ARPOutput(mtcp, nif, arp_op_reply, arph->ar_sip, arph->ar_sha, NULL);
 
 	return 0;
 }
@@ -272,15 +278,17 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 	return TRUE;
 }
 /*----------------------------------------------------------------------------*/
-// Publish my address
+#if 0
+// Publish my address (obsolete)
 void 
 PublishARP(mtcp_manager_t mtcp)
 {
 	int i;
 	for (i = 0; i < CONFIG.eths_num; i++) {
-		ARPOutput(mtcp, CONFIG.eths[i].ifindex, arp_op_request, 0, NULL);
+		ARPOutput(mtcp, CONFIG.eths[i].ifindex, arp_op_request, 0, NULL, NULL);
 	}
 }
+#endif
 /*----------------------------------------------------------------------------*/
 void
 PrintARPTable()
@@ -316,7 +324,7 @@ DumpARPPacket(struct arphdr *arph)
 	uint8_t *t;
 
 	fprintf(stderr, "ARP header: \n");
-	fprintf(stderr, "Hareware type: %d (len: %d), "
+	fprintf(stderr, "Hardware type: %d (len: %d), "
 			"protocol type: %d (len: %d), opcode: %d\n", 
 			ntohs(arph->ar_hrd), arph->ar_hln, 
 			ntohs(arph->ar_pro), arph->ar_pln, ntohs(arph->ar_op));

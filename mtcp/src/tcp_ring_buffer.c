@@ -13,12 +13,6 @@
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
 
-#define TCP_SEQ_LT(a,b)         ((int32_t)((a)-(b)) < 0)
-#define TCP_SEQ_LEQ(a,b)        ((int32_t)((a)-(b)) <= 0)
-#define TCP_SEQ_GT(a,b)         ((int32_t)((a)-(b)) > 0)
-#define TCP_SEQ_GEQ(a,b)        ((int32_t)((a)-(b)) >= 0)
-#define TCP_SEQ_BETWEEN(a,b,c)  (TCP_SEQ_GEQ(a,b) && TCP_SEQ_LEQ(a,c))
-
 /*----------------------------------------------------------------------------*/
 struct rb_manager
 {
@@ -279,16 +273,16 @@ RBPut(rb_manager_t rbm, struct tcp_ring_buffer* buff,
 	if (len <= 0)
 		return 0;
 
-    // if data offset is smaller than head sequence, then drop
-	if (TCP_SEQ_LT(cur_seq, buff->head_seq))
-        return 0;
+	// if data offset is smaller than head sequence, then drop
+	if (GetMinSeq(buff->head_seq, cur_seq) != buff->head_seq)
+		return 0;
 
-    putx = cur_seq - buff->head_seq;
+	putx = cur_seq - buff->head_seq;
 	end_off = putx + len;
 	if (buff->size < end_off) {
 		return -2;
 	}
-
+	
 	// if buffer is at tail, move the data to the first of head
 	if (buff->size <= (buff->head_offset + end_off)) {
 		memmove(buff->data, buff->head, buff->last_len);

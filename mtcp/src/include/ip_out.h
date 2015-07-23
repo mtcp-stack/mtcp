@@ -11,7 +11,7 @@ void
 ForwardIPv4Packet(mtcp_manager_t mtcp, int nif_in, char *buf, int len);
 
 uint8_t *
-IPOutputStandalone(struct mtcp_manager *mtcp, 
+IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol, 
 		uint16_t ip_id, uint32_t saddr, uint32_t daddr, uint16_t tcplen);
 
 uint8_t *

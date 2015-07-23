@@ -33,8 +33,8 @@ GetOutputInterface(uint32_t daddr)
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
-IPOutputStandalone(struct mtcp_manager *mtcp, 
-		uint16_t ip_id, uint32_t saddr, uint32_t daddr, uint16_t tcplen)
+IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol, 
+		uint16_t ip_id, uint32_t saddr, uint32_t daddr, uint16_t payloadlen)
 {
 	struct iphdr *iph;
 	int nif;
@@ -57,7 +57,7 @@ IPOutputStandalone(struct mtcp_manager *mtcp,
 	}
 	
 	iph = (struct iphdr *)EthernetOutput(mtcp, 
-			ETH_P_IP, nif, haddr, tcplen + IP_HEADER_LEN);
+			ETH_P_IP, nif, haddr, payloadlen + IP_HEADER_LEN);
 	if (!iph) {
 		return NULL;
 	}
@@ -65,11 +65,11 @@ IPOutputStandalone(struct mtcp_manager *mtcp,
 	iph->ihl = IP_HEADER_LEN >> 2;
 	iph->version = 4;
 	iph->tos = 0;
-	iph->tot_len = htons(IP_HEADER_LEN + tcplen);
+	iph->tot_len = htons(IP_HEADER_LEN + payloadlen);
 	iph->id = htons(ip_id);
-	iph->frag_off = htons(0x4000);	// no fragmentation
+	iph->frag_off = htons(IP_DF);	// no fragmentation
 	iph->ttl = 64;
-	iph->protocol = IPPROTO_TCP;
+	iph->protocol = protocol;
 	iph->saddr = saddr;
 	iph->daddr = daddr;
 	iph->check = 0;

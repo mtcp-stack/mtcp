@@ -12,6 +12,9 @@
 
 #define IP_NEXT_PTR(iph) ((uint8_t *)iph + (iph->ihl << 2))
 /*----------------------------------------------------------------------------*/
+void 
+DumpICMPPacket(struct icmphdr *icmph, uint32_t saddr, uint32_t daddr);
+/*----------------------------------------------------------------------------*/
 static uint16_t
 ICMPChecksum(uint16_t *icmph, int len)
 {
@@ -38,58 +41,17 @@ ICMPChecksum(uint16_t *icmph, int len)
 	return ret; 
 }
 /*----------------------------------------------------------------------------*/
-static uint8_t*
+static int
 ICMPOutput(struct mtcp_manager *mtcp, uint32_t saddr, uint32_t daddr,
 	   uint8_t icmp_type, uint8_t icmp_code, uint16_t icmp_id, uint16_t icmp_seq,
 	   uint8_t *icmpd, uint16_t len)
 {
-	struct iphdr *iph;
-	int32_t nif;
-	uint8_t *haddr;
 	struct icmphdr *icmph;
-	uint32_t pktlen = sizeof(struct iphdr) + sizeof(struct icmphdr) + len;
 	
-	/* Get hardware interface to forward the packet*/
-	nif = GetOutputInterface(daddr);
-	if (nif < 0)
-		return (uint8_t *) ERROR;
-	
-	/* Get next hop MAC address */
-	haddr = GetDestinationHWaddr(daddr);
-	if (!haddr) {
-		uint8_t *da = (uint8_t *)&daddr;
-		TRACE_INFO("[WARNING] The destination IP %u.%u.%u.%u "
-			   "is not in ARP table!\n",
-			   da[0], da[1], da[2], da[3]);
-		
-		RequestARP(mtcp, daddr, nif, mtcp->cur_ts);
-		haddr = GetDestinationHWaddr(daddr);
-	}
-	
-	/* Check if we have valid next hop address */
-	if(!haddr)
-		return (uint8_t *) ERROR;
-	
-	/* Allocate a buffer */
-	iph = (struct iphdr *)EthernetOutput(mtcp, ETH_P_IP, nif, haddr, pktlen);
-	if (!iph)
-		return (uint8_t *) ERROR;
-	
-	/* Fill in the ip header */
-	iph->ihl = IP_HEADER_LEN >> 2;
-	iph->version = 4;
-	iph->tos = 0;
-	iph->tot_len = htons(pktlen);
-	iph->id = htons(0);
-	iph->frag_off = htons(IP_DF);
-	iph->ttl = 64;
-	iph->protocol = IPPROTO_ICMP;
-	iph->saddr = saddr;
-	iph->daddr = daddr;
-	iph->check = 0;
-	iph->check = ip_fast_csum(iph, iph->ihl);
-	
-	icmph = (struct icmphdr *) IP_NEXT_PTR(iph);
+	icmph = (struct icmphdr *)IPOutputStandalone(mtcp, 
+			IPPROTO_ICMP, 0, saddr, daddr, sizeof(struct icmphdr) + len);
+	if (!icmph)
+		return -1;
 	
 	/* Fill in the icmp header */
 	icmph->icmp_type = icmp_type;
@@ -99,8 +61,8 @@ ICMPOutput(struct mtcp_manager *mtcp, uint32_t saddr, uint32_t daddr,
 	ICMP_ECHO_SET_SEQ(icmph, htons(icmp_seq));
 	
 	/* Fill in the icmp data */
-	if(len > 0)
-		memcpy((void *) (icmph + 1), icmpd, len);
+	if (len > 0)
+		memcpy((void *)(icmph + 1), icmpd, len);
 	
 	/* Calculate ICMP Checksum with header and data */
 	icmph->icmp_checksum = 
@@ -109,7 +71,7 @@ ICMPOutput(struct mtcp_manager *mtcp, uint32_t saddr, uint32_t daddr,
 #if DBGMSG
 	DumpICMPPacket(icmph, saddr, daddr);
 #endif
-	return (uint8_t *)(iph + 1);
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 void
@@ -188,7 +150,7 @@ DumpICMPPacket(struct icmphdr *icmph, uint32_t saddr, uint32_t daddr)
 	fprintf(stderr, "Type: %d, "
 		"Code: %d, ID: %d, Sequence: %d\n", 
 		icmph->icmp_type, icmph->icmp_code,
-		ICMP_ECHO_GET_ID(icmph), ICMP_ECHO_GET_SEQ(icmph));
+		ntohs(ICMP_ECHO_GET_ID(icmph)), ntohs(ICMP_ECHO_GET_SEQ(icmph)));
 	
 	t = (uint8_t *)&saddr;
 	fprintf(stderr, "Sender IP: %u.%u.%u.%u\n",

@@ -39,7 +39,6 @@
 #define RX_THRESH (PS_CHUNK_SIZE * 0.8)
 
 #define ROUND_STAT FALSE
-#define TIME_STAT FALSE
 #define EVENT_STAT FALSE
 #define TESTING FALSE
 
@@ -220,32 +219,6 @@ PrintThreadRoundStats(mtcp_manager_t mtcp, struct run_stat *rs)
 }
 #endif /* ROUND_STAT */
 /*----------------------------------------------------------------------------*/
-#if TIME_STAT
-static inline void
-PrintThreadRoundTime(mtcp_manager_t mtcp)
-{
-	fprintf(stderr, "[CPU%2d] Time: (avg, max) "
-			"round: (%4luus, %4luus), processing: (%4luus, %4luus), "
-			"tcheck: (%4luus, %4luus), epoll: (%4luus, %4luus), "
-			"handle: (%4luus, %4luus), xmit: (%4luus, %4luus), "
-			"select: (%4luus, %4luus)\n", mtcp->ctx->cpu, 
-			GetAverageStat(&mtcp->rtstat.round), mtcp->rtstat.round.max, 
-			GetAverageStat(&mtcp->rtstat.processing), mtcp->rtstat.processing.max, 
-			GetAverageStat(&mtcp->rtstat.tcheck), mtcp->rtstat.tcheck.max, 
-			GetAverageStat(&mtcp->rtstat.epoll), mtcp->rtstat.epoll.max, 
-			GetAverageStat(&mtcp->rtstat.handle), mtcp->rtstat.handle.max, 
-			GetAverageStat(&mtcp->rtstat.xmit), mtcp->rtstat.xmit.max, 
-			GetAverageStat(&mtcp->rtstat.select), mtcp->rtstat.select.max);
-	
-	InitStatCounter(&mtcp->rtstat.round);
-	InitStatCounter(&mtcp->rtstat.processing);
-	InitStatCounter(&mtcp->rtstat.tcheck);
-	InitStatCounter(&mtcp->rtstat.epoll);
-	InitStatCounter(&mtcp->rtstat.handle);
-	InitStatCounter(&mtcp->rtstat.xmit);
-	InitStatCounter(&mtcp->rtstat.select);
-}
-#endif
 #endif /* NETSTAT */
 /*----------------------------------------------------------------------------*/
 #if EVENT_STAT
@@ -342,14 +315,6 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 			g_runstat.rounds_select_rx, g_runstat.rounds_select_tx);
 #endif
 #endif /* ROUND_STAT */
-
-#if TIME_STAT
-	for (i = 0; i < CONFIG.num_cores; i++) {
-		if (running[i]) {
-			PrintThreadRoundTime(g_mtcp[i]);
-		}
-	}
-#endif
 
 #if EVENT_STAT
 	for (i = 0; i < CONFIG.num_cores; i++) {
@@ -758,48 +723,13 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 	mtcp_manager_t mtcp = ctx->mtcp_manager;
 	int i;
 	int recv_cnt;
-	
-#if E_PSIO
 	int rx_inf, tx_inf;
-#endif
-
 	struct timeval cur_ts = {0};
 	uint32_t ts, ts_prev;
-
-#if TIME_STAT
-	struct timeval prev_ts, processing_ts, tcheck_ts, 
-				   epoll_ts, handle_ts, xmit_ts, select_ts;
-#endif
 	int thresh;
 
 	gettimeofday(&cur_ts, NULL);
-
-#if E_PSIO
-	/* do nothing */
-#else
-#if !USE_CHUNK_BUF
-	/* create packet write chunk */
-	InitWriteChunks(handle, ctx->w_chunk);
-	for (i = 0; i < ETH_NUM; i++) {
-		ctx->w_chunk[i].cnt = 0;
-		ctx->w_off[i] = 0;
-		ctx->w_cur_idx[i] = 0;
-	}
-#endif
-#endif
-
 	TRACE_DBG("CPU %d: mtcp thread running.\n", ctx->cpu);
-
-#if TIME_STAT
-	prev_ts = cur_ts;
-	InitStatCounter(&mtcp->rtstat.round);
-	InitStatCounter(&mtcp->rtstat.processing);
-	InitStatCounter(&mtcp->rtstat.tcheck);
-	InitStatCounter(&mtcp->rtstat.epoll);
-	InitStatCounter(&mtcp->rtstat.handle);
-	InitStatCounter(&mtcp->rtstat.xmit);
-	InitStatCounter(&mtcp->rtstat.select);
-#endif
 
 	ts = ts_prev = 0;
 	while ((!ctx->done || mtcp->flow_cnt) && !ctx->exit) {
@@ -807,21 +737,7 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		STAT_COUNT(mtcp->runstat.rounds);
 		recv_cnt = 0;
 			
-#if E_PSIO
-#if 0
-		event.timeout = PS_SELECT_TIMEOUT;
-		NID_ZERO(event.rx_nids);
-		NID_ZERO(event.tx_nids);
-		NID_ZERO(rx_avail);
-		//NID_ZERO(tx_avail);
-#endif
 		gettimeofday(&cur_ts, NULL);
-#if TIME_STAT
-		/* measure the inter-round delay */
-		UpdateStatCounter(&mtcp->rtstat.round, TimeDiffUs(&cur_ts, &prev_ts));
-		prev_ts = cur_ts;
-#endif
-
 		ts = TIMEVAL_TO_TS(&cur_ts);
 		mtcp->cur_ts = ts;
 
@@ -838,44 +754,6 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			}
 		}
 		STAT_COUNT(mtcp->runstat.rounds_rx);
-
-#else /* E_PSIO */
-		gettimeofday(&cur_ts, NULL);
-		ts = TIMEVAL_TO_TS(&cur_ts);
-		mtcp->cur_ts = ts;
-		/*
-		 * Read packets into a chunk from NIC
-		 * chk_w_idx : next chunk index to write packets from NIC
-		 */
-
-		STAT_COUNT(mtcp->runstat.rounds_rx_try);
-		chunk.cnt = PS_CHUNK_SIZE;
-		recv_cnt = ps_recv_chunk(handle, &chunk);
-		if (recv_cnt < 0) {
-			if (errno != EAGAIN && errno != EINTR) {
-				perror("ps_recv_chunk");
-				assert(0);
-			}
-		}
-
-		/* 
-		 * Handling Packets 
-		 * chk_r_idx : next chunk index to read and handle
-		*/
-		for (i = 0; i < recv_cnt; i++) {
-			ProcessPacket(mtcp, chunk.queue.ifindex, ts, 
-					(u_char *)(chunk.buf + chunk.info[i].offset), 
-					chunk.info[i].len);
-		}
-
-		if (recv_cnt > 0)
-			STAT_COUNT(mtcp->runstat.rounds_rx);
-#endif /* E_PSIO */
-#if TIME_STAT
-		gettimeofday(&processing_ts, NULL);
-		UpdateStatCounter(&mtcp->rtstat.processing, 
-				TimeDiffUs(&processing_ts, &cur_ts));
-#endif /* TIME_STAT */
 
 		/* interaction with application */
 		if (mtcp->flow_cnt > 0) {
@@ -903,87 +781,25 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			if (CONFIG.tcp_timeout > 0 && ts != ts_prev) {
 				CheckConnectionTimeout(mtcp, ts, thresh);
 			}
-
-#if TIME_STAT
-		}
-		gettimeofday(&tcheck_ts, NULL);
-		UpdateStatCounter(&mtcp->rtstat.tcheck, 
-				TimeDiffUs(&tcheck_ts, &processing_ts));
-
-		if (mtcp->flow_cnt > 0) {
-#endif /* TIME_STAT */
-
-#if BLOCKING_SUPPORT
-			/* notify accept events if there is incoming connection */
-			if (mtcp->listener) {
-				FlushAcceptEvents(mtcp);
-			}
-
-			thresh = (int)mtcp->flow_cnt / (TS_TO_USEC(PER_STREAM_SLICE));
-			if (thresh == 0)
-				thresh = 1;
-			if (recv_cnt > 0 && thresh > recv_cnt)
-				thresh = recv_cnt;
-
-			/* notify read/write events to application */
-			FlushWriteEvents(mtcp, thresh);
-			FlushReadEvents(mtcp, thresh);
-#endif
 		}
 
 		/* if epoll is in use, flush all the queued events */
 		if (mtcp->ep) {
 			FlushEpollEvents(mtcp, ts);
 		}
-#if TIME_STAT
-		gettimeofday(&epoll_ts, NULL);
-		UpdateStatCounter(&mtcp->rtstat.epoll, 
-				TimeDiffUs(&epoll_ts, &tcheck_ts));
-#endif /* TIME_STAT */
 
 		if (mtcp->flow_cnt > 0) {
 			/* hadnle stream queues  */
 			HandleApplicationCalls(mtcp, ts);
 		}
 
-#if TIME_STAT
-		gettimeofday(&handle_ts, NULL);
-		UpdateStatCounter(&mtcp->rtstat.handle, 
-				TimeDiffUs(&handle_ts, &epoll_ts));
-#endif /* TIME_STAT */
-
 		WritePacketsToChunks(mtcp, ts);
 
 		/* send packets from write buffer */
-#if E_PSIO
-		/* With E_PSIO, send until tx is available */
+		/* send until tx is available */
 		for (tx_inf = 0; tx_inf < CONFIG.eths_num; tx_inf++) {
 			mtcp->iom->send_pkts(ctx, tx_inf);
 		}
-
-#else /* E_PSIO */
-		/* Without E_PSIO, try send chunks immediately */
-		for (i = 0; i < CONFIG.eths_num; i++) {
-#if USE_CHUNK_BUF
-			/* in the case of using ps_send_chunk_buf() without E_PSIO */
-			ret = FlushSendChunkBuf(mtcp, i);
-#else
-			/* if not using ps_send_chunk_buf() */
-			ret = FlushWriteBuffer(ctx, i);
-#endif
-			if (ret < 0) {
-				TRACE_ERROR("Failed to send chunks.\n");
-			} else if (ret > 0) {
-				STAT_COUNT(mtcp->runstat.rounds_tx);
-			}
-		}
-#endif /* E_PSIO */
-
-#if TIME_STAT
-		gettimeofday(&xmit_ts, NULL);
-		UpdateStatCounter(&mtcp->rtstat.xmit, 
-				TimeDiffUs(&xmit_ts, &handle_ts));
-#endif /* TIME_STAT */
 
 		if (ts != ts_prev) {
 			ts_prev = ts;

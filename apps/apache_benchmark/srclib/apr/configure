@@ -747,6 +747,12 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+LIBDPDK_LIBS
+LIBDPDK_CFLAGS
+LIBPSIO_LIBS
+LIBPSIO_CFLAGS
+LIBMTCP_LIBS
+LIBMTCP_CFLAGS
 INCLUDE_OUTPUTS
 INCLUDE_RULES
 LT_NO_INSTALL
@@ -1040,6 +1046,8 @@ enable_other_child
 with_egd
 with_devrandom
 with_libmtcp
+with_libpsio
+with_libdpdk
 enable_ipv6
 '
       ac_precious_vars='build_alias
@@ -1704,7 +1712,9 @@ Optional Packages:
   --with-sendfile         Override decision to use sendfile
   --with-egd[=DIR]        use EGD-compatible socket
   --with-devrandom[=DEV]  use /dev/random or compatible [searches by default]
-  --with-libmtcp          support mtcp library
+  --with-libmtcp[=PATH]   Include libmtcp support in PATH/include and PATH/lib
+  --with-libpsio[=PATH]   Include libpsio support in PATH/include and PATH/lib
+  --with-libdpdk[=PATH]   Include libdpdk support in PATH/include and PATH/lib
 
 Some influential environment variables:
   CC          C compiler command
@@ -34097,94 +34107,103 @@ fi
 done
 
 
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for mtcp support" >&5
-$as_echo_n "checking for mtcp support... " >&6; }
+###############################################################
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for mtcp support (multhreading mode enabled)" >&5
+$as_echo_n "checking for mtcp support (multhreading mode enabled)... " >&6; }
 
 # Check whether --with-libmtcp was given.
 if test "${with_libmtcp+set}" = set; then :
-  withval=$with_libmtcp; use_mtcp=$withval
+  withval=$with_libmtcp; WITH_LIBMTCP=$withval
 else
-  use_mtcp=no
+  WITH_LIBMTCP=no
 fi
 
 
-if test "$use_mtcp" != "no"; then
+LIBMTCP_CFLAGS=""
+LIBMTCP_LIBS=""
 
+if test "$WITH_LIBMTCP" != "no"; then
+	LIBMTCP_CFLAGS="-I$WITH_LIBMTCP/lib/ -I$WITH_LIBMTCP/src/include/ -DMULTI_THREADED"
+	LIBMTCP_LIBS="-L$WITH_LIBMTCP/lib/ -lpthread -lnuma -lrt -lmtcp"
+	CFLAGS="${CFLAGS} ${LIBMTCP_CFLAGS}"
+	LDFLAGS="${LDFLAGS} ${LIBMTCP_LIBS}"
+
+$as_echo "#define HAVE_LIBMTCP 1" >>confdefs.h
 $as_echo "#define HAVE_MTCP 1" >>confdefs.h
 
-
-  if test "x$INCLUDES" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting INCLUDES to \"-I$top_builddir/../../../../mtcp/include -I$top_builddir/../../../../io_engine\""
-    INCLUDES="-I$top_builddir/../../../../mtcp/include -I$top_builddir/../../../../io_engine"
-  else
-    apr_addto_bugger="-I$top_builddir/../../../../mtcp/include -I$top_builddir/../../../../io_engine"
-    for i in $apr_addto_bugger; do
-      apr_addto_duplicate="0"
-      for j in $INCLUDES; do
-        if test "x$i" = "x$j"; then
-          apr_addto_duplicate="1"
-          break
-        fi
-      done
-      if test $apr_addto_duplicate = "0"; then
-        test "x$silent" != "xyes" && echo "  adding \"$i\" to INCLUDES"
-        INCLUDES="$INCLUDES $i"
-      fi
-    done
-  fi
-
-
-  if test "x$LDFLAGS" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting LDFLAGS to \"-L$top_builddir/../../../../mtcp/lib -L$top_builddir/../../../../io_engine/lib\""
-    LDFLAGS="-L$top_builddir/../../../../mtcp/lib -L$top_builddir/../../../../io_engine/lib"
-  else
-    apr_addto_bugger="-L$top_builddir/../../../../mtcp/lib -L$top_builddir/../../../../io_engine/lib"
-    for i in $apr_addto_bugger; do
-      apr_addto_duplicate="0"
-      for j in $LDFLAGS; do
-        if test "x$i" = "x$j"; then
-          apr_addto_duplicate="1"
-          break
-        fi
-      done
-      if test $apr_addto_duplicate = "0"; then
-        test "x$silent" != "xyes" && echo "  adding \"$i\" to LDFLAGS"
-        LDFLAGS="$LDFLAGS $i"
-      fi
-    done
-  fi
-
-
-  if test "x$LIBS" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting LIBS to \"-lps -lmtcp -lnuma\""
-    LIBS="-lps -lmtcp -lnuma"
-  else
-    apr_addto_bugger="-lps -lmtcp -lnuma"
-    for i in $apr_addto_bugger; do
-      apr_addto_duplicate="0"
-      for j in $LIBS; do
-        if test "x$i" = "x$j"; then
-          apr_addto_duplicate="1"
-          break
-        fi
-      done
-      if test $apr_addto_duplicate = "0"; then
-        test "x$silent" != "xyes" && echo "  adding \"$i\" to LIBS"
-        LIBS="$LIBS $i"
-      fi
-    done
-  fi
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
 
 
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for psio support" >&5
+$as_echo_n "checking for psio support... " >&6; }
+
+# Check whether --with-libpsio was given.
+if test "${with_libpsio+set}" = set; then :
+  withval=$with_libpsio; WITH_LIBPSIO=$withval
+else
+  WITH_LIBPSIO=no
+fi
+
+
+LIBPSIO_CFLAGS=""
+LIBPSIO_LIBS=""
+
+if test "$WITH_LIBPSIO" != "no"; then
+	LIBPSIO_CFLAGS="-I$WITH_LIBPSIO/include/"
+	LIBPSIO_LIBS="$WITH_LIBPSIO/lib/libps.a"
+	CFLAGS="${CFLAGS} ${LIBPSIO_CFLAGS}"
+#	LDFLAGS="${LDFLAGS} ${LIBPSIO_LIBS}"
+
+$as_echo "#define HAVE_LIBPSIO 1" >>confdefs.h
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dpdk support" >&5
+$as_echo_n "checking for dpdk support... " >&6; }
+
+# Check whether --with-libdpdk was given.
+if test "${with_libdpdk+set}" = set; then :
+  withval=$with_libdpdk; WITH_LIBDPDK=$withval
+else
+  WITH_LIBDPDK=no
+fi
+
+
+LIBDPDK_CFLAGS=""
+LIBDPDK_LIBS=""
+
+if test "$WITH_LIBDPDK" != "no"; then
+	DPDK_MACHINE_FLAGS=$(shell cat $WITH_LIBDPDK/include/cflags.txt)
+	LIBDPDK_CFLAGS="$DPDK_MACHINE_FLAGS -I$WITH_LIBDPDK/include/"
+#	LIBDPDK_LIBS="-L$WITH_LIBDPDK/lib/ -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic -Wl,-lnuma -Wl,-lpthread -Wl,-lmtcp -Wl,-lrt -Wl,-ldl -Wl,--whole-archive -Wl,-lrte_distributor -Wl,-lrte_kni -Wl,-lrte_pipeline -Wl,-lrte_table -Wl,-lrte_port -Wl,-lrte_timer -Wl,-lrte_hash -Wl,-lrte_lpm -Wl,-lrte_power -Wl,-lrte_acl -Wl,-lrte_meter -Wl,-lrte_sched -Wl,-lm -Wl,-lrt -Wl,--start-group -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_ip_frag -Wl,-lethdev -Wl,-lrte_malloc -Wl,-lrte_mempool -Wl,-lrte_ring -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_cfgfile -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_pmd_virtio_uio -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ring -Wl,-lrt -Wl,-lm -Wl,-ldl -Wl,--end-group -Wl,--no-whole-archive"
+#	CFLAGS="${CFLAGS} ${LIBDPDK_CFLAGS}"
+#	LDFLAGS="${LDFLAGS} ${LIBDPDK_LIBS}"
+
+$as_echo "#define HAVE_LIBDPDK 1" >>confdefs.h
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+###############################################################
 
 echo "${nl}Checking for IPv6 Networking support..."
 

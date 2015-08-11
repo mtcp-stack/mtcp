@@ -679,7 +679,7 @@ int core_affinitize(int core){
     char sysfname[MAX_FILE_NAME];
     int phy_id;
 
-	n = numa_num_configured_cpus();
+    n = sysconf(_SC_NPROCESSORS_ONLN);
 
 	if (core < 0 || core >= (int) n) {
 		errno = -EINVAL;

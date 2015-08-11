@@ -15,8 +15,19 @@ systems. See the section "Usage" for detailed instruction for using it.
 If you want to use ab with mTCP, 
   run configure with "--with-libmtcp" option.
 
- $ ./configure --with-libmtcp
+-FOR DPDK VERSION-
+ $ ./configure --with-libmtcp=${PATH_TO_LIBMTCP} \
+    --with-libdpdk=${PATH_TO_LIBDPDK}
 
+-FOR PSIO VERSION-
+ $ ./configure --with-libmtcp=${PATH_TO_LIBMTCP} \
+    --with-libpsio=${PATH_TO_LIBPSIO}
+
+  (e.g.
+	$ ./configure CFLAGS="-g -O3" \
+	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
+  )
 
 Without this option, you can use multi-threaded version of ab.
 

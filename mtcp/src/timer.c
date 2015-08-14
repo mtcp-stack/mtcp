@@ -214,13 +214,18 @@ HandleRTO(mtcp_manager_t mtcp, uint32_t cur_ts, tcp_stream *cur_stream)
 		backoff = MIN(cur_stream->sndvar->nrtx, TCP_MAX_BACKOFF);
 
 		rto_prev = cur_stream->sndvar->rto;
-		cur_stream->sndvar->rto = 
-				((cur_stream->rcvvar->srtt >> 3) + cur_stream->rcvvar->rttvar) << backoff;
+		cur_stream->sndvar->rto = ((cur_stream->rcvvar->srtt >> 3) + 
+				cur_stream->rcvvar->rttvar) << backoff;
 		if (cur_stream->sndvar->rto <= 0) {
 			TRACE_RTO("Stream %d current rto: %u, prev: %u, state: %s\n", 
 					cur_stream->id, cur_stream->sndvar->rto, rto_prev, 
 					TCPStateToString(cur_stream));
 			cur_stream->sndvar->rto = rto_prev;
+		}
+	} else if (cur_stream->state >= TCP_ST_SYN_SENT) {
+		/* if there is no rtt measured, update rto based on the previous one */
+		if (cur_stream->sndvar->nrtx < TCP_MAX_BACKOFF) {
+			cur_stream->sndvar->rto <<= 1;
 		}
 	}
 	//cur_stream->sndvar->ts_rto = cur_ts + cur_stream->sndvar->rto;

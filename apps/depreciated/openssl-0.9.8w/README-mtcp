@@ -1,0 +1,19 @@
+=======================================
+Configure & Compile
+=======================================
+1. Basic configuratation & Installation
+ $./config
+ $make
+ $make install
+
+2. Using mTCP
+  You have to configure with "--with-libmtcp" and "--with-libpsio" option. You have to specify the your mTCP and PSIO library paths. These paths should be absolute.
+  You also have to give 'threads' option to support multithreading.
+  $./config --with-libmtcp=${MTCP_DIR} --with-libpsio=${PSIO_DIR} threads 
+
+  Example of config command is given below. Here, I added "--prefix" option to specify install path, because I wanted to keep the original openSSL at /usr/local/lib.
+  (Example)
+  $./config --with-libmtcp=/home/user/mtcp/mtcp --with-libpsio=/home/user/mtcp/io_engine --prefix=/home/user/openssl_m threads
+
+  
+

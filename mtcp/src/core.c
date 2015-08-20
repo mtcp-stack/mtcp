@@ -69,13 +69,7 @@ mtcp_sighandler_t app_signal_handler;
 static int sigint_cnt[MAX_CPUS];
 static struct timeval sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
-#ifdef NETSTAT
-#if NETSTAT_TOTAL
-static int printer = -1;
-#if ROUND_STAT
-#endif /* ROUND_STAT */
-#endif /* NETSTAT_TOTAL */
-#endif /* NETSTAT */
+static int mtcp_master = -1;
 /*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
@@ -803,11 +797,10 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 		if (ts != ts_prev) {
 			ts_prev = ts;
-#ifdef NETSTAT
-			if (ctx->cpu == printer) {
+			if (ctx->cpu == mtcp_master) {
+				ARPTimer(mtcp, ts);
 				PrintNetworkStats(mtcp, ts);
 			}
-#endif /* NETSTAT */
 		}
 
 		mtcp->iom->select(ctx);
@@ -1167,15 +1160,11 @@ mtcp_create_context(int cpu)
 
 	running[cpu] = TRUE;
 
-#ifdef NETSTAT
-#if NETSTAT_TOTAL
-	if (printer < 0) {
-		printer = cpu;
-		TRACE_INFO("CPU %d is in charge of printing stats.\n", printer);
+	if (mtcp_master < 0) {
+		mtcp_master = cpu;
+		TRACE_INFO("CPU %d is now the master thread.\n", mtcp_master);
 	}
-#endif
-#endif
-		
+
 	return mctx;
 }
 /*----------------------------------------------------------------------------*/
@@ -1219,18 +1208,14 @@ mtcp_destroy_context(mctx_t mctx)
 	TRACE_INFO("MTCP thread %d joined.\n", mctx->cpu);
 	running[mctx->cpu] = FALSE;
 
-#ifdef NETSTAT
-#if NETSTAT_TOTAL
-	if (printer == mctx->cpu) {
+	if (mtcp_master == mctx->cpu) {
 		for (i = 0; i < num_cpus; i++) {
 			if (i != mctx->cpu && running[i]) {
-				printer = i;
+				mtcp_master = i;
 				break;
 			}
 		}
 	}
-#endif
-#endif
 
 	log_ctx->done = 1;
 	ret = write(log_ctx->pair_sp_fd, "F", 1);

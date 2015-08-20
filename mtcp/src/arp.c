@@ -6,8 +6,8 @@
 #include "eth_out.h"
 #include "debug.h"
 
-#define ARP_LEN 28
-#define ARP_HEAD_LEN 8
+#define ARP_PAD_LEN 18			/* arp pad length to fit 64B packet size */
+#define ARP_TIMEOUT_SEC 1		/* 1 second arp timeout */
 
 /*----------------------------------------------------------------------------*/
 enum arp_hrd_format
@@ -33,13 +33,15 @@ struct arphdr
 	uint32_t ar_sip;			/* sender ip address */
 	uint8_t ar_tha[ETH_ALEN];	/* targe hardware address */
 	uint32_t ar_tip;			/* target ip address */
+
+	uint8_t pad[ARP_PAD_LEN];
 } __attribute__ ((packed));
 /*----------------------------------------------------------------------------*/
 struct arp_queue_entry
 {
-	uint32_t ip;
-	int nif_out;
-	uint32_t ts_out;
+	uint32_t ip;		/* target ip address */
+	int nif_out;		/* output interface number */
+	uint32_t ts_out;	/* last sent timestamp */
 
 	TAILQ_ENTRY(arp_queue_entry) arp_link;
 };
@@ -47,10 +49,10 @@ struct arp_queue_entry
 struct arp_manager
 {
 	TAILQ_HEAD (, arp_queue_entry) list;
-	int cnt;
+	pthread_mutex_t lock;
 };
 /*----------------------------------------------------------------------------*/
-struct arp_manager arpm;
+struct arp_manager g_arpm;
 /*----------------------------------------------------------------------------*/
 void 
 DumpARPPacket(struct arphdr *arph);
@@ -67,7 +69,8 @@ InitARPTable()
 		return -1;
 	}
 
-	TAILQ_INIT(&arpm.list);
+	TAILQ_INIT(&g_arpm.list);
+	pthread_mutex_init(&g_arpm.lock, NULL);
 
 	return 0;
 }
@@ -146,6 +149,7 @@ ARPOutput(struct mtcp_manager *mtcp, int nif, int opcode,
 	} else {
 		memcpy(arph->ar_tha, dst_haddr, arph->ar_hln);
 	}
+	memset(arph->pad, 0, ARP_PAD_LEN);
 
 #if DBGMSG
 	DumpARPPacket(arph);
@@ -180,17 +184,21 @@ RequestARP(mtcp_manager_t mtcp, uint32_t ip, int nif, uint32_t cur_ts)
 	unsigned char haddr[ETH_ALEN];
 	unsigned char taddr[ETH_ALEN];
 
+	pthread_mutex_lock(&g_arpm.lock);
 	/* if the arp request is in progress, return */
-	TAILQ_FOREACH(ent, &arpm.list, arp_link) {
-		if (ent->ip == ip)
+	TAILQ_FOREACH(ent, &g_arpm.list, arp_link) {
+		if (ent->ip == ip) {
+			pthread_mutex_unlock(&g_arpm.lock);
 			return;
+		}
 	}
 
 	ent = (struct arp_queue_entry *)calloc(1, sizeof(struct arp_queue_entry));
 	ent->ip = ip;
 	ent->nif_out = nif;
 	ent->ts_out = cur_ts;
-	TAILQ_INSERT_TAIL(&arpm.list, ent, arp_link);
+	TAILQ_INSERT_TAIL(&g_arpm.list, ent, arp_link);
+	pthread_mutex_unlock(&g_arpm.lock);
 
 	/* else, broadcast arp request */
 	memset(haddr, 0xFF, ETH_ALEN);
@@ -229,13 +237,15 @@ ProcessARPReply(mtcp_manager_t mtcp, struct arphdr *arph, uint32_t cur_ts)
 	}
 
 	/* remove from the arp request queue */
-	TAILQ_FOREACH(ent, &arpm.list, arp_link) {
-		if (ent->ip == arph->ar_tip) {
-			TAILQ_REMOVE(&arpm.list, ent, arp_link);
+	pthread_mutex_lock(&g_arpm.lock);
+	TAILQ_FOREACH(ent, &g_arpm.list, arp_link) {
+		if (ent->ip == arph->ar_sip) {
+			TAILQ_REMOVE(&g_arpm.list, ent, arp_link);
 			free(ent);
 			break;
 		}
 	}
+	pthread_mutex_unlock(&g_arpm.lock);
 
 	return 0;
 }
@@ -278,17 +288,26 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 	return TRUE;
 }
 /*----------------------------------------------------------------------------*/
-#if 0
-// Publish my address (obsolete)
+/* ARPTimer: wakes up every milisecond and check the ARP timeout              */
+/*           timeout is set to 1 second                                       */
+/*----------------------------------------------------------------------------*/
 void 
-PublishARP(mtcp_manager_t mtcp)
+ARPTimer(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
-	int i;
-	for (i = 0; i < CONFIG.eths_num; i++) {
-		ARPOutput(mtcp, CONFIG.eths[i].ifindex, arp_op_request, 0, NULL, NULL);
+	struct arp_queue_entry *ent;
+
+	/* if the arp requet is timed out, retransmit */
+	pthread_mutex_lock(&g_arpm.lock);
+	TAILQ_FOREACH(ent, &g_arpm.list, arp_link) {
+		if (TCP_SEQ_GT(cur_ts, ent->ts_out + SEC_TO_TS(ARP_TIMEOUT_SEC))) {
+			TRACE_INFO("[CPU%2d] ARP request timed out.\n", 
+					mtcp->ctx->cpu);
+			TAILQ_REMOVE(&g_arpm.list, ent, arp_link);
+			free(ent);
+		}
 	}
+	pthread_mutex_unlock(&g_arpm.lock);
 }
-#endif
 /*----------------------------------------------------------------------------*/
 void
 PrintARPTable()

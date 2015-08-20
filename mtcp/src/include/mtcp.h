@@ -44,16 +44,15 @@
 #define MAX_PKT_SIZE (2*1024)
 #define ETH_NUM 4
 
-#define TCP_OPT_TIMESTAMP_ENABLED   TRUE
-#define TCP_OPT_SACK_ENABLED        FALSE
+#define TCP_OPT_TIMESTAMP_ENABLED   TRUE	/* enabled for rtt measure */
+#define TCP_OPT_SACK_ENABLED        FALSE	/* not implemented */
 
-#define E_PSIO				TRUE
-#define USE_CHUNK_BUF		FALSE
 #define LOCK_STREAM_QUEUE	FALSE
 #define USE_SPIN_LOCK		TRUE
 #define INTR_SLEEPING_MTCP	TRUE
 #define PROMISCUOUS_MODE	TRUE
 
+/* blocking api became obsolete */
 #define BLOCKING_SUPPORT	FALSE
 
 /*----------------------------------------------------------------------------*/
@@ -162,6 +161,7 @@ struct mtcp_sender
 {
 	int ifidx;
 
+	/* TCP layer send queues */
 	TAILQ_HEAD (control_head, tcp_stream) control_list;
 	TAILQ_HEAD (send_head, tcp_stream) send_list;
 	TAILQ_HEAD (ack_head, tcp_stream) ack_list;
@@ -273,16 +273,6 @@ struct mtcp_thread_context
 	struct mtcp_manager* mtcp_manager;
 
 	void *io_private_context;
-#if 0 /* XXX */
-	struct ps_handle *handle;
-#if E_PSIO || USE_CHUNK_BUF
-	struct ps_chunk_buf w_chunk_buf[ETH_NUM];
-#else
-	struct ps_chunk w_chunk[ETH_NUM];
-	uint32_t w_off[ETH_NUM];
-	int16_t w_cur_idx[ETH_NUM];
-#endif
-#endif /* XXX */
 	pthread_mutex_t smap_lock;
 	pthread_mutex_t flow_pool_lock;
 	pthread_mutex_t socket_pool_lock;

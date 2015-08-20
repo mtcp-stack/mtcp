@@ -20,7 +20,7 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 		const int ifidx, unsigned char* pkt_data, int len);
 
 void 
-PublishARP(mtcp_manager_t mtcp);
+ARPTimer(mtcp_manager_t mtcp, uint32_t cur_ts);
 
 void 
 PrintARPTable();

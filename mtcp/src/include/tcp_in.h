@@ -40,7 +40,7 @@
 #define TCP_SEQ_GEQ(a,b)		((int32_t)((a)-(b)) >= 0)
 #define TCP_SEQ_BETWEEN(a,b,c)	(TCP_SEQ_GEQ(a,b) && TCP_SEQ_LEQ(a,c))
 
-/* convert timeval to timestamp (precision: 10us) */
+/* convert timeval to timestamp (precision: 1 ms) */
 #define HZ						1000
 #define TIME_TICK				(1000000/HZ)		// in us
 #define TIMEVAL_TO_TS(t)		(uint32_t)((t)->tv_sec * HZ + \
@@ -51,6 +51,7 @@
 
 #define USEC_TO_TS(t)			((t) / TIME_TICK)
 #define MSEC_TO_TS(t)			(USEC_TO_TS((t) * 1000))
+#define SEC_TO_TS(t)			(t * HZ)
 
 #define SEC_TO_USEC(t)			((t) * 1000000)
 #define SEC_TO_MSEC(t)			((t) * 1000)

@@ -380,6 +380,7 @@ __thread apr_sockaddr_t *_destsa;
 
 int num_ports =1;
 int _num_cpus = 1;
+int _num_ip = 1;
 int thread_cpu[MAX_CPUS];
 pthread_t app_thread[MAX_CPUS];
 static pthread_mutex_t stat_mutex;
@@ -1078,6 +1079,7 @@ static void output_results(int sig)
     printf("Document Length:        %" APR_SIZE_T_FMT " bytes\n", doclen);
     printf("\n");
     printf("Number of Cores:        %d\n", _num_cpus);
+    printf("Number of Source IP:        %d\n", _num_ip);
     printf("Concurrency Level:      %d\n", concurrency);
     printf("Time taken for tests:   %.3f seconds\n", timetaken);
     printf("Complete requests:      %d\n", done);
@@ -2013,7 +2015,7 @@ void *testMain(void *arg){
 		perror("mtcp_create_context");
 		return NULL;
 	}
-	mtcp_init_rss(g_mctx[_cpu], INADDR_ANY, 1, _destsa->sa.sin.sin_addr.s_addr, _destsa->sa.sin.sin_port);
+	mtcp_init_rss(g_mctx[_cpu], INADDR_ANY, _num_ip, _destsa->sa.sin.sin_addr.s_addr, _destsa->sa.sin.sin_port);
 #else
 	core_affinitize(_cpu);
 #endif
@@ -2364,6 +2366,7 @@ static void usage(const char *progname)
     fprintf(stderr, "    -c concurrency  Number of multiple requests to make\n");
     fprintf(stderr, "    -t timelimit    Seconds to max. wait for responses\n");
     fprintf(stderr, "    -N cores        Number of cores to use\n");
+    fprintf(stderr, "    -L ips  	 Number of source ip to use\n");
     fprintf(stderr, "    -l ports        Number of ports to use. (Port number starts from 80)\n");
 	fprintf(stderr, "    -b windowsize   Size of TCP send/receive buffer, in bytes\n");
     fprintf(stderr, "    -p postfile     File containing data to POST. Remember also to set -T\n");
@@ -2574,7 +2577,7 @@ int main(int argc, const char * const argv[])
 #endif
 
     apr_getopt_init(&opt, cntxt, argc, argv);
-    while ((status = apr_getopt(opt, "n:c:t:N:l:b:T:p:u:v:k:rVhwix:y:z:C:H:P:A:g:X:de:Sq"
+    while ((status = apr_getopt(opt, "n:c:t:N:L:l:b:T:p:u:v:k:rVhwix:y:z:C:H:P:A:g:X:de:Sq"
 #ifdef USE_SSL
             "Z:f:"
 #endif
@@ -2599,13 +2602,13 @@ int main(int argc, const char * const argv[])
             case 'b':
                 windowsize = atoi(optarg);
                 break;
-			case 'N':
-				_num_cpus = atoi(optarg);
-				break;
-			case 'l':
-				num_ports = atoi(optarg);
-				break;
-			case 'i':
+	    case 'N':
+		_num_cpus = atoi(optarg);
+		break;
+	    case 'l':
+		num_ports = atoi(optarg);
+		break;
+	    case 'i':
                 if (posting > 0)
                 err("Cannot mix POST/PUT and HEAD\n");
                 posting = -1;

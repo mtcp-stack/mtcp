@@ -37,6 +37,9 @@ char *close_reason_str[] = {
 	"TIMEDOUT"
 };
 /*---------------------------------------------------------------------------*/
+/* for rand_r() functions */
+static __thread unsigned int next_seed = 1;
+/*---------------------------------------------------------------------------*/
 inline char *
 TCPStateToString(const tcp_stream *stream)
 {
@@ -260,7 +263,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->sndvar->wscale_peer = 0;
 	stream->sndvar->nif_out = GetOutputInterface(stream->daddr);
 
-	stream->sndvar->iss = rand() % TCP_MAX_SEQ;
+	stream->sndvar->iss = rand_r(&next_seed) % TCP_MAX_SEQ;
 	//stream->sndvar->iss = 0;
 	stream->rcvvar->irs = 0;
 

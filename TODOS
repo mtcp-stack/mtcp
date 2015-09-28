@@ -12,8 +12,6 @@
 
 * Enable TCP SACK
 
-* Test with 1 Gbps links
-
 * Test with 32-bit machines
 
 ** This is only a small list of ideas that we have in our mind. Please 

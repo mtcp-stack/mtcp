@@ -124,6 +124,10 @@ mTCP can be prepared in two ways.
   libraries. For x86_64 machines, the new subdirectory should be
   *dpdk-2.0.0/x86_64-native-linuxapp-gcc*
 
+  - only those devices will work with DPDK drivers that are listed
+  on this page: http://dpdk.org/doc/nics. Please make sure that your
+  NIC is compatible before moving on to the next step.
+
 2. Next bring the dpdk-registered interfaces up. Please use the
    setup_iface_single_process.sh script file present in dpdk-2.0.0/tools/
    directory for this purpose. Please change lines 49-51 to change the IP	
@@ -207,6 +211,12 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 
 5. The counterpart of mTCP should enable TCP timestamp.
 
+6. mTCP has been tested with the following Ethernet adapters:
+
+1. Intel-82598		ixgbe		(Max-queue-limit: 16)
+2. Intel-82599		ixgbe		(Max-queue-limit: 16)
+3. Intel-I350		igb		(Max-queue-limit: 08)
+ 
 ========================================================================
  FREQUENTLY ASKED QUESTIONS
 ========================================================================

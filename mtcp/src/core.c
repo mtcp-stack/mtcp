@@ -1327,20 +1327,20 @@ mtcp_setconf(const struct mtcp_conf *conf)
 	if (!conf)
 		return -1;
 
-	if (conf->num_cores <= 0)
+	if (conf->num_cores > 0)
 		CONFIG.num_cores = conf->num_cores;
-	if (conf->max_concurrency <= 0)
+	if (conf->max_concurrency > 0)
 		CONFIG.max_concurrency = conf->max_concurrency;
-	if (conf->max_num_buffers <= 0)
+	if (conf->max_num_buffers > 0)
 		CONFIG.max_num_buffers = conf->max_num_buffers;
-	if (conf->rcvbuf_size <= 0)
+	if (conf->rcvbuf_size > 0)
 		CONFIG.rcvbuf_size = conf->rcvbuf_size;
-	if (conf->sndbuf_size <= 0)
+	if (conf->sndbuf_size > 0)
 		CONFIG.sndbuf_size = conf->sndbuf_size;
 
-	if (conf->tcp_timewait <= 0)
+	if (conf->tcp_timewait > 0)
 		CONFIG.tcp_timewait = conf->tcp_timewait;
-	if (conf->tcp_timeout <= 0)
+	if (conf->tcp_timeout > 0)
 		CONFIG.tcp_timeout = conf->tcp_timeout;
 
 	TRACE_CONFIG("Configuration updated by mtcp_setconf().\n");

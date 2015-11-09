@@ -540,7 +540,7 @@ main(int argc, char **argv)
 	int fd;
 	int ret;
 	uint64_t total_read;
-
+	struct mtcp_conf mcfg;
 	int cores[MAX_CPUS];
 	int i;
 
@@ -569,6 +569,14 @@ main(int argc, char **argv)
 						"number of CPUS: %d\n", num_cores);
 				return FALSE;
 			}
+			/** 
+			 * it is important that core limit is set 
+			 * before mtcp_init() is called. You can
+			 * not set core_limit after mtcp_init()
+			 */
+			mtcp_getconf(&mcfg);
+			mcfg.num_cores = core_limit;
+			mtcp_setconf(&mcfg);
 		}
 	}
 
@@ -630,6 +638,7 @@ main(int argc, char **argv)
 		TRACE_ERROR("Failed to initialize mtcp\n");
 		exit(EXIT_FAILURE);
 	}
+
 	/* register signal handler to mtcp */
 	mtcp_register_signal(SIGINT, SignalHandler);
 

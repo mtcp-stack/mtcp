@@ -15,6 +15,8 @@ AC_CHECK_HEADER(numa.h,,,)
 AC_SUBST(DPDK, 0)
 # Reset PSIO to 0
 AC_SUBST(PSIO, 0)
+# Reset NETMAP to 0
+AC_SUBST(NETMAP, 0)
 
 # Check dpdk-1.8.0 path (lib & inc)
 AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-1.8.0 install root])
@@ -32,9 +34,17 @@ then
 	AC_SUBST(PSIO, 1)
 fi
 
-if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == ""
+dnl Example of default-disabled feature
+AC_ARG_ENABLE([netmap],
+	AS_HELP_STRING([--enable-netmap], [Enable netmap module (UNDER DEVELOPMENT)]))
+
+AS_IF([test "x$enable_netmap" = "xyes"], [
+	    AC_SUBST(NETMAP, 1)
+])
+
+if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "x$enable_netmap" = "xno"
 then
-	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio as your I/O lib.])
+	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
 fi
 
 AC_OUTPUT(mtcp/src/Makefile)

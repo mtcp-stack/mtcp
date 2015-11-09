@@ -483,6 +483,7 @@ ParseConfiguration(char *line)
 					"# physical CPU cores.\n");
 			return -1;
 		}
+		num_cpus = CONFIG.num_cores;
 	} else if (strcmp(p, "max_concurrency") == 0) {
 		CONFIG.max_concurrency = atoi(q);
 		if (CONFIG.max_concurrency < 0) {

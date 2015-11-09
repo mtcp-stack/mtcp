@@ -735,6 +735,14 @@ main(int argc, char **argv)
 						"number of CPUS: %d\n", num_cores);
 				return FALSE;
 			}
+			/** 
+			 * it is important that core limit is set 
+			 * before mtcp_init() is called. You can
+			 * not set core_limit after mtcp_init()
+			 */
+			mtcp_getconf(&mcfg);
+			mcfg.num_cores = core_limit;
+			mtcp_setconf(&mcfg);
 		} else if (strcmp(argv[i], "-c") == 0) {
 			total_concurrency = atoi(argv[i + 1]);
 

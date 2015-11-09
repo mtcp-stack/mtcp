@@ -1585,6 +1585,14 @@ main(int argc, char **argv) {
 	init_server_states(&srv_states, cpus, srv, conf_file);
 
 #ifdef USE_MTCP
+	/** 
+	 * it is important that core limit is set 
+	 * before mtcp_init() is called. You can
+	 * not set core_limit after mtcp_init()
+	 */
+	mtcp_getconf(&mcfg);
+	mcfg.num_cores = cpus;
+	mtcp_setconf(&mcfg);
 	/* initialize the mtcp context */
 	if (mtcp_init("mtcp.conf")) {
 		fprintf(stderr, "Failed to initialize mtcp\n");

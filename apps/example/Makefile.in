@@ -2,6 +2,7 @@ TARGETS = epserver epwget
 CC = gcc -g -O3
 DPDK=@DPDK@
 PS=@PSIO@
+NETMAP=@NETMAP@
 
 # DPDK LIBRARY and HEADER
 DPDK_INC=@DPDKLIBPATH@/include
@@ -25,6 +26,10 @@ LIBS = ${MTCP_LIB}
 ifeq ($(PS),1)
 INC += -I{PS_INC}
 LIBS += -lmtcp -L${PS_DIR}/lib -lps -lpthread -lnuma -lrt
+endif
+
+ifeq ($(NETMAP),1)
+LIBS += -lmtcp -lpthread -lnuma -lrt
 endif
 
 # CFLAGS for DPDK-related compilation

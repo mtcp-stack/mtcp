@@ -21,24 +21,17 @@
 
 struct netmap_private_context {
 	struct nm_desc *local_nmd[MAX_DEVICES];
-	int fd[MAX_DEVICES];
-	char *recv_pktbuf[MAX_DEVICES][MAX_PKT_BURST];
-	unsigned int recv_pkt_cnt[MAX_DEVICES];
-	unsigned int recv_pkt_len[MAX_DEVICES][MAX_PKT_BURST];
-	char send_pktbuf[MAX_DEVICES][MAX_PKT_BURST][ETHERNET_FRAME_SIZE];
-	unsigned int send_pkt_cnt[MAX_DEVICES];
+	unsigned char snd_pktbuf[MAX_DEVICES][ETHERNET_FRAME_SIZE];
+	unsigned char *rcv_pktbuf[MAX_PKT_BURST];
+	uint8_t rcv_pkt_len[MAX_PKT_BURST];
+	uint16_t snd_pkt_size[MAX_DEVICES];
 } __attribute__((aligned(__WORDSIZE)));
-
-struct netmap_global {
-	struct nm_desc *nmd;
-	int main_fd;
-};
-struct netmap_global ng[MAX_DEVICES];
 /*----------------------------------------------------------------------------*/
 void
 netmap_init_handle(struct mtcp_thread_context *ctxt)
 {
 	struct netmap_private_context *npc;
+	char ifname[MAX_IFNAMELEN];
 	char nifname[MAX_IFNAMELEN];
 	int j;
 
@@ -52,39 +45,31 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 	
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
 
-	/* set wmbufs correctly */
+	/* initialize per-thread netmap interfaces  */
 	for (j = 0; j < num_devices_attached; j++) {
-		if (if_indextoname(devices_attached[j], nifname) == NULL) {
-			TRACE_ERROR("Failed to initialize interface %s\n",
-				    nifname);
+		if (if_indextoname(devices_attached[j], ifname) == NULL) {
+			TRACE_ERROR("Failed to initialize interface %s with ifidx: %d - "
+				    "error string: %s\n",
+				    ifname, devices_attached[j], strerror(errno));
 			exit(EXIT_FAILURE);
 		}
-		sprintf(nifname, "netmap:%s", nifname);
-		struct nm_desc nmd = *ng[j].nmd;
-		uint64_t nmd_flags = 0;
-		nmd.self = &nmd;
 		
-		if (ctxt->cpu > 0) {
-			/*
-			 * the first thread uses the fd opened by the main thread,
-			 * the other threads re-open /dev/netmap
-			 */
-			nmd.req.nr_flags = ng[j].nmd->req.nr_flags & ~NR_REG_MASK;
-			nmd.req.nr_flags |= NR_REG_ONE_NIC;
-			nmd.req.nr_ringid = ctxt->cpu;
+		if (unlikely(CONFIG.num_cores == 1))
+			sprintf(nifname, "netmap:%s", ifname);
+		else
+			sprintf(nifname, "netmap:%s-%d", ifname, ctxt->cpu);
+		
+		TRACE_INFO("Opening %s with j: %d\n", nifname, j);
 
-			npc->local_nmd[j] = nm_open(nifname, NULL, nmd_flags |
-						    NM_OPEN_IFNAME | NM_OPEN_NO_MMAP,
-						    &nmd);
-			if (npc->local_nmd[j] == NULL) {
-				TRACE_ERROR("Unable to open %s: %s\n",
-					    nifname, strerror(errno));
-				exit(EXIT_FAILURE);
-			}
-		} else {
-			npc->local_nmd[j] = ng[j].nmd;
+		struct nmreq base_nmd;
+		memset(&base_nmd, 0, sizeof(base_nmd));
+
+		npc->local_nmd[j] = nm_open(nifname, &base_nmd, 0, NULL);
+		if (npc->local_nmd[j] == NULL) {
+			TRACE_ERROR("Unable to open %s: %s\n",
+				    nifname, strerror(errno));
+			exit(EXIT_FAILURE);
 		}
-		npc->fd[j] = ng[j].nmd->fd;
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -108,59 +93,83 @@ netmap_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *p
 int
 netmap_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 {
-	int i;
+	int pkt_size, idx;
 	struct netmap_private_context *npc;
-	npc = (struct netmap_private_context *)ctxt->io_private_context;
+	mtcp_manager_t mtcp;
 
-	for (i = 0; i < npc->send_pkt_cnt[nif]; i++) {
-		//local_nmd
+	npc = (struct netmap_private_context *)ctxt->io_private_context;
+	idx = nif;
+	pkt_size = npc->snd_pkt_size[idx];
+	mtcp = ctxt->mtcp_manager;
+
+	/* assert-type statement */
+	if (pkt_size == 0) return 0;
+
+#ifdef NETSTAT
+	mtcp->nstat.tx_packets[nif]++;
+	mtcp->nstat.tx_bytes[nif] += pkt_size + 24;
+#endif
+
+	if (nm_inject(npc->local_nmd[idx], npc->snd_pktbuf[idx], pkt_size) == 0) {
+		TRACE_DBG("Failed to send pkt of size %d on interface: %d\n",
+			  pkt_size, idx);
 	}
 
-	npc->send_pkt_cnt[nif] = 0;
-	return 0;
+	npc->snd_pkt_size[idx] = 0;
+
+	return 1;
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
 netmap_get_wptr(struct mtcp_thread_context *ctxt, int nif, uint16_t pktsize)
 {
 	struct netmap_private_context *npc;
+	int idx = nif;
+
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
+	if (npc->snd_pkt_size[idx] != 0)
+		netmap_send_pkts(ctxt, nif);
+
+	npc->snd_pkt_size[idx] = pktsize;
 	
-	
-	return (uint8_t *)npc->send_pktbuf[nif][npc->send_pkt_cnt[nif]++];
+	return (uint8_t *)npc->snd_pktbuf[idx];
 }
 /*----------------------------------------------------------------------------*/
 int32_t
 netmap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
 	struct netmap_private_context *npc;
-	struct netmap_if *nifp;
-	int i, count = 0;
-
+	struct nm_desc *d;
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
-	for (i = npc->local_nmd[ifidx]->first_rx_ring; i <= npc->local_nmd[ifidx]->last_rx_ring; i++) {
-		int m, cur, count;
-		struct netmap_ring *rxring;
+	d = npc->local_nmd[ifidx];
 
-		nifp = npc->local_nmd[ifidx]->nifp;
-		rxring = NETMAP_RXRING(nifp, i);
-		if (nm_ring_empty(rxring))
-			continue;
-		cur = rxring->cur;
-		count = nm_ring_space(rxring);
-		if (count > MAX_PKT_BURST)
-			count = MAX_PKT_BURST;
-		/* receive packets */
-		for (m = 0; m < count; m++) {
-			struct netmap_slot *slot = &rxring->slot[cur];
-			npc->recv_pktbuf[ifidx][npc->recv_pkt_cnt[ifidx]] = NETMAP_BUF(rxring, slot->buf_idx);
-			npc->recv_pkt_len[ifidx][npc->recv_pkt_cnt[ifidx]] = slot->len;
-			cur = nm_ring_next(rxring, cur);
-			npc->recv_pkt_cnt[ifidx]++;
+	int p = 0;
+	int c, got = 0, ri = d->cur_rx_ring;
+	int n = d->last_rx_ring - d->first_rx_ring + 1;
+	int cnt = MAX_PKT_BURST;
+
+
+
+	for (c = 0; c < n && cnt != got; c++) {
+		/* compute current ring to use */
+		struct netmap_ring *ring;
+		
+		ri = d->cur_rx_ring + c;
+		if (ri > d->last_rx_ring)
+			ri = d->first_rx_ring;
+		ring = NETMAP_RXRING(d->nifp, ri);
+		for ( ; !nm_ring_empty(ring) && cnt != got; got++) {
+			u_int i = ring->cur;
+			u_int idx = ring->slot[i].buf_idx;
+			npc->rcv_pktbuf[p] = (u_char *)NETMAP_BUF(ring, idx);
+			npc->rcv_pkt_len[p] = ring->slot[i].len;
+			p++;
+			ring->head = ring->cur = nm_ring_next(ring, i);
 		}
-		rxring->head = rxring->cur = cur; 
 	}
-	return count;
+	d->cur_rx_ring = ri;
+
+	return p;
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
@@ -169,23 +178,26 @@ netmap_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t
 	struct netmap_private_context *npc;
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
 
-	*len = npc->recv_pkt_len[ifidx][index];
-	return (unsigned char *)npc->recv_pktbuf[ifidx][index];
+	*len = npc->rcv_pkt_len[index];
+	return (unsigned char *)npc->rcv_pktbuf[index];
 }
 /*----------------------------------------------------------------------------*/
 int32_t
 netmap_select(struct mtcp_thread_context *ctxt)
 {
+	static __thread int flag = 0;
 	struct netmap_private_context *npc;
 
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
-	struct pollfd pfd = { .fd = npc->fd[0], .events = POLLIN };
+	struct pollfd pfd = { .fd = npc->local_nmd[0]->fd, .events = POLLIN };
 
-	if (poll(&pfd, 1, 1 * 1000) <= 0) {
-		TRACE_ERROR("Poll failed! (cpu: %d, err: %d)\n", 
-			    ctxt->cpu, errno);
-		exit(EXIT_FAILURE);
-	}
+	do { 
+		int i = poll(&pfd, 1, 1000);
+		if (i > 0 && !(pfd.revents & POLLERR)) {
+			flag = 1;
+			break;
+		}
+	} while (flag == 0);
 	
 	if (pfd.revents & POLLERR) {
 		TRACE_ERROR("Poll failed! (cpu: %d\n, err: %d)\n",
@@ -204,42 +216,7 @@ netmap_destroy_handle(struct mtcp_thread_context *ctxt)
 void
 netmap_load_module(void)
 {
-	char nifname[MAX_IFNAMELEN];
-	struct nmreq base_nmd;
-	int j;
-	
-	memset(&base_nmd, 0, sizeof(base_nmd));
-
-	for (j = 0; j < num_devices_attached; j++) {
-		if (if_indextoname(devices_attached[j], nifname) == NULL) {
-			TRACE_ERROR("Failed to initialize interface %s\n",
-				    nifname);
-			exit(EXIT_FAILURE);
-		}
-		sprintf(nifname, "netmap:%s", nifname);
-		ng[j].nmd = nm_open(nifname, &base_nmd, 0, NULL);
-		if (ng[j].nmd == NULL) {
-			TRACE_ERROR("Failed to call nm_open for iface %s on g_nmd\n",
-				    nifname);
-			exit(EXIT_FAILURE);
-		}
-		struct nm_desc saved_desc = *(ng[j].nmd);
-		saved_desc.self = &saved_desc;
-		saved_desc.mem = NULL;
-		nm_close(ng[j].nmd);
-		saved_desc.req.nr_flags &= ~NR_REG_MASK;
-		saved_desc.req.nr_flags |= NR_REG_ONE_NIC;
-		saved_desc.req.nr_ringid = 0;
-		ng[j].nmd = nm_open(nifname, &base_nmd, NM_OPEN_IFNAME, &saved_desc);
-		if (ng[j].nmd == NULL) {
-			TRACE_ERROR("Unable to open %s: %s", nifname, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		
-		ng[j].main_fd = ng[j].nmd->fd;
-		TRACE_LOG("mapped %dKB at %p", g_nmd[j].req.nr_memsize>>10, 
-			  ng[j].nmd->mem);
-	}	
+	/* not needed - all initializations done in netmap_init_handle() */
 }
 /*----------------------------------------------------------------------------*/
 io_module_func netmap_module_func = {

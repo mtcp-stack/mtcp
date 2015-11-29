@@ -115,7 +115,7 @@ SetInterfaceInfo(char* dev_name_list)
 				}
 				
 				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0 ) {
-					for (j = 0; j < 6; j ++) {
+					for (j = 0; j < ETH_ALEN; j ++) {
 						CONFIG.eths[eidx].haddr[j] = ifr.ifr_addr.sa_data[j];
 					}
 				}
@@ -244,7 +244,7 @@ SetInterfaceInfo(char* dev_name_list)
 				}
 
 				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0 ) {
-					for (j = 0; j < 6; j ++) {
+					for (j = 0; j < ETH_ALEN; j ++) {
 						CONFIG.eths[eidx].haddr[j] = ifr.ifr_addr.sa_data[j];
 					}
 				}
@@ -280,6 +280,86 @@ SetInterfaceInfo(char* dev_name_list)
 		
 		freeifaddrs(ifap);
 #endif /* !DISABLE_DPDK */
+	} else if (current_iomodule_func == &netmap_module_func) {
+#ifndef DISABLE_NETMAP
+		struct ifaddrs *ifap;
+		struct ifaddrs *iter_if;
+		char *seek;
+		
+		if (getifaddrs(&ifap) != 0) {
+			perror("getifaddrs: ");
+			exit(EXIT_FAILURE);
+		}
+		
+		iter_if = ifap;
+		do {
+			if (iter_if->ifa_addr->sa_family == AF_INET &&
+			    !set_all_inf && 
+			    (seek=strstr(dev_name_list, iter_if->ifa_name)) != NULL &&
+			    /* check if the interface was not aliased */
+			    *(seek + strlen(iter_if->ifa_name)) != ':') {
+				struct ifreq ifr;
+				
+				/* Setting informations */
+				eidx = CONFIG.eths_num++;
+				strcpy(CONFIG.eths[eidx].dev_name, iter_if->ifa_name);
+				strcpy(ifr.ifr_name, iter_if->ifa_name);
+				
+				/* Create socket */
+				int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+				if (sock == -1) {
+					perror("socket");
+				}			
+				
+				/* getting address */
+				if (ioctl(sock, SIOCGIFADDR, &ifr) == 0 ) {
+					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+					CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
+				}
+				
+				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0 ) {
+					for (j = 0; j < ETH_ALEN; j ++) {
+						CONFIG.eths[eidx].haddr[j] = ifr.ifr_addr.sa_data[j];
+					}
+				}
+				
+				/* Net MASK */
+				if (ioctl(sock, SIOCGIFNETMASK, &ifr) == 0) {
+					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+					CONFIG.eths[eidx].netmask = *(uint32_t *)&sin;
+				}
+				close(sock);
+#if 0
+				for (j = 0; j < num_devices; j++) {
+					if (!memcmp(&CONFIG.eths[eidx].haddr[0], &ports_eth_addr[j],
+						    ETH_ALEN))
+						CONFIG.eths[eidx].ifindex = ifr.ifr_ifindex;
+#endif
+				CONFIG.eths[eidx].ifindex = eidx;//if_nametoindex(ifr.ifr_name);
+				TRACE_INFO("Ifindex of interface %s is: %d\n", 
+					   ifr.ifr_name, CONFIG.eths[eidx].ifindex);
+#if 0
+				}
+#endif
+				
+				/* add to attached devices */
+				for (j = 0; j < num_devices_attached; j++) {
+					if (devices_attached[j] == CONFIG.eths[eidx].ifindex) {
+						break;
+					}
+				}			
+				devices_attached[num_devices_attached] = if_nametoindex(ifr.ifr_name);//CONFIG.eths[eidx].ifindex;
+				num_devices_attached++;
+				fprintf(stderr, "Total number of attached devices: %d\n",
+					num_devices_attached);
+				fprintf(stderr, "Interface name: %s\n", 
+					iter_if->ifa_name);
+			}
+			iter_if = iter_if->ifa_next;
+		} while (iter_if != NULL);
+		
+		freeifaddrs(ifap);
+#endif /* !DISABLE_NETMAP */
 	}
 	return 0;
 }

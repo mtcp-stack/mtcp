@@ -1083,11 +1083,13 @@ MTCPRunThread(void *arg)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+#ifndef DISABLE_DPDK
 static int MTCPDPDKRunThread(void *arg)
 {
 	MTCPRunThread(arg);
 	return 0;
 }
+#endif
 /*----------------------------------------------------------------------------*/
 mctx_t 
 mtcp_create_context(int cpu)

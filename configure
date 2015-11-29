@@ -1298,7 +1298,7 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --enable-netmap         Enable netmap module (UNDER DEVELOPMENT)
+  --enable-netmap         Enable netmap module (EXPERIMENTAL)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]

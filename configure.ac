@@ -36,7 +36,7 @@ fi
 
 dnl Example of default-disabled feature
 AC_ARG_ENABLE([netmap],
-	AS_HELP_STRING([--enable-netmap], [Enable netmap module (UNDER DEVELOPMENT)]))
+	AS_HELP_STRING([--enable-netmap], [Enable netmap module (EXPERIMENTAL)]))
 
 AS_IF([test "x$enable_netmap" = "xyes"], [
 	    AC_SUBST(NETMAP, 1)

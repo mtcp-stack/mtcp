@@ -164,8 +164,8 @@ mTCP can be prepared in two ways.
 8. Run the applications!
 
 
-- NETMAP VERSION -
-------------------
+- NETMAP VERSION (EXPERIMENTAL) -
+---------------------------------
 1. Install the netmap driver and the corresponding ixgbe/ driver
   - please go through netmap's documentation for installation
   instructions
@@ -192,7 +192,9 @@ mTCP can be prepared in two ways.
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
 
-8. Run the applications!
+8. Run the applications. *If you run the application with one thread,
+mTCP core will assume that the multi-queues option is disabled. This
+assumption is only valid for netmap version.*
 
 
 ========================================================================

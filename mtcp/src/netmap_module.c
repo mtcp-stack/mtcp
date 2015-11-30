@@ -18,6 +18,7 @@
 #define MAX_PKT_BURST			64
 #define ETHERNET_FRAME_SIZE		1514
 #define MAX_IFNAMELEN			(IF_NAMESIZE + 10)
+/*----------------------------------------------------------------------------*/
 
 struct netmap_private_context {
 	struct nm_desc *local_nmd[MAX_DEVICES];

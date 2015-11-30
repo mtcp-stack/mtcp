@@ -98,8 +98,6 @@ mTCP can be prepared in two ways.
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
-  - please see README.config for more details
-    -- for the latest version, dyanmic ARP learning is *DISABLED*
 
 8. Run the applications!
 
@@ -162,10 +160,40 @@ mTCP can be prepared in two ways.
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
-  - please see README.config for more details
-    -- for the latest version, dyanmic ARP learning is *DISABLED*
 
 8. Run the applications!
+
+
+- NETMAP VERSION -
+------------------
+1. Install the netmap driver and the corresponding ixgbe/ driver
+  - please go through netmap's documentation for installation
+  instructions
+  - Make sure that the underlying kernel module is correctly
+  working. You can use sample applications to validate your 
+  setup.
+
+2. Setup mtcp library:
+   	   # ./configure --enable-netmap
+	   # cd mtcp/src
+   	   # make
+  - check libmtcp.a in mtcp/lib
+  - check header files in mtcp/include
+
+5. make in util/:
+   	   # make
+
+6. make in apps/example:
+   	   # make
+  - check example binary files
+
+7. Check the configurations
+  - epserver.conf for server-side configuration
+  - epwget.conf for client-side configuration
+  - you may write your own configuration file for your application
+
+8. Run the applications!
+
 
 ========================================================================
  TESTED ENVIRONMENTS

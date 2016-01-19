@@ -7,6 +7,7 @@
 
 #define MIN_PORT (1025)
 #define MAX_PORT (65535 + 1)
+#define MAX_NUM_DADDR  254 
 
 /*----------------------------------------------------------------------------*/
 struct addr_entry
@@ -23,10 +24,12 @@ struct addr_map
 struct addr_pool
 {
 	struct addr_entry *pool;		/* address pool */
-	struct addr_map *mapper;		/* address map  */
+	struct addr_map *mapper[MAX_NUM_DADDR];		/* address map  */
 
 	uint32_t addr_base;				/* in host order */
+	uint32_t daddr_base;				/* in host order */
 	int num_addr;					/* number of addresses in use */
+	int num_daddr;					/* number of addresses in use */
 
 	int num_entry;
 	int num_free;
@@ -38,11 +41,11 @@ struct addr_pool
 };
 /*----------------------------------------------------------------------------*/
 addr_pool_t 
-CreateAddressPool(in_addr_t addr_base, int num_addr)
+CreateAddressPool(in_addr_t addr_base, int num_addr,  in_addr_t daddr_base, int num_daddr)
 {
 	struct addr_pool *ap;
 	int num_entry;
-	int i, j, cnt;
+	int i, j, k, cnt;
 	in_addr_t addr;
 	uint32_t addr_h;
 
@@ -51,7 +54,7 @@ CreateAddressPool(in_addr_t addr_base, int num_addr)
 		return NULL;
 
 	/* initialize address pool */
-	num_entry = num_addr * (MAX_PORT - MIN_PORT);
+	num_entry = num_addr * num_daddr * (MAX_PORT - MIN_PORT);
 	ap->pool = (struct addr_entry *)calloc(num_entry, sizeof(struct addr_entry));
 	if (!ap->pool) {
 		free(ap);
@@ -59,11 +62,13 @@ CreateAddressPool(in_addr_t addr_base, int num_addr)
 	}
 
 	/* initialize address map */
-	ap->mapper = (struct addr_map *)calloc(num_addr, sizeof(struct addr_map));
-	if (!ap->mapper) {
-		free(ap->pool);
-		free(ap);
-		return NULL;
+	for ( i = 0; i < num_daddr; i++) {
+		ap->mapper[i] = (struct addr_map *)calloc(num_addr, sizeof(struct addr_map));
+		if (!ap->mapper[i]) {
+			free(ap->pool);
+			free(ap);
+			return NULL;
+		}
 	}
 
 	TAILQ_INIT(&ap->free_list);
@@ -78,21 +83,25 @@ CreateAddressPool(in_addr_t addr_base, int num_addr)
 	pthread_mutex_lock(&ap->lock);
 
 	ap->addr_base = ntohl(addr_base);
+	ap->daddr_base = ntohl(daddr_base);
 	ap->num_addr = num_addr;
+	ap->num_daddr = num_daddr;
 
 	cnt = 0;
-	for (i = 0; i < num_addr; i++) {
-		addr_h = ap->addr_base + i;
-		addr = htonl(addr_h);
-		for (j = MIN_PORT; j < MAX_PORT; j++) {
-			ap->pool[cnt].addr.sin_addr.s_addr = addr;
-			ap->pool[cnt].addr.sin_port = htons(j);
-			ap->mapper[i].addrmap[j] = &ap->pool[cnt];
+	for (k = 0; k < num_daddr; k++) {
+		for (i = 0; i < num_addr; i++) {
+			addr_h = ap->addr_base + i;
+			addr = htonl(addr_h);
+			for (j = MIN_PORT; j < MAX_PORT; j++) {
+				ap->pool[cnt].addr.sin_addr.s_addr = addr;
+				ap->pool[cnt].addr.sin_port = htons(j);
+				ap->mapper[k][i].addrmap[j] = &ap->pool[cnt];
 			
-			TAILQ_INSERT_TAIL(&ap->free_list, &ap->pool[cnt], addr_link);
+				TAILQ_INSERT_TAIL(&ap->free_list, &ap->pool[cnt], addr_link);
 
-			if ((++cnt) >= num_entry)
-				break;
+				if ((++cnt) >= num_entry)
+					break;
+			}
 		}
 	}
 	ap->num_entry = cnt;
@@ -106,11 +115,11 @@ CreateAddressPool(in_addr_t addr_base, int num_addr)
 /*----------------------------------------------------------------------------*/
 addr_pool_t 
 CreateAddressPoolPerCore(int core, int num_queues, 
-		in_addr_t saddr_base, int num_addr, in_addr_t daddr, in_port_t dport)
+		in_addr_t saddr_base, int num_addr, in_addr_t daddr_base, int num_daddr, in_port_t dport)
 {
 	struct addr_pool *ap;
 	int num_entry;
-	int i, j, cnt;
+	int i, j, k, cnt;
 	in_addr_t saddr;
 	uint32_t saddr_h, daddr_h;
 	uint16_t sport_h, dport_h;
@@ -123,7 +132,7 @@ CreateAddressPoolPerCore(int core, int num_queues,
 		return NULL;
 
 	/* initialize address pool */
-	num_entry = (num_addr * (MAX_PORT - MIN_PORT)) / num_queues;
+	num_entry = (num_addr * num_daddr * (MAX_PORT - MIN_PORT)) / num_queues;
 	ap->pool = (struct addr_entry *)calloc(num_entry, sizeof(struct addr_entry));
 	if (!ap->pool) {
 		free(ap);
@@ -131,11 +140,13 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	}
 	
 	/* initialize address map */
-	ap->mapper = (struct addr_map *)calloc(num_addr, sizeof(struct addr_map));
-	if (!ap->mapper) {
-		free(ap->pool);
-		free(ap);
-		return NULL;
+	for ( i = 0; i < num_daddr; i++) {
+		ap->mapper[i] = (struct addr_map *)calloc(num_addr, sizeof(struct addr_map));
+		if (!ap->mapper[i]) {
+			free(ap->pool);
+			free(ap);
+			return NULL;
+		}
 	}
 
 	TAILQ_INIT(&ap->free_list);
@@ -150,29 +161,36 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	pthread_mutex_lock(&ap->lock);
 
 	ap->addr_base = ntohl(saddr_base);
+	ap->daddr_base = ntohl(daddr_base);
 	ap->num_addr = num_addr;
-	daddr_h = ntohl(daddr);
+	ap->num_daddr = num_daddr;
+	daddr_h = ntohl(daddr_base);
 	dport_h = ntohs(dport);
 
 	/* search address space to get RSS-friendly addresses */
 	cnt = 0;
-	for (i = 0; i < num_addr; i++) {
-		saddr_h = ap->addr_base + i;
-		saddr = htonl(saddr_h);
-		for (j = MIN_PORT; j < MAX_PORT; j++) {
-			if (cnt >= num_entry)
-				break;
+	for (k = 0; k < num_daddr; k++) {
+		daddr_h = ap->daddr_base + k;
+		for (i = 0; i < num_addr; i++) {
+			saddr_h = ap->addr_base + i;
+			saddr = htonl(saddr_h);
+			for (j = MIN_PORT; j < MAX_PORT; j++) {
+				if (cnt >= num_entry)
+					break;
 
-			sport_h = j;
-			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues, endian_check);
-			if (rss_core != core)
-				continue;
+				sport_h = j;
+#if 0
+				rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues, endian_check);
+				if (rss_core != core)
+					continue;
 
-			ap->pool[cnt].addr.sin_addr.s_addr = saddr;
-			ap->pool[cnt].addr.sin_port = htons(sport_h);
-			ap->mapper[i].addrmap[j] = &ap->pool[cnt];
-			TAILQ_INSERT_TAIL(&ap->free_list, &ap->pool[cnt], addr_link);
-			cnt++;
+#endif
+				ap->pool[cnt].addr.sin_addr.s_addr = saddr;
+				ap->pool[cnt].addr.sin_port = htons(sport_h);
+				ap->mapper[k][i].addrmap[j] = &ap->pool[cnt];
+				TAILQ_INSERT_TAIL(&ap->free_list, &ap->pool[cnt], addr_link);
+				cnt++;
+			}
 		}
 	}
 
@@ -194,6 +212,8 @@ CreateAddressPoolPerCore(int core, int num_queues,
 void
 DestroyAddressPool(addr_pool_t ap)
 {
+	int i;
+
 	if (!ap)
 		return;
 
@@ -201,10 +221,13 @@ DestroyAddressPool(addr_pool_t ap)
 		free(ap->pool);
 		ap->pool = NULL;
 	}
+	
+	for ( i = 0; i < ap->num_daddr; i++) {
 
-	if (ap->mapper) {
-		free(ap->mapper);
-		ap->mapper = NULL;
+		if (ap->mapper[i]) {
+			free(ap->mapper[i]);
+			ap->mapper[i] = NULL;
+		}
 	}
 
 	pthread_mutex_destroy(&ap->lock);
@@ -228,6 +251,7 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 	pthread_mutex_lock(&ap->lock);
 
 	walk = TAILQ_FIRST(&ap->free_list);
+#if 0
 	while (walk) {
 		next = TAILQ_NEXT(walk, addr_link);
 
@@ -240,6 +264,7 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 
 		walk = next;
 	}
+#endif
 
 	if (walk) {
 		*saddr = walk->addr;
@@ -260,35 +285,38 @@ FreeAddress(addr_pool_t ap, const struct sockaddr_in *addr)
 {
 	struct addr_entry *walk, *next;
 	int ret = -1;
+	int i;
 
 	if (!ap || !addr)
 		return -1;
 
 	pthread_mutex_lock(&ap->lock);
 
-	if (ap->mapper) {
-		uint32_t addr_h = ntohl(addr->sin_addr.s_addr);
-		uint16_t port_h = ntohs(addr->sin_port);
-		int index = addr_h - ap->addr_base;
+	for (i = 0; i < ap->num_daddr; i++) {
+		if (ap->mapper[i]) {
+			uint32_t addr_h = ntohl(addr->sin_addr.s_addr);
+			uint16_t port_h = ntohs(addr->sin_port);
+			int index = addr_h - ap->addr_base;
 
-		if (index >= 0 || index < ap->num_addr) {
-			walk = ap->mapper[addr_h - ap->addr_base].addrmap[port_h];
-		} else {
-			walk = NULL;
-		}
-
-	} else {
-		walk = TAILQ_FIRST(&ap->used_list);
-		while (walk) {
-			next = TAILQ_NEXT(walk, addr_link);
-			if (addr->sin_port == walk->addr.sin_port && 
-					addr->sin_addr.s_addr == walk->addr.sin_addr.s_addr) {
-				break;
+			if (index >= 0 || index < ap->num_addr) {
+				walk = ap->mapper[i][addr_h - ap->addr_base].addrmap[port_h];
+			} else {
+				walk = NULL;
 			}
 
-			walk = next;
-		}
+		} else {
+			walk = TAILQ_FIRST(&ap->used_list);
+			while (walk) {
+				next = TAILQ_NEXT(walk, addr_link);
+				if (addr->sin_port == walk->addr.sin_port && 
+						addr->sin_addr.s_addr == walk->addr.sin_addr.s_addr) {
+					break;
+				}
 
+				walk = next;
+			}
+
+		}
 	}
 
 	if (walk) {

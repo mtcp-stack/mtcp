@@ -69,7 +69,13 @@ mtcp_sighandler_t app_signal_handler;
 static int sigint_cnt[MAX_CPUS];
 static struct timeval sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
-static int mtcp_master = -1;
+#ifdef NETSTAT
+#if NETSTAT_TOTAL
+static int printer = -1;
+#if ROUND_STAT
+#endif /* ROUND_STAT */
+#endif /* NETSTAT_TOTAL */
+#endif /* NETSTAT */
 /*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
@@ -797,10 +803,11 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 		if (ts != ts_prev) {
 			ts_prev = ts;
-			if (ctx->cpu == mtcp_master) {
-				ARPTimer(mtcp, ts);
+#ifdef NETSTAT
+			if (ctx->cpu == printer) {
 				PrintNetworkStats(mtcp, ts);
 			}
+#endif /* NETSTAT */
 		}
 
 		mtcp->iom->select(ctx);
@@ -1160,11 +1167,15 @@ mtcp_create_context(int cpu)
 
 	running[cpu] = TRUE;
 
-	if (mtcp_master < 0) {
-		mtcp_master = cpu;
-		TRACE_INFO("CPU %d is now the master thread.\n", mtcp_master);
+#ifdef NETSTAT
+#if NETSTAT_TOTAL
+	if (printer < 0) {
+		printer = cpu;
+		TRACE_INFO("CPU %d is in charge of printing stats.\n", printer);
 	}
-
+#endif
+#endif
+		
 	return mctx;
 }
 /*----------------------------------------------------------------------------*/
@@ -1208,14 +1219,18 @@ mtcp_destroy_context(mctx_t mctx)
 	TRACE_INFO("MTCP thread %d joined.\n", mctx->cpu);
 	running[mctx->cpu] = FALSE;
 
-	if (mtcp_master == mctx->cpu) {
+#ifdef NETSTAT
+#if NETSTAT_TOTAL
+	if (printer == mctx->cpu) {
 		for (i = 0; i < num_cpus; i++) {
 			if (i != mctx->cpu && running[i]) {
-				mtcp_master = i;
+				printer = i;
 				break;
 			}
 		}
 	}
+#endif
+#endif
 
 	log_ctx->done = 1;
 	ret = write(log_ctx->pair_sp_fd, "F", 1);
@@ -1381,11 +1396,13 @@ mtcp_init(char *config_file)
 	PrintConfiguration();
 
 	/* TODO: this should be fixed */
+#if 0
 	ap = CreateAddressPool(CONFIG.eths[0].ip_addr, 1);
 	if (!ap) {
 		TRACE_CONFIG("Error occured while creating address pool.\n");
 		return -1;
 	}
+#endif
 	
 	PrintInterfaceInfo();
 

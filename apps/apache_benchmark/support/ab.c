@@ -221,6 +221,7 @@ typedef STACK_OF(X509) X509_STACK_TYPE;
 #endif
 
 #include <assert.h>
+#include <numa.h>
 
 /* ------------------- DEFINITIONS -------------------------- */
 
@@ -283,7 +284,7 @@ struct data {
 #define ap_max(a,b) ((a)>(b))?(a):(b)
 #define ap_round_ms(a) ((apr_time_t)((a) + 500)/1000)
 #define ap_double_ms(a) ((double)(a)/1000.0)
-#define MAX_CONCURRENCY 200000
+#define MAX_CONCURRENCY 1000000
 #define MAX_CPUS 16
 /* --------------------- GLOBALS ---------------------------- */
 /* Static Options */
@@ -449,6 +450,7 @@ static void apr_err(char *s, apr_status_t rv)
 #include <openssl/bio.h>
 #define get_last_socket_error() errno
 #define clear_socket_error()    errno=0
+/* clone of openssl crypto/bio/bss_sock.c */
 
 
 static int mtcp_sock_write(BIO *h, const char *buf, int num);
@@ -609,6 +611,8 @@ int BIO_mtcp_sock_should_retry(int i)
     return (0);
 }
 
+
+
 int BIO_mtcp_sock_non_fatal_error(int err)
 {
     switch (err) {
@@ -657,6 +661,7 @@ int BIO_mtcp_sock_non_fatal_error(int err)
 }
 
 #endif                          /* #ifndef OPENSSL_NO_SOCK */
+
 
 static long ssl_print_cb(BIO *bio,int cmd,const char *argp,int argi,long argl,long ret)
 {
@@ -829,6 +834,7 @@ static void ssl_proceed_handshake(struct connection *c)
         int ret, ecode;
         apr_pollfd_t new_pollfd;
         
+        //ret = SSL_do_handshake(c->ssl);
         ret = SSL_connect(c->ssl);
         ecode = SSL_get_error(c->ssl, ret);
 
@@ -895,7 +901,7 @@ int core_affinitize(int core){
     char sysfname[MAX_FILE_NAME];
     int phy_id;
 
-    n = sysconf(_SC_NPROCESSORS_ONLN);
+	n = sysconf(_SC_NPROCESSORS_ONLN);
 
 	if (core < 0 || core >= (int) n) {
 		errno = -EINVAL;
@@ -1469,7 +1475,7 @@ static void output_html_results(void)
 
 static void start_connect(struct connection * c)
 {
-	apr_status_t rv;
+    apr_status_t rv;
 
     int sock_fd;
    
@@ -1555,16 +1561,16 @@ static void start_connect(struct connection * c)
             remove_pollfd.desc.s = c->aprsock;
             apr_pollset_remove(readbits, &remove_pollfd);
             apr_socket_close(c->aprsock);
-            if (bad > 100) {
+            if (bad > 10000) {
                 fprintf(stderr,
-                   "\nTest aborted after 100 failures\n\n");
+                   "\nTest aborted after 10000 failures\n\n");
                 apr_err("apr_socket_connect()", rv);
             }
-			pthread_mutex_lock(&err_mutex);
-			err_conn++;
-			bad++;
-			pthread_mutex_unlock(&err_mutex);
-			c->state = STATE_UNCONNECTED;
+            pthread_mutex_lock(&err_mutex);
+	    err_conn++;
+            bad++;
+	    pthread_mutex_unlock(&err_mutex);
+	    c->state = STATE_UNCONNECTED;
             start_connect(c);
             return;
         }
@@ -1677,6 +1683,17 @@ static void read_connection(struct connection * c)
                 _good++;
                 close_connection(c);
             }
+/* https://svn.apache.org/viewvc/httpd/httpd/branches/2.4.x/support/ab.c?r1=1373084&r2=1373083&pathrev=1373084 */
+            else if (scode == SSL_ERROR_SYSCALL
+                     && status == 0
+                     && c->read != 0) {
+                /* connection closed, but in violation of the protocol, after
+                 * some data has already been read; this commonly happens, so
+                 * let the length check catch any response errors
+                 */
+                _good++;
+                close_connection(c);
+            }
             else if (scode != SSL_ERROR_WANT_WRITE
                      && scode != SSL_ERROR_WANT_READ) {
                 /* some fatal error: */
@@ -1774,8 +1791,8 @@ static void read_connection(struct connection * c)
                 remove_pollfd.desc.s = c->aprsock;
                 apr_pollset_remove(readbits, &remove_pollfd);
                 apr_socket_close(c->aprsock);
-                if (bad > 100) {
-                    err("\nTest aborted after 100 failures\n\n");
+                if (bad > 10000) {
+                    err("\nTest aborted after 10000 failures\n\n");
                 }
 				printf("%d trying to acquire err_mutex\n", _cpu);
 				pthread_mutex_lock(&err_mutex);
@@ -2010,14 +2027,14 @@ void *testMain(void *arg){
 	printf("CPU%d connecting to port %d\n", _cpu, _connectport);
 #ifdef HAVE_MTCP
     mtcp_core_affinitize(_cpu);
-	g_mctx[_cpu] = mtcp_create_context(_cpu);
-	if (g_mctx[_cpu] == NULL){
-		perror("mtcp_create_context");
-		return NULL;
-	}
-	mtcp_init_rss(g_mctx[_cpu], INADDR_ANY, _num_ip, _destsa->sa.sin.sin_addr.s_addr, _destsa->sa.sin.sin_port);
+    g_mctx[_cpu] = mtcp_create_context(_cpu);
+    if (g_mctx[_cpu] == NULL){
+	perror("mtcp_create_context");
+	return NULL;
+    }
+    mtcp_init_rss(g_mctx[_cpu], INADDR_ANY, _num_ip, _destsa->sa.sin.sin_addr.s_addr, 1, _destsa->sa.sin.sin_port);
 #else
-	core_affinitize(_cpu);
+    core_affinitize(_cpu);
 #endif
 
 	apr_pool_create(&_cntxt, cntxt);
@@ -2027,14 +2044,14 @@ void *testMain(void *arg){
 	}
 
 	_lasttime = apr_time_now();
-    con = calloc(_concurrency, sizeof(struct connection));
+    	con = calloc(_concurrency, sizeof(struct connection));
 	_stats = calloc(_requests, sizeof(struct data));
 
 	/* initialise lots of requests */
 	for (i = 0; i < _concurrency; i++) {
-        con[i].socknum = i;
+        	con[i].socknum = i;
 		start_connect(&con[i]);
-    }
+    	}
 
     do {
         apr_int32_t n;
@@ -2087,52 +2104,53 @@ void *testMain(void *arg){
              * apr_poll().
              */
             
-			if ((rv & APR_POLLIN) || (rv & APR_POLLPRI) || (rv & APR_POLLHUP))
+            if ((rv & APR_POLLIN) || (rv & APR_POLLPRI) || (rv & APR_POLLHUP))
                 read_connection(c);
             if ((rv & APR_POLLERR) || (rv & APR_POLLNVAL)) {
-				pthread_mutex_lock(&err_mutex);
-				bad++;
+		pthread_mutex_lock(&err_mutex);
+		bad++;
                 err_except++;
-				pthread_mutex_unlock(&err_mutex);
+		pthread_mutex_unlock(&err_mutex);
                 start_connect(c);
                 continue;
             }
             if (rv & APR_POLLOUT) {
                 if (c->state == STATE_CONNECTING) {
-					apr_pollfd_t remove_pollfd;
+	            apr_pollfd_t remove_pollfd;
                     rv = apr_socket_connect(c->aprsock, _destsa);
-					remove_pollfd.desc_type = APR_POLL_SOCKET;
+		    remove_pollfd.desc_type = APR_POLL_SOCKET;
                     remove_pollfd.desc.s = c->aprsock;
-					apr_pollset_remove(readbits, &remove_pollfd);
-					if (rv != APR_SUCCESS) {
-                        if (bad> 100) {
+		    apr_pollset_remove(readbits, &remove_pollfd);
+	  	    if (rv != APR_SUCCESS) {
+                        if (bad> 10000) {
                             fprintf(stderr,
-                                    "\nTest aborted after 100 failures\n\n");
+                                    "\nTest aborted after 10000 failures\n\n");
                             apr_err("apr_socket_connect()", rv);
                         }
-						pthread_mutex_lock(&err_mutex);
-						bad++;
-						err_conn++;
-						pthread_mutex_unlock(&err_mutex);
+			pthread_mutex_lock(&err_mutex);
+			bad++;
+			err_conn++;
+			pthread_mutex_unlock(&err_mutex);
                         c->state = STATE_UNCONNECTED;
                         start_connect(c);
                         continue;
                     }
                     else {
                         c->state = STATE_CONNECTED;
-						_started++;
+			_started++;
 #ifdef USE_SSL
-						if (c->ssl)
+			if (c->ssl) {
                             ssl_proceed_handshake(c);
+			}
                         else
 #endif
-						write_request(c);
-                    }
-                }
-                else {
-					write_request(c);
-                }
-            }
+			   write_request(c);
+                   }
+               }
+          	else {
+			write_request(c);
+               }
+          }
 
             /*
              * When using a select based poll every time we check the bits
@@ -2186,7 +2204,7 @@ static void test(void)
     apr_size_t inbytes_left, outbytes_left;
 #endif
 #ifdef HAVE_MTCP
-    mtcp_init("config/mtcp.conf");
+    mtcp_init("/etc/mtcp/config/ab.conf");
 #endif
     if (!use_html) {
         printf("Benchmarking %s ", hostname);
@@ -2366,7 +2384,7 @@ static void usage(const char *progname)
     fprintf(stderr, "    -c concurrency  Number of multiple requests to make\n");
     fprintf(stderr, "    -t timelimit    Seconds to max. wait for responses\n");
     fprintf(stderr, "    -N cores        Number of cores to use\n");
-    fprintf(stderr, "    -L ips  	 Number of source ip to use\n");
+    fprintf(stderr, "    -L srcip    	 Number of source ip to use\n");
     fprintf(stderr, "    -l ports        Number of ports to use. (Port number starts from 80)\n");
 	fprintf(stderr, "    -b windowsize   Size of TCP send/receive buffer, in bytes\n");
     fprintf(stderr, "    -p postfile     File containing data to POST. Remember also to set -T\n");
@@ -2603,12 +2621,15 @@ int main(int argc, const char * const argv[])
                 windowsize = atoi(optarg);
                 break;
 	    case 'N':
-		_num_cpus = atoi(optarg);
+	 	_num_cpus = atoi(optarg);
+		break;
+	    case 'L':
+	 	_num_ip = atoi(optarg);
 		break;
 	    case 'l':
 		num_ports = atoi(optarg);
 		break;
-	    case 'i':
+            case 'i':
                 if (posting > 0)
                 err("Cannot mix POST/PUT and HEAD\n");
                 posting = -1;
@@ -2759,12 +2780,12 @@ int main(int argc, const char * const argv[])
 #endif
                 } else if (strncasecmp(optarg, "SSL3", 4) == 0) {
                     meth = SSLv3_client_method();
-#ifdef HAVE_TLSV1_X
+//#ifdef HAVE_TLSV1_X
                 } else if (strncasecmp(optarg, "TLS1.1", 6) == 0) {
                     meth = TLSv1_1_client_method();
                 } else if (strncasecmp(optarg, "TLS1.2", 6) == 0) {
                     meth = TLSv1_2_client_method();
-#endif
+//#endif
                 } else if (strncasecmp(optarg, "TLS1", 4) == 0) {
                     meth = TLSv1_client_method();
                 }

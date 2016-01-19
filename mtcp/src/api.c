@@ -496,7 +496,7 @@ mtcp_accept(mctx_t mctx, int sockid, struct sockaddr *addr, socklen_t *addrlen)
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr, 
-		in_addr_t daddr, in_addr_t dport)
+		in_addr_t daddr_base, int num_daddr, in_addr_t dport)
 {
 	mtcp_manager_t mtcp;
 	addr_pool_t ap;
@@ -511,12 +511,12 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 
 		/* for the INADDR_ANY, find the output interface for the destination
 		   and set the saddr_base as the ip address of the output interface */
-		nif_out = GetOutputInterface(daddr);
+		nif_out = GetOutputInterface(daddr_base);
 		saddr_base = CONFIG.eths[nif_out].ip_addr;
 	}
 
 	ap = CreateAddressPoolPerCore(mctx->cpu, num_cpus, 
-			saddr_base, num_addr, daddr, dport);
+			saddr_base, num_addr, daddr_base, num_daddr, dport);
 	if (!ap) {
 		errno = ENOMEM;
 		return -1;

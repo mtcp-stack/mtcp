@@ -13,7 +13,7 @@ typedef struct addr_pool *addr_pool_t;
 /* num_addr: number of addresses to use as source IP                          */
 /*----------------------------------------------------------------------------*/
 addr_pool_t 
-CreateAddressPool(in_addr_t addr_base, int num_addr);
+CreateAddressPool(in_addr_t addr_base, int num_addr, in_addr_t daddr_base, int num_daddr);
 /*----------------------------------------------------------------------------*/
 /* CreateAddressPoolPerCore()                                                 */
 /* Create address pool only for the given core number.                        */
@@ -21,7 +21,7 @@ CreateAddressPool(in_addr_t addr_base, int num_addr);
 /*----------------------------------------------------------------------------*/
 addr_pool_t 
 CreateAddressPoolPerCore(int core, int num_queues, 
-		in_addr_t saddr_base, int num_addr, in_addr_t daddr, in_port_t dport);
+		in_addr_t saddr_base, int num_addr, in_addr_t daddr_base, int num_daddr, in_port_t dport);
 /*----------------------------------------------------------------------------*/
 void
 DestroyAddressPool(addr_pool_t ap);

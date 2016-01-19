@@ -18,6 +18,7 @@
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
+#include <libcidr.h>
 #include "cpu.h"
 #include "rss.h"
 #include "http_parsing.h"
@@ -31,6 +32,7 @@
 
 #define IP_RANGE 16 
 #define MAX_IP_STR_LEN 16
+#define MAX_DADDR 254 
 
 #define BUF_SIZE (8*1024)
 
@@ -71,6 +73,16 @@ static char url[MAX_URL_LEN + 1];
 static in_addr_t daddr;
 static in_port_t dport;
 static in_addr_t saddr;
+
+static struct in_addr minip, ip_index, dest[MAX_DADDR];
+static int a, b, c, d;
+static int ret;
+static int num_daddr;
+static CIDR *addr, *addr2;
+static char *astr;
+static char *szIP;
+static const char *cstr;
+
 /*----------------------------------------------------------------------------*/
 static int total_flows;
 static int flows[MAX_CPUS];
@@ -165,6 +177,8 @@ DestroyContext(thread_context_t ctx)
 	mtcp_destroy_context(ctx->mctx);
 	free(ctx);
 }
+
+
 /*----------------------------------------------------------------------------*/
 inline int 
 CreateConnection(thread_context_t ctx)
@@ -174,6 +188,7 @@ CreateConnection(thread_context_t ctx)
 	struct sockaddr_in addr;
 	int sockid;
 	int ret;
+	int off = 0;
 
 	sockid = mtcp_socket(mctx, AF_INET, SOCK_STREAM, 0);
 	if (sockid < 0) {
@@ -186,6 +201,9 @@ CreateConnection(thread_context_t ctx)
 		TRACE_ERROR("Failed to set socket in nonblocking mode.\n");
 		exit(-1);
 	}
+
+	off = ctx->started++ % num_daddr;
+	daddr = dest[off].s_addr;
 
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = daddr;
@@ -201,7 +219,6 @@ CreateConnection(thread_context_t ctx)
 		}
 	}
 
-	ctx->started++;
 	ctx->pending++;
 	ctx->stat.connects++;
 
@@ -231,48 +248,13 @@ CloseConnection(thread_context_t ctx, int sockid)
 static inline int 
 SendHTTPRequest(thread_context_t ctx, int sockid, struct wget_vars *wv)
 {
-	char request[HTTP_HEADER_LEN];
 	struct mtcp_epoll_event ev;
-	int wr;
-	int len;
 
-	wv->headerset = FALSE;
-	wv->recv = 0;
-	wv->header_len = wv->file_len = 0;
-
-	snprintf(request, HTTP_HEADER_LEN, "GET %s HTTP/1.0\r\n"
-			"User-Agent: Wget/1.12 (linux-gnu)\r\n"
-			"Accept: */*\r\n"
-			"Host: %s\r\n"
-//			"Connection: Keep-Alive\r\n\r\n", 
-			"Connection: Close\r\n\r\n", 
-			url, host);
-	len = strlen(request);
-
-	wr = mtcp_write(ctx->mctx, sockid, request, len);
-	if (wr < len) {
-		TRACE_ERROR("Socket %d: Sending HTTP request failed. "
-				"try: %d, sent: %d\n", sockid, len, wr);
-	}
-	ctx->stat.writes += wr;
-	TRACE_APP("Socket %d HTTP Request of %d bytes. sent.\n", sockid, wr);
 	wv->request_sent = TRUE;
 
 	ev.events = MTCP_EPOLLIN;
 	ev.data.sockid = sockid;
 	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_MOD, sockid, &ev);
-
-	gettimeofday(&wv->t_start, NULL);
-
-	char fname[MAX_FILE_LEN + 1];
-	if (fio) {
-		snprintf(fname, MAX_FILE_LEN, "%s.%d", outfile, flowcnt++);
-		wv->fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (wv->fd < 0) {
-			TRACE_APP("Failed to open file descriptor for %s\n", fname);
-			exit(1);
-		}
-	}
 
 	return 0;
 }
@@ -433,6 +415,7 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 		}
 	}
 
+
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -548,7 +531,7 @@ RunWgetMain(void *arg)
 	g_stat[core] = &ctx->stat;
 	srand(time(NULL));
 
-	mtcp_init_rss(mctx, saddr, num_ip, daddr, 1, dport);
+	mtcp_init_rss(mctx, saddr, num_ip, daddr, num_daddr, dport);
 
 	n = flows[core];
 	if (n == 0) {
@@ -639,8 +622,9 @@ RunWgetMain(void *arg)
 				CloseConnection(ctx, events[i].data.sockid);
 
 			} else if (events[i].events & MTCP_EPOLLIN) {
-				HandleReadEvent(ctx, 
-						events[i].data.sockid, &wvars[events[i].data.sockid]);
+				//HandleReadEvent(ctx, 
+				//		events[i].data.sockid, &wvars[events[i].data.sockid]);
+				CloseConnection(ctx, events[i].data.sockid);
 
 			} else if (events[i].events == MTCP_EPOLLOUT) {
 				struct wget_vars *wv = &wvars[events[i].data.sockid];
@@ -650,6 +634,7 @@ RunWgetMain(void *arg)
 				} else {
 					//TRACE_DBG("Request already sent.\n");
 				}
+			//	CloseConnection(ctx, events[i].data.sockid);
 
 			} else {
 				TRACE_ERROR("Socket %d: event: %s\n", 
@@ -706,6 +691,38 @@ main(int argc, char **argv)
 		return FALSE;
 	}
 
+	astr = NULL;
+	addr = cidr_from_str(argv[1]);
+	if(addr ==NULL) {
+		TRACE_CONFIG("Error: Couldn't parse address %s\n", argv[1]);
+		return FALSE;
+	}	
+
+        addr2 = cidr_addr_hostmin(addr);
+        astr = cidr_to_str(addr2, CIDR_ONLYADDR);
+
+        ret = sscanf(astr, "%i.%i.%i.%i", &a, &b, &c, &d);
+        if (ret != 4 ) {
+        	fprintf(stderr, "Error: Invalid syntax.\n");
+        }
+        minip.s_addr = a << 24 | b << 16 | c << 8 | d;
+	
+        /* Num of hosts */
+        cstr = cidr_numhost(addr);
+        num_daddr = atoi(cstr);
+	TRACE_CONFIG("%s: %d\n", "NumOfDestinationHosts", num_daddr);
+
+        for( i=0; i<num_daddr; i++)
+        {
+        	ip_index = minip;
+        	ip_index.s_addr += i;
+        	ip_index.s_addr = htonl(ip_index.s_addr);
+		dest[i] = ip_index;
+        	//szIP = inet_ntoa(ip_index);
+        	//szIP = inet_ntoa(dest[i]);
+		//TRACE_CONFIG("IP: %s\n", szIP);
+        }
+
 	char* slash_p = strchr(argv[1], '/');
 	if (slash_p) {
 		strncpy(host, argv[1], slash_p - argv[1]);
@@ -715,8 +732,13 @@ main(int argc, char **argv)
 		strncpy(url, "/", 1);
 	}
 
-	daddr = inet_addr(host);
+	daddr = inet_addr(astr);
 	dport = htons(80);
+
+	free(astr);
+	cidr_free(addr);
+	cidr_free(addr2);
+
 	saddr = INADDR_ANY;
 
 	total_flows = atoi(argv[2]);
@@ -770,7 +792,7 @@ main(int argc, char **argv)
 		TRACE_CONFIG("Output file: %s\n", outfile);
 	}
 
-	ret = mtcp_init("/etc/mtcp/config/epwget.conf");
+	ret = mtcp_init("/etc/mtcp/config/synflood.conf");
 	if (ret) {
 		TRACE_ERROR("Failed to initialize mtcp.\n");
 		exit(EXIT_FAILURE);

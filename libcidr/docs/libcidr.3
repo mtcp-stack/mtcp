@@ -1,0 +1,223 @@
+.\" libcidr summary manpage
+.\" We won't bother writing more than a quick rundown of the API
+.Dd May 7, 2012
+.Dt libcidr 3
+.Os
+.Sh NAME
+.Nm libcidr
+.Nd CIDR-style IP address manipulation functions
+.Sh SYNOPSIS
+.In libcidr.h
+Library libcidr (-lcidr)
+.Sh SUMMARY
+.Nm
+is a C library implementing a variety of functions to manipulate IP
+addresses and netblocks.
+It handles both IPv4 and IPv6 networks, will transform them to and from
+text strings in a variety of formats, cram them into and lever them out
+of
+.Vt in_addr
+and
+.Vt in6_addr
+structures, and give you all sorts of stats about them.
+Functions are provided also to tell you a few things about the network
+any given CIDR block is in, what its parent and child networks are, and
+so on.
+If you're really nice,
+.Nm
+may even cook you breakfast.
+.Pp
+The primary documentation for
+.Nm
+is maintained elsewhere, with a full description of the functions, their
+options, and their return values.
+Your installation probably has a copy of the reference manual installed
+somewhere, perhaps in
+.Pa %%DOCDIR%% .
+Documentation is also available on the webpage (see below).
+This manpage is provided as a quick reference.
+.Sh DESCRIPTION OF FUNCTIONS
+.Bl -tag -width XXXX
+.It Cm CIDR *cidr_addr_broadcast(const CIDR *cidr)
+Return a
+.Vt CIDR
+structure describing the broadcast address of the network represented by
+.Fa cidr .
+.\"
+.It Cm CIDR *cidr_addr_hostmax(const CIDR *cidr)
+Return a
+.Vt CIDR
+structure describing the "highest" host in the subnet represented by
+.Fa cidr .
+.\"
+.It Cm CIDR *cidr_addr_hostmin(const CIDR *cidr)
+Return a
+.Vt CIDR
+structure describing the "lowest" host in the subnet represented by
+.Fa cidr .
+.\"
+.It Cm CIDR *cidr_addr_network(const CIDR *cidr)
+Return a
+.Vt CIDR
+structure describing the network address of the network represented by
+.Fa cidr .
+.\"
+.It Cm CIDR *cidr_alloc(void)
+Allocate and initialize a
+.Vt CIDR
+structure.
+.\"
+.It Cm int cidr_contains(const CIDR *big, const CIDR *little)
+Determine whether
+.Fa little
+is a CIDR block entirely contained within the block described by
+.Fa big .
+Return 0 if so, else non-zero.
+.\"
+.It Cm CIDR *cidr_dup(const CIDR *cidr)
+Return a duplicate of
+.Fa cidr .
+.\"
+.It Cm int cidr_equals(const CIDR *first, const CIDR *second)
+Determine whether
+.Fa first
+and
+.Fa second
+describe the same CIDR block.
+Return 0 if they do, else non-zero.
+.\"
+.It Cm void cidr_free(CIDR *cidr)
+Free the memory used by a
+.Vt CIDR * .
+.\"
+.It Cm CIDR *cidr_from_inaddr(const struct in_addr *in)
+Generate a
+.Vt CIDR *
+based on a
+.Vt struct in_addr .
+.\"
+.It Cm CIDR *cidr_from_in6addr(const struct in6_addr *in)
+Generate a
+.Vt CIDR *
+based on a
+.Vt struct in6_addr .
+.\"
+.It Cm CIDR *cidr_from_str(const char *str)
+Parse
+.Fa str
+and return a
+.Vt CIDR *
+representing it.
+.\"
+.It Cm uint8_t *cidr_get_addr(const CIDR *cidr)
+Return the address in an array of binary octets.
+.\"
+.It Cm uint8_t *cidr_get_mask(const CIDR *cidr)
+Return the netmask in an array of binary octets.
+.\"
+.It Cm int cidr_get_pflen(const CIDR *cidr)
+Return the length of the netmask prefix of
+.Fa cidr .
+.\"
+.It Cm int cidr_get_proto(const CIDR *cidr)
+Return the protocol of an address.
+.\"
+.It Cm int cidr_is_v4mapped(const CIDR *addr)
+Checks if an IPv6 address is in the IPv4-mapped range.
+.\"
+.It Cm CIDR **cidr_net_subnets(const CIDR *cidr)
+Return a 2-element array of
+.Vt CIDR * 's
+representing the two immediate subnets of the network described by
+.Fa cidr .
+That is to say, the two networks, within
+.Fa cidr ,
+which have a netmask 1 bit longer.
+.\"
+.It Cm CIDR *cidr_net_supernet(const CIDR *cidr)
+Return a
+.Vt CIDR *
+describing the "parent" network of
+.Fa cidr .
+That is, the network with a netmask 1 bit shorter, which wholly contains
+.Fa cidr .
+.\"
+.It Cm const char *cidr_numaddr(const CIDR *cidr)
+Return a pointer to a static string giving the number of total addresses
+available in the network described by
+.Fa cidr .
+Do not attempt to alter or
+.Xr free 3
+this string.
+.\"
+.It Cm const char *cidr_numaddr_pflen(int pflen)
+Return a pointer to a static string giving the number of total addresses
+available in a network having a prefix length of
+.Fa pflen .
+Do not attempt to alter or
+.Xr free 3
+this string.
+You probably don't want to call this function manually often.
+.\"
+.It Cm const char *cidr_numhost(const CIDR *cidr)
+Return a pointer to a static string giving the number of addresses
+available for hosts available in the network described by
+.Fa cidr .
+Do not attempt to alter or
+.Xr free 3
+this string.
+.\"
+.It Cm const char *cidr_numhost_pflen(int pflen)
+Return a pointer to a static string giving the number of addresses
+available for hosts in a network having a prefix length of
+.Fa pflen .
+Do not attempt to alter or
+.Xr free 3
+this string.
+You probably don't want to call this function manually often.
+.\"
+.It Cm struct in_addr *cidr_to_inaddr(const CIDR *cidr, struct in_addr *in)
+Fill in a
+.Vt struct in_addr
+with the address given in
+.Fa cidr .
+A user-supplied
+.Vt struct in_addr
+is used if passed in; if a null pointer is passed, a new one will be
+allocated, filled in, and returned.
+.\"
+.It Cm struct in6_addr *cidr_to_in6addr(const CIDR *cidr, struct in6_addr *in)
+Fill in a
+.Vt struct in6_addr
+with the address given in
+.Fa cidr .
+A user-supplied
+.Vt struct in6_addr
+is used if passed in; if a null pointer is passed, a new one will be
+allocated, filled in, and returned.
+.\"
+.It Cm char *cidr_to_str(const CIDR *cidr, int flags)
+Return a string version of the passed-in
+.Fa cidr ,
+as described by
+.Fa flags .
+By default, it will print in the standard address form for whatever
+address family
+.Fa cidr
+represents, followed by a slash, and then the prefix length of the
+netmask.
+.\"
+.It Cm const char *cidr_version(void)
+Return a static string containing version information.
+.El
+.\"
+.Sh AUTHOR
+.Nm
+is written and maintained by
+.An Matthew Fuller
+.Ao fullermd@over-yonder.net
+.Ac .
+Its home on the web is at
+.Ao http://www.over-yonder.net/~fullermd/projects/libcidr
+.Ac ;
+check there for updates and additional documentation.

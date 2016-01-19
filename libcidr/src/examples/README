@@ -1,0 +1,53 @@
+These two example programs show, far more than the test programs, some of
+the uses to which the libcidr functions can be put.
+
+
+- acl/ shows a quick&dirty implementation of IP-based access control
+  lists using the CIDR parsing and comparing functions.  This was
+  actually the usage which first put the thought of writing libcidr into
+  my head, since reimplementing this can be a pain in the ass.
+  
+  The program reads in a list of allow/deny rules from a text file, one
+  per line.  Each line contains a '+' or a '-' (for access allowed or
+  denied), followed by a space, and then the IP block for which that rule
+  applies.  Then it waits for TCP connections on the port given on the
+  command line (accepts IPv4 and IPv6 seamlessly).  When a connection
+  comes in, it goes through the list first-match and either tells the
+  client they're denied and disconnects them, or tells them they're
+  allowed (and also disconnects them; hey, whaddaya want?).  The list is
+  treated as default-deny, so anything falling off the end is also
+  denied.  Verbose flags allow displaying (locally or/and remotely) the
+  individual checks as it makes them.
+
+  Using the library for this purpose is probably one of the simpliest yet
+  most useful uses to which it can be put.  Of course, it doesn't have to
+  be ACL's as such; just the easy specification of more or less specific
+  netblocks in certain orders to perform various actions.  By virtue of
+  scanning first-match, for instance, I can easily allow all of
+  1.2.3.0/24 EXCEPT for 1.2.3.32/27 (.32-.63), just by putting the
+  1.2.3.32/27 rule first.  And then I just run through the list with the
+  pre-provided cidr_compare() function (after building the list with the
+  pre-provided cidr_from_str() function).  Saves writing a whole lot of
+  parsing and comparing code of your own.
+
+
+- cidrcalc/ implements a tool simliar to ipcalc, in that it shows various
+  information about a netblock.  I actually intend to build and install
+  this automatically as part of building the library, because I've always
+  found ipcalc a very useful tool, though with its limitations (like not
+  supporting IPv6).  It demonstrates a few (though not near all) of the
+  various flags for cidr_to_str(), as well as spitting out all sorts of
+  useful information about the netblocks given (even more with -b or -s
+  flags).
+
+  This exhibits a lot of the "generate this manipulation of the netblock,
+  now this other one, now this other one..." usage of libcidr.  These
+  sort of digesting functions can be useful in analysis or cosmetics;
+  I've some vague plans to use these capabilities as the backend of yet
+  another IP address/subnet management tool, for instance.  I've also
+  found the output of this sort of tool handy when I'm trying to explain
+  the concepts of subnetting to somebody.
+
+
+
+Share and enjoy!

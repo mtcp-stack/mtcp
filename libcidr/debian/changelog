@@ -1,0 +1,5 @@
+libcidr (1.2.0-1) unstable; urgency=low
+
+  * Added debian packaging.
+
+ -- Andrew Otto (WMF) <otto@wikimedia.org>  Thu, 12 Jul 2012 17:40:30 +0000

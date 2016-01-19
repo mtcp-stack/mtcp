@@ -1,0 +1,8 @@
+*.So
+*.so.*
+GNUmakefile*
+src/examples/acl/acl
+src/examples/cidrcalc/cidrcalc
+src/test/*/cidr_*
+docs/reference/*
+docs/reference/sgml/.build

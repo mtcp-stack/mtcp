@@ -1,0 +1,46 @@
+<!-- DTD for 'codelibrary' doctype.  Documentation of code library -->
+<!-- $Id: codelibrary.dtd,v 1.5 2003/07/15 18:31:14 fullermd Exp $ -->
+<!ELEMENT codelibrary	- - (geninfo, datastructs, functions)
+						+(func|para|fref|dref|br)>
+<!ELEMENT geninfo		- - (longdesc) >
+<!ELEMENT datastructs	- - (datatype+) >
+<!ELEMENT datatype		- - (name, desc, note?, member+) >
+<!ELEMENT member		- - (name & desc & type* & member*) >
+<!ELEMENT functions		- - (function+) >
+<!ELEMENT function		- - (name, desc, longdesc, args, returns, errs?) >
+<!ELEMENT returns		- - (type, longdesc?) >
+<!ELEMENT errs			- - (err*, note?) >
+<!ELEMENT err			- - (ecode, emean) >
+<!ELEMENT args			- - (arg*) >
+<!ELEMENT arg			- - (type, name, desc) >
+<!ELEMENT longdesc		- - (para+) >
+<!ELEMENT note			- - (para+) >
+
+<!-- Edit this as required for your project -->
+<!ENTITY % subtypes.member	"(union|struct|primitive)">
+<!ATTLIST codelibrary
+		name	CDATA	#IMPLIED >
+<!ATTLIST member
+		type	%subtypes.member	#REQUIRED >
+<!ATTLIST (datatype | function)
+		type	(public|private)	public
+		name	ID		#REQUIRED >
+
+<!ELEMENT desc			- - (#PCDATA) >
+<!ELEMENT func			- - (#PCDATA) >
+<!ELEMENT name			- - (#PCDATA) >
+<!ELEMENT para			- - (#PCDATA) >
+<!ELEMENT type			- - (#PCDATA) >
+<!ELEMENT ecode			- - (#PCDATA) >
+<!ELEMENT emean			- - (#PCDATA) >
+
+<!ELEMENT dref		- o EMPTY >
+<!ATTLIST dref		target IDREF #REQUIRED >
+<!ELEMENT fref		- o EMPTY >
+<!ATTLIST fref		target IDREF #REQUIRED >
+
+<!ELEMENT br		- o EMPTY >
+
+<!-- 'Normal' entities (snarfed from HTML) -->
+<!ENTITY lt      CDATA "&#60;"   -- less-than sign -->
+<!ENTITY gt      CDATA "&#62;"   -- greater-than sign -->

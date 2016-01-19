@@ -1,0 +1,1449 @@
+  <function type="public" name="cidr-addr-broadcast">
+   <name>cidr_addr_broadcast</name>
+   <desc>
+    Find the broadcast address
+   </desc>
+   <longdesc>
+    <para>
+     Generate a <dref target="cidr-addr"> structure describing the
+     broadcast address of the passed-in netblock.
+    </para>
+    <para>
+     The returned structure should be cleaned up using
+     <fref target="cidr-free">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      A <dref target="cidr-addr"> structure describing an arbitrary
+      netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a <dref target="cidr-addr"> structure
+      describing the broadcast address on success.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Given NULL</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-addr-broadcast"> can also fail and set errno for
+      any of the reasons listed for <fref target="cidr-alloc">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-addr-hostmax">
+   <name>cidr_addr_hostmax</name>
+   <desc>
+    Find the highest host address
+   </desc>
+   <longdesc>
+    <para>
+     Generate a <dref target="cidr-addr"> structure describing the
+     highest-numbered address available for a host IP in the given
+     netblock.
+    </para>
+    <para>
+     The returned structure should be cleaned up using
+     <fref target="cidr-free">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      A <dref target="cidr-addr"> structure describing an arbitrary
+      netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a <dref target="cidr-addr"> structure
+      describing the max host address on success.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <note>
+     <para>
+      <fref target="cidr-addr-hostmax"> can fail and set errno for any
+      of the reasons listed for <fref target="cidr-addr-broadcast">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-addr-hostmin">
+   <name>cidr_addr_hostmin</name>
+   <desc>
+    Find the lowest host address
+   </desc>
+   <longdesc>
+    <para>
+     Generate a <dref target="cidr-addr"> structure describing the
+     lowest-numbered address available for a host IP in the given
+     netblock.
+    </para>
+    <para>
+     The returned structure should be cleaned up using
+     <fref target="cidr-free">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      A <dref target="cidr-addr"> structure describing an arbitrary
+      netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a <dref target="cidr-addr"> structure
+      describing the min host address on success.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <note>
+     <para>
+      <fref target="cidr-addr-hostmin"> can fail and set errno for any
+      of the reasons listed for <fref target="cidr-addr-network">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-addr-network">
+   <name>cidr_addr_network</name>
+   <desc>
+    Find the network address
+   </desc>
+   <longdesc>
+    <para>
+     Generate a <dref target="cidr-addr"> structure describing the
+     network address of the passed-in netblock.
+    </para>
+    <para>
+     The returned structure should be cleaned up using
+     <fref target="cidr-free">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      A <dref target="cidr-addr"> structure describing an arbitrary
+      netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a <dref target="cidr-addr"> structure
+      describing the network address on success.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Given NULL</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-addr-network"> can also fail and set errno for
+      any of the reasons listed for <fref target="cidr-alloc">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-alloc">
+   <name>cidr_alloc</name>
+   <desc>
+    Create a <dref target="cidr-addr">
+   </desc>
+   <longdesc>
+    <para>
+     Allocate memory for a <dref target="cidr-addr"> structure and
+     initialize the necessary pieces.
+    </para>
+    <para>
+     The returned structure should be cleaned up using
+     <fref target="cidr-free">.
+    </para>
+    <para>
+     Note that you should probably never need to call this function
+     yourself; you'll generally get your <dref target="cidr-addr">
+     structures as a return from a function like
+     <fref target="cidr-from-str"> or <fref target="cidr-from-inaddr">.
+    </para>
+   </longdesc>
+   <args></args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to an initialized <dref target="cidr-addr">
+      structure on success.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-contains">
+   <name>cidr_contains</name>
+   <desc>
+    Compare netblocks
+   </desc>
+   <longdesc>
+    <para>
+     This function is passed two <dref target="cidr-addr"> structures
+     describing a pair of netblocks.
+     It then determines if the latter is wholly contained within the
+     former.
+    </para>
+    <para>
+     A common use-case of this will generally involve the second "block"
+     actually being a host (/32 or /128) address, as when you're
+     implementing ACL's.
+     But that's really just a specific case of the second block being any
+     other size; there's nothing special or magical about it.
+     As far as libcidr is concerned, they're just two netblocks.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>big</name>
+     <desc>
+      The netblock which may (or may not) contain the second arg.
+     </desc>
+    </arg>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>little</name>
+     <desc>
+      The netblock which may (or may not) be contained within the first
+      arg.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>int</type>
+    <longdesc>
+     <para>
+      Returns 0 if little is wholly contained within big.
+      Returns -1 if it's not, or if an error occured.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>0</ecode>
+     <emean>No error (little not in big)</emean>
+    </err>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>EINVAL</ecode>
+     <emean>Invalid argument</emean>
+    </err>
+    <err>
+     <ecode>ENOENT</ecode>
+     <emean>Internal error (shouldn't happen)</emean>
+    </err>
+    <err>
+     <ecode>EPROTO</ecode>
+     <emean>Protocols don't match</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-dup">
+   <name>cidr_dup</name>
+   <desc>
+    Duplicate a netblock
+   </desc>
+   <longdesc>
+    <para>
+     Allocate a <dref target="cidr-addr">, and fill it in with a
+     duplicate of the information given.
+    </para>
+    <para>
+     The returned structure should be cleaned up using
+     <fref target="cidr-free">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>src</name>
+     <desc>
+      A <dref target="cidr-addr"> structure to be copied.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a <dref target="cidr-addr"> struct containing a copy of
+      src.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <note>
+     <para>
+      <fref target="cidr-dup"> can fail and set errno for any of the
+      reasons listed for <fref target="cidr-alloc">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-equals">
+   <name>cidr_equals</name>
+   <desc>
+    Compare two blocks for equality
+   </desc>
+   <longdesc>
+    <para>
+     This function is passed two <dref target="cidr-addr"> structures
+     describing a pair of netblocks.
+     It checks to see if they happen to describe the same netblock.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>one</name>
+     <desc>
+      One netblock.
+     </desc>
+    </arg>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>two</name>
+     <desc>
+      Another netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>int</type>
+    <longdesc>
+     <para>
+      Returns 0 if the two <dref target="cidr-addr"> structs describe the
+      same netblock.
+      Returns -1 otherwise.
+     </para>
+    </longdesc>
+   </returns>
+   <!-- No errs -->
+  </function>
+
+  <function type="public" name="cidr-free">
+   <name>cidr_free</name>
+   <desc>Free a <dref target="cidr-addr"> structure.</desc>
+   <longdesc>
+    <para>
+     Takes a <dref target="cidr-addr"> structure and
+     <func>free</func>'s all its component parts.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type><dref target="cidr-addr"> *</type>
+     <name>tofree</name>
+     <desc>
+      A single <dref target="cidr-addr"> structure which has outlived its
+      usefulness.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>void</type>
+   </returns>
+  </function>
+
+  <function type="public" name="cidr-from-inaddr">
+   <name>cidr_from_inaddr</name>
+   <desc>
+    Parse a struct in_addr
+   </desc>
+   <longdesc>
+    <para>
+     Takes a populated struct in_addr, as you'd get from
+     <func>accept</func> or <func>getaddrinfo</func> or similar
+     functions.
+     Parses it out and generates a <dref target="cidr-addr"> structure
+     based on it.
+     Note that an in_addr only contains a host address, so the netmask is
+     initialized to all-1's (/32).
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const struct in_addr *</type>
+     <name>uaddr</name>
+     <desc>
+      A populated struct in_addr, from whatever source obtained.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a populated <dref target="cidr-addr">
+      containing the address in the passed-in struct in_addr.
+      The netmask is initialized to all-1's, and the protocol to IPv4.
+      Use <fref target="cidr-free"> to free the structure when you're
+      finished with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-from-inaddr"> can also fail and set errno for
+      any of the reasons listed for <fref target="cidr-alloc">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-from-in6addr">
+   <name>cidr_from_in6addr</name>
+   <desc>
+    Parse a struct in6_addr
+   </desc>
+   <longdesc>
+    <para>
+     Takes a populated struct in6_addr, as you'd get from
+     <func>accept</func> or <func>getaddrinfo</func> or similar
+     functions.
+     Parses it out and generates a <dref target="cidr-addr"> structure
+     based on it.
+     Note that a in6_addr only contains a host address, so the netmask is
+     initialized to all-1's (/128).
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const struct in6_addr *</type>
+     <name>uaddr</name>
+     <desc>
+      A populated struct in6_addr, from whatever source obtained.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a populated <dref target="cidr-addr">
+      containing the address in the passed-in struct in6_addr.
+      The netmask is initialized to all-1's, and the protocol to IPv6
+      (though it may contain an IPv4-mapped address).
+      Use <fref target="cidr-free"> to free the structure when you're
+      finished with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-from-inaddr"> can also fail and set errno for
+      any of the reasons listed for <fref target="cidr-alloc">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-from-str">
+   <name>cidr_from_str</name>
+   <desc>
+    Parse a human-readable string
+   </desc>
+   <longdesc>
+    <para>
+     Takes in a netblock description as a human-readable string, and
+     creates a <dref target="cidr-addr"> structure from it.
+    </para>
+    <para>
+     This is probably the most intricate function in the library.
+     It accepts addresses in "address/mask" format.
+     'address' is an IP address in valid written form.
+     For IPv4, it's 1 through 4 period-separated pieces, expressed in
+     octal, hex, or decimal, with the last octet being treated as an 8,
+     16, 24, or 32-bit quantity depending on whether there are 4, 3, 2,
+     or 1 pieces given (respectively).
+     Of course, you're nuts for using that flexibility.
+     For IPv6, it's nice and simple; 8 colon-separated double-octets,
+     excepting that the last 4 octets can be expressed as a 4-piece
+     dotted-decimal, like an IPv4 address (the full flexibility of the
+     IPv4 parsing engine is not available, however; intentionally, though
+     that may change if necessary).
+     'mask' can be either a prefix length (/0-/32 for IPv4, /0-/128 for
+     IPv6), or a netmask written in the standard form for the address
+     family.
+    </para>
+    <para>
+     IPv6 addresses can be specified in fully expanded form, or with
+     ::-style contraction.
+     IPv4-mapped IPv6 addresses (::ffff:a.b.c.d),  will be treated as IPv6
+     addresses.
+     The mask can be left off, in which case addresses are treated as
+     host addresses (/32 or /128, depending on address family).
+    </para>
+    <para>
+     Also, <fref target="cidr-from-str"> will parse DNS PTR-record-style
+     address formats.
+     That is, representations like "4.3.2.1.in-addr.arpa" for IPv4, and
+     an extremely long and annoying form ending in .ip6.arpa for IPv6.
+     <fref target="cidr-from-str"> also understands the deprecated
+     RFC1886 form of IPv6 PTR records, which ends in .ip6.int, though
+     <fref target="cidr-to-str"> will only generate the current
+     RFC3152-style .ip6.arpa version.
+     Note also that while <fref target="cidr-to-str"> treats all
+     addresses as host addresses when building the PTR string (ignoring
+     the netmask), <fref target="cidr-from-str"> will fill in the netmask
+     bits as appropriate for the string given; any octets (or
+     half-octets, in the IPv6 form) that are left off the beginning will
+     have their netmask bits set to 0.
+    </para>
+    <para>
+     It's not the intention of the author that this function necessarily
+     be able to decipher any possible address format.
+     However, the capabilities given should parse any rational address
+     specification, and many irrational ones (like hex/oct and collapsed
+     v4 addresses).
+     The intention is rather to support the ways the addresses and
+     netmasks are commonly written and read, so that a human-readable
+     form can quickly be transformed into a format that libcidr can then
+     use in its various ways, whether through comparing addresses with
+     functions like <fref target="cidr-contains">, or generating
+     references and stats about a netblock with functions like
+     <fref target="cidr-addr-broadcast"> and <fref target="cidr-numhost">,
+     or simply spitting it out in different human-readable forms with
+     <fref target="cidr-to-str">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const char *</type>
+     <name>addr</name>
+     <desc>
+      A string containing some human-readable IP block.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a populated <dref target="cidr-addr">
+      describing (hopefully) the block you talked about in the string.
+      Use <fref target="cidr-free"> to free the structure when you're
+      finished with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>EINVAL</ecode>
+     <emean>Can't parse the input string</emean>
+    </err>
+    <err>
+     <ecode>ENOENT</ecode>
+     <emean>Internal error (shouldn't happen)</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-from-str"> can also fail and set errno for any
+      of the reasons listed for
+      <fref target="cidr-alloc"> or
+      <fref target="cidr-get-pflen">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-get-addr">
+   <name>cidr_get_addr</name>
+   <desc>
+    Return address bits
+   </desc>
+   <longdesc>
+    <para>
+     Return the address bits which compose the address.
+     This should be used in preference to simply referencing inside the 
+     <dref target="cidr-addr"> manually in external code, since the
+     structure might change on you.
+    </para>
+    <para>
+     Generally, if you think you need to call this, you should probably
+     rethink what you're doing.
+     Most of the time, one of the formatted outputs from
+     <fref target="cidr-to-str"> or one of the manipulation functions
+     like <fref target="cidr-addr-hostmin"> is what you want.
+     Still, there are times when you're interesting in manipulating the
+     address by yourself as a bunch of binary bits (the cidrcalc example
+     program does this), so this function should be used instead of
+     groping around in the structure manually.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>uint8_t *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to an 16-element array of uint8_t's representing
+      the address.
+      This array must be <func>free</func>'d when you're through with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-get-mask">
+   <name>cidr_get_mask</name>
+   <desc>
+    Return netmask bits
+   </desc>
+   <longdesc>
+    <para>
+     Return the netmask bits which of the given netblock.
+     This should be used in preference to simply referencing inside the 
+     <dref target="cidr-addr"> manually in external code, since the
+     structure might change on you.
+    </para>
+    <para>
+     See further notes about the desirability of using this function
+     above in the notes for <fref target="cidr-get-addr">.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>uint8_t *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to an 16-element array of uint8_t's representing
+      the netmask.
+      This array must be <func>free</func>'d when you're through with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-get-pflen">
+   <name>cidr_get_pflen</name>
+   <desc>
+    Network bits in the netmask
+   </desc>
+   <longdesc>
+    <para>
+     Poke around the netmask of the passed-in <dref target="cidr-addr">
+     structure and determine how many bits there are in the netmask, as
+     appropriate to the address family.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>block</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>int</type>
+    <longdesc>
+     <para>
+      Returns the number of network bits in the netmask (0-32 for IPv4,
+      0-128 for IPv6).
+      Returns -1 on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>EINVAL</ecode>
+     <emean>Invalid (non-contiguous) netmask</emean>
+    </err>
+    <err>
+     <ecode>ENOENT</ecode>
+     <emean>Internal error (shouldn't happen)</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-get-proto">
+   <name>cidr_get_proto</name>
+   <desc>
+    Find a netblock's protocol family
+   </desc>
+   <longdesc>
+    <para>
+     Returns the protocol family of an address using one of the defined
+     constants.
+     The current choices are CIDR_IPV4 and CIDR_IPV6.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>int</type>
+    <longdesc>
+     <para>
+      Returns the address family of the given netblock.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-is-v4mapped">
+   <name>cidr_is_v4mapped</name>
+   <desc>
+    Is address IPv4-mapped IPv6 address?
+   </desc>
+   <longdesc>
+    <para>
+     An IPv6 address may be in the network range reserved for IPv4-mapped
+     addresses.
+     This function will tell you whether it is or not.
+     Note that an IPv4 <dref target="cidr-addr"> is NOT considered an
+     IPv4-mapped address, and so will return failure.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>int</type>
+    <longdesc>
+     <para>
+      Returns 0 if the address is an IPv4-mapped IPv6 address.
+      Returns -1 otherwise.
+     </para>
+    </longdesc>
+   </returns>
+  </function>
+
+  <function type="public" name="cidr-net-subnets">
+   <name>cidr_net_subnets</name>
+   <desc>
+    Divide a netblock
+   </desc>
+   <longdesc>
+    <para>
+     Take in a netblock, and derive the two netblocks which it divides up
+     into.
+     Return them in an array.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      The netblock to subdivide.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> **</type>
+    <longdesc>
+     <para>
+      Returns a 2-element array of <dref target="cidr-addr"> structs,
+      containing the two subnets of addr.
+      Each of the elements should be cleaned up with
+      <fref target="cidr-free">, and the array itself then cleaned up
+      with <func>free</func>.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>0</ecode>
+     <emean>No error (already a /32 or /128)</emean>
+    </err>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL argument</emean>
+    </err>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-net-subnets"> can also fail and set errno for
+      any of the reasons listed for
+      <fref target="cidr-addr-network"> or
+      <fref target="cidr-dup">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-net-supernet">
+   <name>cidr_net_supernet</name>
+   <desc>
+    Undivide a netblock
+   </desc>
+   <longdesc>
+    <para>
+     Take in a netblock, and derive the parent netblock in which it fits.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      The netblock to find the parent of.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type><dref target="cidr-addr"> *</type>
+    <longdesc>
+     <para>
+      Returns a <dref target="cidr-addr"> struct defining the parent
+      network of addr.
+      Clean this up with <fref target="cidr-free"> when you're finished
+      with it.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>0</ecode>
+     <emean>No error (already a /0)</emean>
+    </err>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL argument</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-net-supernet"> can also fail and set errno for
+      any of the reasons listed for <fref target="cidr-dup">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-numaddr">
+   <name>cidr_numaddr</name>
+   <desc>
+    Addresses in a netblock
+   </desc>
+   <longdesc>
+    <para>
+     Determine the total number of addresses in a netblock (including the
+     network and broadcast addresses).
+    </para>
+    <para>
+     This function returns a pointer to a pre-formatted string because
+     we're potentially returning a value up to 2**128.
+     I don't feel like trying to portably do 128-bit arithmetic.
+     Do you?
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>const char *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a string containing the number of addresses in
+      the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <func>free</func>'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-numaddr"> can also also fail and set errno for
+      any of the reasons listed for <fref target="cidr-numaddr-pflen">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-numaddr-pflen">
+   <name>cidr_numaddr_pflen</name>
+   <desc>
+    Addresses in a prefix length
+   </desc>
+   <longdesc>
+    <para>
+     Determine the total number of addresses in a netblock with the given
+     prefix length (including the network and broadcast addresses).
+    </para>
+    <para>
+     Note that this takes an IPv6 prefix length; that is, 0-128.
+     If you're interested in an IPv4 address with a given prefix length,
+     add 96 to it when you call this function.
+    </para>
+    <para>
+     See the note in <fref target="cidr-numaddr"> for why we're returning
+     a string and not a number.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>int</type>
+     <name>pflen</name>
+     <desc>
+      A prefix length (0-128).
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>const char *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a string containing the number of addresses in
+      the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <func>free</func>'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EINVAL</ecode>
+     <emean>Invalid prefix length</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-numhost">
+   <name>cidr_numhost</name>
+   <desc>
+    Host addresses in a netblock
+   </desc>
+   <longdesc>
+    <para>
+     Determine the total number of host addresses in a netblock
+     (excluding the network and broadcast addresses).
+    </para>
+    <para>
+     See the note in <fref target="cidr-numaddr"> for why we're returning
+     a string and not a number.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      An arbitrary netblock.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>const char *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a string containing the number of host
+      addresses in the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <func>free</func>'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-numhost"> can also also fail and set errno for
+      any of the reasons listed for <fref target="cidr-numhost-pflen">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-numhost-pflen">
+   <name>cidr_numhost_pflen</name>
+   <desc>
+    Host addresses in a prefix length
+   </desc>
+   <longdesc>
+    <para>
+     Determine the total number of host addresses in a netblock with the
+     given prefix length (excluding the network and broadcast addresses).
+    </para>
+    <para>
+     Note that this takes an IPv6 prefix length; that is, 0-128.
+     If you're interested in an IPv4 address with a given prefix length,
+     add 96 to it when you call this function.
+    </para>
+    <para>
+     See the note in <fref target="cidr-numaddr"> for why we're returning
+     a string and not a number.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>int</type>
+     <name>pflen</name>
+     <desc>
+      A prefix length (0-128).
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>const char *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a string containing the number of host
+      addresses in the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <func>free</func>'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EINVAL</ecode>
+     <emean>Invalid prefix length</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-to-inaddr">
+   <name>cidr_to_inaddr</name>
+   <desc>
+    Create a struct in_addr
+   </desc>
+   <longdesc>
+    <para>
+     Takes in a <dref target="cidr-addr"> and creates a struct in_addr
+     from it.
+     This struct can then be used in <func>connect</func> or similar
+     network-related functions.
+     If the users passes in a struct in_addr, it will be filled in.
+     Otherwise, one will be allocated and returned.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      A <dref target="cidr-addr"> structure describing the host to be
+      translated into a struct in_addr.
+      Note that the netmask is irrelevant and will be ignored.
+      <fref target="cidr-to-inaddr"> supports only IPv4 addresses, as the
+      underlying structure only does.
+     </desc>
+    </arg>
+    <arg>
+     <type>struct in_addr *</type>
+     <name>uptr</name>
+     <desc>
+      A pointer to a pre-allocated struct in_addr, or NULL.
+      If non-NULL, the pointed-at structure will be filled in.
+      If NULL, a new structure will be allocated, filled in, and
+      returned.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>struct in_addr *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to the filled-in struct in_addr.
+      If the user passed one in, this will just point to the same place
+      and can profitably be ignored.
+      If the user passed in NULL, this will point to the struct in_addr
+      we allocated, which should be <func>free</func>'d by the user when
+      they're finished with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+    <err>
+     <ecode>EPROTOTYPE</ecode>
+     <emean>Bad protocol type (must be IPv4)</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-to-in6addr">
+   <name>cidr_to_in6addr</name>
+   <desc>
+    Create a struct in6_addr
+   </desc>
+   <longdesc>
+    <para>
+     Takes in a <dref target="cidr-addr"> and creates a struct in6_addr
+     from it.
+     This struct can then be used in <func>connect</func> or similar
+     network-related functions.
+     If the users passes in a struct in6_addr, it will be filled in.
+     Otherwise, one will be allocated and returned.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>addr</name>
+     <desc>
+      A <dref target="cidr-addr"> structure describing the host to be
+      translated into a struct in6_addr.
+      Note that the netmask is irrelevant and will be ignored.
+      <fref target="cidr-to-in6addr"> supports both IPv4 and IPv6
+      addresses, as the underlying structure does as well.
+      IPv4 addresses are treated as v4-mapped IPv6 addresses.
+     </desc>
+    </arg>
+    <arg>
+     <type>struct in6_addr *</type>
+     <name>uptr</name>
+     <desc>
+      A pointer to a pre-allocated struct in6_addr, or NULL.
+      If non-NULL, the pointed-at structure will be filled in.
+      If NULL, a new structure will be allocated, filled in, and
+      returned.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>struct in6_addr *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to the filled-in struct in6_addr.
+      If the user passed one in, this will just point to the same place
+      and can profitably be ignored.
+      If the user passed in NULL, this will point to the struct in6_addr
+      we allocated, which should be <func>free</func>'d by the user when
+      they're finished with it.
+      Returns NULL on error.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EFAULT</ecode>
+     <emean>Passed NULL</emean>
+    </err>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+    <err>
+     <ecode>EPROTOTYPE</ecode>
+     <emean>Bad protocol type (must be IPv4 or IPv6)</emean>
+    </err>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-to-str">
+   <name>cidr_to_str</name>
+   <desc>
+    Create a human-readable netblock description
+   </desc>
+   <longdesc>
+    <para>
+     Takes in a <dref target="cidr-addr"> structure, and generates up a
+     human-readable string describing the netblock.
+     This function has a lot of flexibility, depending on the flags
+     passed to it.
+     The default output is "address/pflen" form, with the address in a
+     reasonably compact form, and the prefix length given numerically.
+     Flags alter the output in various ways, and are set as bitmasks, so
+     they can be combined however you wish.
+     They can be used in any combination that makes sense, and a large
+     number of combinations that don't.
+    </para>
+    <para>
+     The current flags are:
+     <br>
+     CIDR_NOFLAGS: A stand-in for when you just want the default
+     output
+     <br>
+     CIDR_NOCOMPACT: Don't do ::-style IPv6 compaction
+     <br>
+     CIDR_VERBOSE: Show leading 0's in octets [v6 only]
+     <br>
+     CIDR_USEV6: Use IPv4-mapped address form for IPv4 addresses
+     (::ffff:a.b.c.d)
+     <br>
+     CIDR_USEV4COMPAT: Use IPv4-compat form (::a.b.c.d) instead of
+     IPv4-mapped form (only meaningful in combination with CIDR_USEV6)
+     <br>
+     CIDR_NETMASK: Return a netmask in standard form after the slash,
+     instead of the prefix length.
+     Note that the form of the netmask can thus be altered by the various
+     flags that alter how the address is displayed.
+     <br>
+     CIDR_ONLYADDR: Show only the address, without the prefix/netmask
+     <br>
+     CIDR_ONLYPFLEN: Show only the prefix length (or netmask, when
+     combined with CIDR_NETMASK), without the address.
+     <br>
+     CIDR_WILDCARD: Show a Cisco-style wildcard mask instead of the
+     netmask (only meaningful in combination with CIDR_NETMASK)
+     <br>
+     CIDR_FORCEV6: Forces treating the <dref target="cidr-addr"> as an
+     IPv6 address, no matter what it really is.
+     This doesn't do any conversion or translation; just treats the raw
+     data as if it were IPv6.
+     <br>
+     CIDR_FORCEV4: Forces treating the <dref target="cidr-addr"> as an
+     IPv4 address, no matter what it really is.
+     This doesn't do any conversion or translation; just treats the raw
+     data as if it were IPv4.
+     <br>
+     CIDR_REVERSE: Generates a .in-addr.arpa or .ip6.arpa-style PTR
+     record name for the given block.
+     Note that this always treats it solely as an address; the netmask is
+     ignored.
+     See some notes in <fref target="cidr-from-str"> for details of the
+     asymmetric treatment of this form of address representation relating
+     to the netmask.
+    </para>
+    <para>
+     Many combinations can give somewhat surprising results, but they
+     should allow any of a host of manipulations to output just the data
+     you might be interested in.
+     The "mkstr" test program in the source tree is extremely useful for
+     manual testing of the various flags to see visually what they do,
+     and is a lot quicker than trying to code them all to test it out.
+     Use it to your advantage.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>const <dref target="cidr-addr"> *</type>
+     <name>block</name>
+     <desc>
+      The <dref target="cidr-addr"> structure to generate a string
+      form of.
+      The address family will be autodetected.
+     </desc>
+    </arg>
+    <arg>
+     <type>int</type>
+     <name>flags</name>
+     <desc>
+      A bitmask of the various possible flags the function accepts.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>char *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a string containing the representation of the
+      network.
+      Be sure to <func>free</func> it when you're finished.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>EINVAL</ecode>
+     <emean>Invalid argument (bad block or flags)</emean>
+    </err>
+    <err>
+     <ecode>ENOENT</ecode>
+     <emean>Internal error (shouldn't happen)</emean>
+    </err>
+    <err>
+     <ecode>ENOMEM</ecode>
+     <emean><func>malloc</func> failed</emean>
+    </err>
+    <note>
+     <para>
+      <fref target="cidr-to-str"> can also fail and set errno for
+      any of the reasons listed for
+      <fref target="cidr-alloc"> or
+      <fref target="cidr-get-pflen">.
+     </para>
+    </note>
+   </errs>
+  </function>
+
+  <function type="public" name="cidr-version">
+   <name>cidr_version</name>
+   <desc>
+    Library version
+   </desc>
+   <longdesc>
+    <para>
+     Returns a static string describing the library release version.
+    </para>
+   </longdesc>
+   <args></args>
+   <returns>
+    <type>const char *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to a static string describing the library version
+      number.
+      It shouldn't be overwritten or <func>free</func>'d.
+     </para>
+    </longdesc>
+   </returns>
+  </function>

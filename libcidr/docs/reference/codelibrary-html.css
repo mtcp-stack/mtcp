@@ -1,0 +1,122 @@
+/*
+ * html-onepage.css
+ * Stylesheet for the One Big Page (tm) approach
+ * This will be modularized later.
+ * $Id: codelibrary-html.css,v 1.1 2002/01/03 09:52:02 fullermd Exp $
+ * 
+ * **NOTE**:
+ * These colors probably suck ass.
+ * Make your own stylesheet, this is an example.
+ */
+
+/* Links (these are all intra-page) */
+a {
+	text-decoration:	none;
+	font-weight:		bold;
+	font-variant:		small-caps;
+	color:				#0000FF;
+}
+a:link {
+	background-color:	transparent;
+}
+a:visited {
+	background-color:	transparent;
+}
+a:hover {
+	background-color:	transparent;
+	text-decoration:	underline;
+	color:				#FF0000;
+}
+
+/* Headers - We only use <h1> and <h2> so far */
+h1 {
+	font-size:			2em;
+}
+h2 {
+	font-size:			1.5em;
+}
+h1, h2, h3, h4, h5, h6 {
+	margin:				1.25em 0 .5em 0;
+	font-variant:		small-caps;
+}
+
+/* We need more spacing on these*/
+li {
+	padding-top:		.5em;
+	padding-bottom:		.5em;
+}
+/* Except in this case */
+li.listlist {
+	padding-top:		0em;
+	padding-bottom:		0em;
+}
+
+/* Backup coloring */
+body {
+	color:				#000000;
+	background-color:	#FFFFFF;
+}
+
+/* Now our <div>'s.  We use 'class's, not 'id's */
+/* <geninfo> */
+.geninfo {
+	padding:			1px 5% 10px 5%;
+	color:				#003333;
+	background-color:	#FFEEEE;
+}
+/* </geninfo> */
+
+/* Generated TOC-ish thing */
+.contents {
+	padding:			1px 5% 10px 5%;
+	color:				#000000;
+	background-color:	#EEEEEE;
+}
+
+/* <datastructs> */
+.datastructs {
+	padding:			1px 5% 10px 5%;
+	color:				#330033;
+	background-color:	#EEFFEE;
+}
+.note {
+	/* Stuff */
+}
+/* </datastructs> */
+
+/* <functions> */
+.functions {
+	padding:			1px 5% 10px 5%;
+	color:				#333300;
+	background-color:	#EEEEFF;
+}
+/* </functions> */
+
+/* Now the <span>'s */
+/* Data structure name/desc */
+.structdef {
+	font-weight:		bold;
+	font-size:			1.2em;
+	/* Stuff */
+}
+
+/* Data structure member type/name */
+.memberdef {
+	font-weight:		bold;
+	font-size:			1.1em;
+	/* Stuff */
+}
+
+/* Function name/def */
+.funcdef {
+	font-weight:		bold;
+	font-size:			1.2em;
+	/* Stuff */
+}
+
+/* Function arg type/name */
+.argdef {
+	font-weight:		bold;
+	font-size:			1.1em;
+	/* Stuff */
+}

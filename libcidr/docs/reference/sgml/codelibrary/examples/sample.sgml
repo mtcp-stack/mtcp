@@ -1,0 +1,293 @@
+<!DOCTYPE codelibrary PUBLIC "-//Matthew Fuller//DTD Codelibrary 2.0//EN">
+<!-- $Id: sample.sgml,v 1.5 2003/07/16 13:14:33 fullermd Exp $ -->
+<codelibrary name="libpostal">
+ <geninfo>
+  <longdesc>
+   <para>
+    libpostal is a mail library.
+   </para>
+   <para>
+    Let's talk about libpostal.
+   </para>
+   <para>
+    libpostal does stuff.
+   </para>
+  </longdesc>
+ </geninfo>
+ <datastructs>
+  <datatype type="public" name="postal-conn">
+   <name>POSTAL_CONN</name>
+   <desc>A single libpost_raw mailbox connection</desc>
+   <note>
+    <para>
+     Use the <fref target="postal-free-conn">
+     function to free the memory associated with this datatype, and the
+     <fref target="postal-alloc-conn"> function to allocate and
+     initialize the structure.
+    </para>
+   </note>
+   <member type="union">
+    <type>union</type>
+    <name>spec</name>
+    <desc>Special connection-type-specific info</desc>
+    <member type="struct">
+     <type><dref target="spec-pop"> *</type>
+     <name>pop</name>
+     <desc>A POP connection</desc>
+    </member>
+    <member type="struct">
+     <type><dref target="spec-mbox"> *</type>
+     <name>mbox</name>
+     <desc>A mbox connection</desc>
+    </member>
+   </member>
+    <member type="primative">
+     <type>int</type>
+     <name>conn_type</name>
+     <desc>A flag denoting the type of mailbox connected to</desc>
+    </member>
+  </datatype>
+  <datatype type="private" name="postal-errfoo-t">
+   <name>POSTAL_ERRFOO_T</name>
+   <desc>Error codes and details</desc>
+   <note>
+    <para>
+     This is used slightly differently in the normal and pthreads
+     variants of the library, but in neither case should it ever be
+     touched directly.
+     If you're setting values in it (which should only happen inside the
+     library), use <fref target="postal-err-set">.
+     If you're checking errors from a user program, use
+     <fref target="postal-errno"> and <fref target="postal-errstr">.
+     Never manipulate, extern, declare, or otherwise use this datatype.
+    </para>
+   </note>
+   <member type="primative">
+    <type>unsigned int</type>
+    <name>postal_errno</name>
+    <desc>
+     A numeric code for the error.
+     May also hold a constant value noting that there is a character
+     string also available with details.
+     Only <fref target="postal-errstr"> knows for sure.
+    </desc>
+   </member>
+   <member type="primative">
+    <type>char *</type>
+    <name>postal_errstr</name>
+    <desc>A string containing details</desc>
+   </member>
+  </datatype>
+  <datatype type="public" name="spec-mbox">
+   <name>SPEC_MBOX</name>
+   <desc>Special info for a mbox connection</desc>
+   <note>
+    <para>
+     This is used as a member of the ->spec union in the
+     <dref target="postal-conn"> structure.
+    </para>
+   </note>
+   <member type="primative">
+    <type>char *</type>
+    <name>filename</name>
+    <desc>The filename of the mbox</desc>
+   </member>
+   <member type="primative">
+    <type>int</type>
+    <name>locks</name>
+    <desc>A bitmask of the types of file locks applied</desc>
+   </member>
+   <member type="struct">
+    <type>FILE *</type>
+    <name>file</name>
+    <desc>The stdio stream associated with the mbox</desc>
+   </member>
+   <member type="primative">
+    <type>int</type>
+    <name>desc</name>
+    <desc>The file descriptorassociated with the mbox</desc>
+   </member>
+  </datatype>
+  <datatype type="public" name="spec-pop">
+   <name>SPEC_POP</name>
+   <desc>Special info for a POP connection</desc>
+   <note>
+    <para>
+     This is used as a member of the ->spec union in the
+     <dref target="postal-conn"> structure.
+    </para>
+   </note>
+   <member type="primative">
+    <type>int</type>
+    <name>sock</name>
+    <desc>The socket descriptor for the connection to the server</desc>
+   </member>
+   <member type="primative">
+    <type>char *</type>
+    <name>srv_header</name>
+    <desc>The contents of the server 'banner'</desc>
+   </member>
+  </datatype>
+ </datastructs>
+ <functions>
+  <function type="private" name="postal-alloc-conn">
+   <name>postal_alloc_conn</name>
+   <desc>Allocate a <dref target="postal-conn"></desc>
+   <longdesc>
+    <para>
+     Allocate and initialize a <dref target="postal-conn"> for use by the
+     program.
+    </para>
+    <para>
+     Remember to use the <fref target="postal-free-conn"> function to free
+     the structure when you're done with it.
+    </para>
+   </longdesc>
+   <args></args>
+   <returns>
+    <type><dref target="postal-conn"> *</type>
+    <longdesc>
+     <para>
+      Returns a pointer to an initialized <dref target="postal-conn">
+      on success.
+      Returns NULL on failure.
+     </para>
+    </longdesc>
+   </returns>
+   <errs>
+    <err>
+     <ecode>POSTAL_E_NOMEM</ecode>
+     <emean>Memory allocation failure</emean>
+    </err>
+   </errs>
+  </function>
+  <function type="private" name="postal-err-set">
+   <name>postal_err_set</name>
+   <desc>Sets an error to be returned</desc>
+   <longdesc>
+    <para>
+     This function allows you to set a numeric error code which will be
+     readable by a higher level function, either part of libpostal, or
+     part of a user program.
+     This information will be accessed via
+     <fref target="postal-errno"> and <fref target="postal-errstr">.
+    </para>
+    <para>
+     It's the moral equivalent of C's errno facility.
+    </para>
+    <para>
+     Note that in the pthreads variant of the library (append '_pthread'
+     to the lib name), this uses thread-specific data fields, so you can
+     use libpostal functions in multiple threads at once and they won't
+     stomp on each other's error codes.
+     See the NOTYET written postal_pthread_init() and such.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type>int</type>
+     <name>p_errno</name>
+     <desc>Numeric error code to set</desc>
+    </arg>
+    <arg>
+     <type>const char *</type>
+     <name>p_errstr</name>
+     <desc>A string containing details (or NULL)</desc>
+    </arg>
+   </args>
+   <returns>
+    <type>void</type>
+   </returns>
+  </function>
+  <function type="public" name="postal-errno">
+   <name>postal_errno</name>
+   <desc>Get numeric error code</desc>
+   <longdesc>
+    <para>
+     Returns a numeric code representing the last error encountered
+     inside the library.
+     This is the moral equivalent of C's errno facility.
+     If no error has occured, its value is indeterminate.
+    </para>
+   </longdesc>
+   <args></args>
+   <returns>
+    <type>unsigned int</type>
+    <longdesc>
+     <para>
+      Returns a numeric error code.
+      See individual functions for (NOTYET written) descriptions of what
+      error codes may be set.
+     </para>
+    </longdesc>
+   </returns>
+  </function>
+  <function type="public" name="postal-errstr">
+   <name>postal_errstr</name>
+   <desc>Get error details as an opaque string</desc>
+   <longdesc>
+    <para>
+     Sometimes an error may have additional information available in a
+     freeform string.
+     If so, this function will return it.
+     If no error has occured, or no string value has been set for an
+     error, the value is indeterminate.
+    </para>
+    <para>
+     In practice, this is rarely set, and even more rarely of any real
+     use to anybody.
+     This is provided because occasionally there might be a gem, and in
+     the future we might want to expand use of this.
+     Right now, unless you're really anal, it's probably never worth
+     calling this function.
+    </para>
+   </longdesc>
+   <args></args>
+   <returns>
+    <type>const char *</type>
+    <longdesc>
+     <para>
+      If a string error has been set, return a pointer to it.
+      If not, return NULL.
+     </para>
+     <para>
+      NOTE:
+      Do NOT attempt to <func>free</func> or otherwise manipulate the
+      string returned.
+      It's the private property of <fref target="postal-errstr">.
+      Read from it, or use it as the source of a <func>strdup</func> or
+      <func>strcpy</func> or in a <func>printf</func> format string,
+      fine.
+      Try to write into it or <func>free</func> it or
+      <func>realloc</func> it or some such, and goblins will hunt you
+      down and kill you in your sleep.
+      Or your program will SIGBUS and laugh at you.
+      Whichever.
+     </para>
+    </longdesc>
+   </returns>
+  </function>
+  <function type="private" name="postal-free-conn">
+   <name>postal_free_conn</name>
+   <desc>Free a <dref target="postal-conn"> structure</desc>
+   <longdesc>
+    <para>
+     Takes a <dref target="postal-conn"> structure and
+     <func>free</func>'s all its component parts.
+    </para>
+   </longdesc>
+   <args>
+    <arg>
+     <type><dref target="postal-conn"> *</type>
+     <name>tofree</name>
+     <desc>
+      A single <dref target="postal-conn"> structure.
+     </desc>
+    </arg>
+   </args>
+   <returns>
+    <type>void</type>
+   </returns>
+  </function>
+ </functions>
+</codelibrary>

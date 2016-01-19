@@ -1,0 +1,71 @@
+  <longdesc>
+   <para>
+    libcidr is a library to make it easier to handle IP addresses and
+    blocks, and manipulate them in various ways.
+   </para>
+   <para>
+    The core of the library is a pair of functions that take a human
+    readable string and turn it into our internal representation of a
+    CIDR address block (<fref target="cidr-from-str">), and one to take
+    that internal representation and turn it into a human-readable string
+    (<fref target="cidr-to-str">).
+    There are a large number of options for how to format that string, as
+    well.
+   </para>
+   <para>
+    Additionally, there are functions to compare different CIDR blocks,
+    to determine if they're equal, or if one is contained within the
+    other.
+    This functionality can be useful for writing access-control code, or
+    client-dependant configuration, or similar things.
+    There are functions to manipulate address blocks and determine
+    attributes of them, like network/broadcast addresses, the range of
+    host addresses, the number of available host addresses, etc.
+    There are functions to split a CIDR block into the two smaller blocks
+    it contains, or to derive the parent block that it is itself
+    contained within.
+    And there are functions to translate to and from in_addr-type
+    structures, which the operating system commonly uses to represent
+    addresses for handle socket connections and so forth.
+   </para>
+   <para>
+    In short, just about anything you might do in a program with IP
+    addressing, whether referring to individual hosts, or to any sized
+    subnets, libcidr is designed to simplify handling.
+    It's not a DNS library, nor is it a socket abstraction layer.
+    It's just a set of functions for manipulating raw IP addresses in
+    various ways.
+   </para>
+   <para>
+    The functions generally follow standard C conventions.
+    They tend to return 0 or a pointer when acting properly, and -1 or
+    NULL when something went wrong (unless the function usage suggests
+    other returns, of course, as in <fref target="cidr-get-pflen">).
+    They set errno when returning an error; the error codes each function
+    can return are documented with the function.
+   </para>
+   <para>
+    libcidr doesn't use any threading itself.
+    It should, however, be safe to use in any threaded program if used
+    sensibly.
+    Only a very few functions use static strings, and those that do
+    (<fref target="cidr-version"> and <fref target="cidr-numaddr">
+    and its related functions being the only ones I can think of)
+    tend to be constant strings as well, so they wouldn't be changing.
+    Of course, you don't want to <fref target="cidr-free"> a
+    <dref target="cidr-addr"> in one thread while you're still using it
+    in another, but if you do, it's not libcidr's fault.
+   </para>
+   <para>
+    For the current version or any extra information, see the libcidr
+    project homepage, at
+    &lt;http://www.over-yonder.net/~fullermd/projects/libcidr&gt;.
+   </para>
+   <para>
+    This reference manual is build using the codelibrary SGML DTD, which
+    is specifically designed for documenting libraries.
+    See the codelibrary homepage at
+    &lt;http://www.over-yonder.net/~fullermd/projects/sgml/codelibrary&gt;
+    for more details on it.
+   </para>
+  </longdesc>

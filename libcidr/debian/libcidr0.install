@@ -1,0 +1,5 @@
+usr/lib/lib*.so.*
+usr/lib/lib*.a.*
+usr/man/man3/*
+usr/share/libcidr/docs/*
+usr/share/libcidr/examples/*

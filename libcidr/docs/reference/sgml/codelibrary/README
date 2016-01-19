@@ -1,0 +1,70 @@
+$Id: README,v 1.6 2003/07/16 13:14:33 fullermd Exp $
+
+SUMMARY:
+
+This is my Codelibrary DTD.
+
+This is made to mark up documentation for code libraries.  It includes a
+set of sample DSSSL transformation stylesheets to build output in TeX,
+DVI, PDF, PS, RTF, HTML, and TXT.  It's really aimed at C libraries,
+though it can probably be used for other languages too, with more or less
+shoehorning.
+
+This was written in order to provide a format for maintaining the
+documentation for libpostal <http://libpostal.sourceforge.net/>.  The
+libpostal documentation remains the reference implementation (so to
+speak), and examining it will give you the best 'tutorial' on how to use
+this DTD for your own things.
+
+
+INSTALLING:
+
+There is a Makefile that can install.  The INSTDIR variable should be
+re-defined to the proper location for the install on your system; the
+default is /usr/local/share/sgml, something like $HOME/sgml might be
+better if you're not installing system-wide.  The install will put this
+directory tree in ${INSTDIR}/codelibrary/${version}/, which lets you have
+multiple versions installed at once.  If using multiple versions, you can
+use the ${INSTDIR}/catalog file as your catalog for SGML parsers, and by
+specifying the correct <!DOCTYPE> declaration, it will choose the right
+DTD to work against.  You'll still have to be a bit more specific when
+referring to DSSSL spec sheets, though.
+
+The doctype for version 2.0 is
+<!DOCTYPE codelibrary PUBLIC "-//Matthew Fuller//DTD Codelibrary 2.0//EN">
+Use your imagination for other versions.
+
+
+SOFTWARE PACKAGES:
+
+Building all these transformations uses a LOT of software packages.
+
+To build ANYTHING, you need Jade <http://www.jclark.com/jade/>
+To build RTF, that's all you need.
+To build HTML, that's also all you need.
+To build TXT, you also need lynx (you can PROBABLY find a way to
+substitute links or w3m or some similar thing if you try)
+
+To build other formats uses TeX output, then transforms it.
+To build DVI, you need a TeX processor and the Jadetex backend.
+	teTeX is the standard TeX processor for POSIX systems, and is
+		available at <http://www.tug.org/teTeX/>
+	JadeTeX info can be found at <http://jadetex.sourceforge.net/>
+To build PS, you need dvips
+	<ftp://ftp.tex.ac.uk/tex-archive/dviware/dvips/>
+To build PDF, you need pdftex, which is part of teTex
+
+If you're on FreeBSD, you can shortcut all of this by installing the
+textproc/docproj port or package (with JADETEX=yes).
+
+
+ROADMAP:
+- LICENSE: The license for use of this DTD
+- README: This file
+- catalog: A lookup catalog for the DOCTYPE FPI's
+- css/: Sample HTML CSS stylesheets
+- dsssl/: Sample DSSSL transformation stylesheets for generating the
+  formatted output
+- dtd/: The DTD itself
+- examples/: An example SGML file using the DTD, with an example Makefile
+  for building the various formatted outputs.

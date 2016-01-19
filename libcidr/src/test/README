@@ -1,0 +1,66 @@
+These test files are basically intended for development use, to test the
+various functions of the library and make sure they do what we expect
+them to.  However, they can also be useful in illustrating how the
+functions work and what their uses are.
+
+Some, like mkstr, can also be particularly useful on their own in certain
+cases.  Note that pretty much all of them use cidr_from_str() and
+cidr_to_str() to take their input and show their output, of course.
+
+Note that there's a "run.sh" program provided in this dir; this uses the
+LD_LIBRARY_PATH environmental variable to allow running the programs
+using the shared library, even though it's not in any of the standard
+system library paths.  Thus, you'd build the programs, then run them with
+an invocation something like "../run.sh ./cidr_mkstr 1.2.3.4/5".
+
+
+Here's a quick rundown of what they cover:
+
+- regression/ contains a perl script intended for automated regression
+  testing.  Currently, it only tests 'mkstr', since the place I'm worried
+  about regressions (and finding always more weird edge cases in) is in
+  cidr_from_str(); the rest of the functions are sufficiently simple that
+  I've not yet found a need for automated testing of them.
+  cidr_from_str() is fiendishly complicated, and fixing one thing often
+  breaks another, so it's needed here.
+
+- compare/ takes two blocks on the command line, and uses cidr_contains()
+  to tell you whether they're the same block, one contains the other, or
+  they're overlapping.
+
+- inaddr/ uses the C library inet_pton() and inet_ntop() functions to
+  double-check cidr_{to,from}_inaddr() and cidr_{to,from}_in6addr() and
+  make sure they act right.  Note that some failures aren't necessarily a
+  problem, since in[6]_addr only store addresses, not netmasks, so it's
+  not surprising if things don't match sometimes.
+
+- kids/ uses cidr_net_subnets() to recursively show all the ways a given
+  netblock can be subnetted.  For safety, this only accepts IPv4 prefixes
+  /24 and longer and IPv6 prefixes /120 and up; otherwise it could be
+  printf()'ing from now until doomsday.  Trying to show every possible
+  subnet of ::/0, for instance, would take JUST a little time (the number
+  of output lines would be on the order of 2**129; put THAT through your
+  sliderule).
+
+- mkstr/ tests cidr_from_str() and cidr_to_str() by taking in subnets
+  from the command line, turning them into CIDR structs, and then
+  spitting out string forms of the structs.  What makes it particularly
+  useful are the wide array of arguments it accepts to try out various
+  combinations of the cidr_to_str() flags and get all the different
+  string representations libcidr can create.  It's handy if you can't be
+  bothered figuring out what an IPv6 address would look like in fully
+  expanded form manually, for instance.  The cidrcalc example program
+  shows a lot of the highlights, but this lets you fudge it just about
+  any way the library supports.
+
+- netbc/ uses the cidr_addr_network() and cidr_addr_broadcast() functions
+  to show the (take a wild guess) network and broadcast addresses of the
+  given netblock(s).
+
+- nums/ calls cidr_numaddr() and cidr_numhost() to show the number of
+  total addresses and host addresses in the given blocks.
+
+- parent/ keeps calling cidr_net_supernet() to find the parent network of
+  the given subnet, and the parent network of that, and the parent
+  network of that, and...   all the way up to 0/0 (rather, the v4 and v6
+  equivalents of 0/0).

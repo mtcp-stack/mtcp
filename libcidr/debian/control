@@ -1,0 +1,37 @@
+Source: libcidr
+Priority: extra
+Maintainer: Andrew Otto <otto@wikimedia.org>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.8.3
+Section: libs
+Homepage: http://www.over-yonder.net/~fullermd/projects/libcidr
+
+Package: libcidr0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: A library to handle manipulating CIDR netblocks in IPv4 and IPv6.
+ libcidr is a library that provides a number of functions to input,
+ output, manipulate, compare, multilate, and otherwise play with,
+ IP addresses and netblocks.
+
+Package: libcidr0-dev
+Section: libdevel
+Architecture: any
+Depends: libcidr0 (= ${binary:Version})
+Description: A library to handle manipulating CIDR netblocks in IPv4 and IPv6.
+ libcidr is a library that provides a number of functions to input,
+ output, manipulate, compare, multilate, and otherwise play with,
+ IP addresses and netblocks.
+
+Package: cidrcalc
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libcidr0
+Description: Takes in a CIDR block, and gives you a quick set of stats about it.
+ cidrcalc is a program similar to ipcalc in that it takes in a CIDR block, and
+ gives you a quick set of stats about it; number of hosts in the given subnet,
+ network and broadcast addresses, netmask in prefix and netmask form,
+ Cisco-style wildcard mask, and optionally binary expansion and super/subnet
+ info. Unlike ipcalc, though, it supports IPv6. Useful thing to have around
+ when you're planning your subnetting scheme.

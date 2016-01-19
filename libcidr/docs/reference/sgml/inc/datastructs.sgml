@@ -1,0 +1,52 @@
+  <datatype type="private" name="cidr-addr">
+   <name>CIDR</name>
+   <desc>A single CIDR-format IP block</desc>
+   <note>
+    <para>
+     Use the <fref target="cidr-free"> function to free the memory
+     associated with this datatype, and the <fref target="cidr-alloc">
+     function to allocate and initialize the structure.
+    </para>
+   </note>
+   <member type="primitive">
+    <type>int</type>
+    <name>version</name>
+    <desc>
+     The structure version.
+     This is reserved for future use, and put in to hold its place at the
+     start of the array.
+    </desc>
+   </member>
+   <member type="primitive">
+    <type>uint8_t</type>
+    <name>addr[16]</name>
+    <desc>
+     The 16 octets that make up an IP address.
+     For v6 addresses, all are used.
+     For v4 addresses, only the last 4 are really used.
+     The prior 2 octets are filled in with all-ones, so that the internal
+     representation matches the v4-compat IPv6 addressing block.
+     This is useful when, for instance, using
+     <fref target="cidr-to-in6addr">, in that it gives you the expected
+     result.
+    </desc>
+   </member>
+   <member type="primitive">
+    <type>uint8_t</type>
+    <name>mask[16]</name>
+    <desc>
+     The 16 octets that make up an IP netmask.
+     For v4 addresses, only the last 4 are really used; the rest are
+     intialized to all-bits-one however, which is correct in spirit.
+    </desc>
+   </member>
+   <member type="primitive">
+    <type>int</type>
+    <name>proto</name>
+    <desc>
+     The protocol the address described is.
+     Currently possible values are CIDR_IPV4 and CIDR_IPV6.
+     I think that's pretty self-explanatory.
+    </desc>
+   </member>
+  </datatype>

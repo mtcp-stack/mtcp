@@ -1,0 +1,2398 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+<title>
+libcidr - Code Documentation
+</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="Generator" content="Codelibrary DTD DSSSL">
+<style type="text/css" media="all">
+@import "codelibrary-html.css";</style>
+</head>
+<body>
+<div class="geninfo">
+<h1 id="geninfo">
+
+</h1>
+<p>
+    libcidr is a library to make it easier to handle IP addresses and
+    blocks, and manipulate them in various ways.
+   
+</p>
+<p>
+    The core of the library is a pair of functions that take a human
+    readable string and turn it into our internal representation of a
+    CIDR address block (<a href="#CIDR-FROM-STR">cidr_from_str()</a>
+), and one to take
+    that internal representation and turn it into a human-readable string
+    (<a href="#CIDR-TO-STR">cidr_to_str()</a>
+).
+    There are a large number of options for how to format that string, as
+    well.
+   
+</p>
+<p>
+    Additionally, there are functions to compare different CIDR blocks,
+    to determine if they're equal, or if one is contained within the
+    other.
+    This functionality can be useful for writing access-control code, or
+    client-dependant configuration, or similar things.
+    There are functions to manipulate address blocks and determine
+    attributes of them, like network/broadcast addresses, the range of
+    host addresses, the number of available host addresses, etc.
+    There are functions to split a CIDR block into the two smaller blocks
+    it contains, or to derive the parent block that it is itself
+    contained within.
+    And there are functions to translate to and from in_addr-type
+    structures, which the operating system commonly uses to represent
+    addresses for handle socket connections and so forth.
+   
+</p>
+<p>
+    In short, just about anything you might do in a program with IP
+    addressing, whether referring to individual hosts, or to any sized
+    subnets, libcidr is designed to simplify handling.
+    It's not a DNS library, nor is it a socket abstraction layer.
+    It's just a set of functions for manipulating raw IP addresses in
+    various ways.
+   
+</p>
+<p>
+    The functions generally follow standard C conventions.
+    They tend to return 0 or a pointer when acting properly, and -1 or
+    NULL when something went wrong (unless the function usage suggests
+    other returns, of course, as in <a href="#CIDR-GET-PFLEN">cidr_get_pflen()</a>
+).
+    They set errno when returning an error; the error codes each function
+    can return are documented with the function.
+   
+</p>
+<p>
+    libcidr doesn't use any threading itself.
+    It should, however, be safe to use in any threaded program if used
+    sensibly.
+    Only a very few functions use static strings, and those that do
+    (<a href="#CIDR-VERSION">cidr_version()</a>
+ and <a href="#CIDR-NUMADDR">cidr_numaddr()</a>
+
+    and its related functions being the only ones I can think of)
+    tend to be constant strings as well, so they wouldn't be changing.
+    Of course, you don't want to <a href="#CIDR-FREE">cidr_free()</a>
+ a
+    <a href="#CIDR-ADDR">CIDR</a>
+ in one thread while you're still using it
+    in another, but if you do, it's not libcidr's fault.
+   
+</p>
+<p>
+    For the current version or any extra information, see the libcidr
+    project homepage, at
+    &#60;http://www.over-yonder.net/~fullermd/projects/libcidr&#62;.
+   
+</p>
+<p>
+    This reference manual is build using the codelibrary SGML DTD, which
+    is specifically designed for documenting libraries.
+    See the codelibrary homepage at
+    &#60;http://www.over-yonder.net/~fullermd/projects/sgml/codelibrary&#62;
+    for more details on it.
+   
+</p>
+
+
+</div>
+<div class="contents">
+<h1>
+</h1>
+<h2>
+<a href="#datastructs">
+</a>
+
+</h2>
+<ul>
+<li class="listlist">
+<a href="#CIDR-ADDR">CIDR</a>
+<em>
+(Internal)</em>
+</ul>
+<h2>
+<a href="#functions">
+</a>
+
+</h2>
+<ul>
+<li class="listlist">
+<a href="#CIDR-ADDR-BROADCAST">cidr_addr_broadcast()</a>
+<li class="listlist">
+<a href="#CIDR-ADDR-HOSTMAX">cidr_addr_hostmax()</a>
+<li class="listlist">
+<a href="#CIDR-ADDR-HOSTMIN">cidr_addr_hostmin()</a>
+<li class="listlist">
+<a href="#CIDR-ADDR-NETWORK">cidr_addr_network()</a>
+<li class="listlist">
+<a href="#CIDR-ALLOC">cidr_alloc()</a>
+<li class="listlist">
+<a href="#CIDR-CONTAINS">cidr_contains()</a>
+<li class="listlist">
+<a href="#CIDR-DUP">cidr_dup()</a>
+<li class="listlist">
+<a href="#CIDR-EQUALS">cidr_equals()</a>
+<li class="listlist">
+<a href="#CIDR-FREE">cidr_free()</a>
+<li class="listlist">
+<a href="#CIDR-FROM-INADDR">cidr_from_inaddr()</a>
+<li class="listlist">
+<a href="#CIDR-FROM-IN6ADDR">cidr_from_in6addr()</a>
+<li class="listlist">
+<a href="#CIDR-FROM-STR">cidr_from_str()</a>
+<li class="listlist">
+<a href="#CIDR-GET-ADDR">cidr_get_addr()</a>
+<li class="listlist">
+<a href="#CIDR-GET-MASK">cidr_get_mask()</a>
+<li class="listlist">
+<a href="#CIDR-GET-PFLEN">cidr_get_pflen()</a>
+<li class="listlist">
+<a href="#CIDR-GET-PROTO">cidr_get_proto()</a>
+<li class="listlist">
+<a href="#CIDR-IS-V4MAPPED">cidr_is_v4mapped()</a>
+<li class="listlist">
+<a href="#CIDR-NET-SUBNETS">cidr_net_subnets()</a>
+<li class="listlist">
+<a href="#CIDR-NET-SUPERNET">cidr_net_supernet()</a>
+<li class="listlist">
+<a href="#CIDR-NUMADDR">cidr_numaddr()</a>
+<li class="listlist">
+<a href="#CIDR-NUMADDR-PFLEN">cidr_numaddr_pflen()</a>
+<li class="listlist">
+<a href="#CIDR-NUMHOST">cidr_numhost()</a>
+<li class="listlist">
+<a href="#CIDR-NUMHOST-PFLEN">cidr_numhost_pflen()</a>
+<li class="listlist">
+<a href="#CIDR-TO-INADDR">cidr_to_inaddr()</a>
+<li class="listlist">
+<a href="#CIDR-TO-IN6ADDR">cidr_to_in6addr()</a>
+<li class="listlist">
+<a href="#CIDR-TO-STR">cidr_to_str()</a>
+<li class="listlist">
+<a href="#CIDR-VERSION">cidr_version()</a>
+</ul>
+</div>
+<div class="datastructs">
+<h1 id="datastructs">
+Data structures
+</h1>
+<ul>
+<li id="CIDR-ADDR">
+<span class="structdef">
+CIDR: A single CIDR-format IP block
+</span>
+<p>
+<em class="privdata">
+This datatype is intended for internal use only
+</em>
+</p>
+<ul>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+     Use the <a href="#CIDR-FREE">cidr_free()</a>
+ function to free the memory
+     associated with this datatype, and the <a href="#CIDR-ALLOC">cidr_alloc()</a>
+
+     function to allocate and initialize the structure.
+    
+</p>
+
+</div>
+<li>
+Members:
+<ul>
+<li>
+<span class="memberdef">
+int version:
+</span>
+     The structure version.
+     This is reserved for future use, and put in to hold its place at the
+     start of the array.
+    
+<li>
+<span class="memberdef">
+uint8_t addr[16]:
+</span>
+     The 16 octets that make up an IP address.
+     For v6 addresses, all are used.
+     For v4 addresses, only the last 4 are really used.
+     The prior 2 octets are filled in with all-ones, so that the internal
+     representation matches the v4-compat IPv6 addressing block.
+     This is useful when, for instance, using
+     <a href="#CIDR-TO-IN6ADDR">cidr_to_in6addr()</a>
+, in that it gives you the expected
+     result.
+    
+<li>
+<span class="memberdef">
+uint8_t mask[16]:
+</span>
+     The 16 octets that make up an IP netmask.
+     For v4 addresses, only the last 4 are really used; the rest are
+     intialized to all-bits-one however, which is correct in spirit.
+    
+<li>
+<span class="memberdef">
+int proto:
+</span>
+     The protocol the address described is.
+     Currently possible values are CIDR_IPV4 and CIDR_IPV6.
+     I think that's pretty self-explanatory.
+    
+</ul>
+
+</ul>
+
+</ul>
+</div>
+<div class="functions">
+<h1 id="functions">
+Functions
+</h1>
+<ul>
+<li id="CIDR-ADDR-BROADCAST">
+<span class="funcdef">
+cidr_addr_broadcast():     Find the broadcast address
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Generate a <a href="#CIDR-ADDR">CIDR</a>
+ structure describing the
+     broadcast address of the passed-in netblock.
+    
+</p>
+<p>
+     The returned structure should be cleaned up using
+     <a href="#CIDR-FREE">cidr_free()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure describing an arbitrary
+      netblock.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a <a href="#CIDR-ADDR">CIDR</a>
+ structure
+      describing the broadcast address on success.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Given NULL</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-ADDR-BROADCAST">cidr_addr_broadcast()</a>
+ can also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-ALLOC">cidr_alloc()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-ADDR-HOSTMAX">
+<span class="funcdef">
+cidr_addr_hostmax():     Find the highest host address
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Generate a <a href="#CIDR-ADDR">CIDR</a>
+ structure describing the
+     highest-numbered address available for a host IP in the given
+     netblock.
+    
+</p>
+<p>
+     The returned structure should be cleaned up using
+     <a href="#CIDR-FREE">cidr_free()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure describing an arbitrary
+      netblock.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a <a href="#CIDR-ADDR">CIDR</a>
+ structure
+      describing the max host address on success.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-ADDR-HOSTMAX">cidr_addr_hostmax()</a>
+ can fail and set errno for any
+      of the reasons listed for <a href="#CIDR-ADDR-BROADCAST">cidr_addr_broadcast()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-ADDR-HOSTMIN">
+<span class="funcdef">
+cidr_addr_hostmin():     Find the lowest host address
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Generate a <a href="#CIDR-ADDR">CIDR</a>
+ structure describing the
+     lowest-numbered address available for a host IP in the given
+     netblock.
+    
+</p>
+<p>
+     The returned structure should be cleaned up using
+     <a href="#CIDR-FREE">cidr_free()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure describing an arbitrary
+      netblock.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a <a href="#CIDR-ADDR">CIDR</a>
+ structure
+      describing the min host address on success.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-ADDR-HOSTMIN">cidr_addr_hostmin()</a>
+ can fail and set errno for any
+      of the reasons listed for <a href="#CIDR-ADDR-NETWORK">cidr_addr_network()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-ADDR-NETWORK">
+<span class="funcdef">
+cidr_addr_network():     Find the network address
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Generate a <a href="#CIDR-ADDR">CIDR</a>
+ structure describing the
+     network address of the passed-in netblock.
+    
+</p>
+<p>
+     The returned structure should be cleaned up using
+     <a href="#CIDR-FREE">cidr_free()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure describing an arbitrary
+      netblock.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a <a href="#CIDR-ADDR">CIDR</a>
+ structure
+      describing the network address on success.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Given NULL</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-ADDR-NETWORK">cidr_addr_network()</a>
+ can also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-ALLOC">cidr_alloc()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-ALLOC">
+<span class="funcdef">
+cidr_alloc():     Create a <a href="#CIDR-ADDR">CIDR</a>
+
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Allocate memory for a <a href="#CIDR-ADDR">CIDR</a>
+ structure and
+     initialize the necessary pieces.
+    
+</p>
+<p>
+     The returned structure should be cleaned up using
+     <a href="#CIDR-FREE">cidr_free()</a>
+.
+    
+</p>
+<p>
+     Note that you should probably never need to call this function
+     yourself; you'll generally get your <a href="#CIDR-ADDR">CIDR</a>
+
+     structures as a return from a function like
+     <a href="#CIDR-FROM-STR">cidr_from_str()</a>
+ or <a href="#CIDR-FROM-INADDR">cidr_from_inaddr()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+None
+</li>
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to an initialized <a href="#CIDR-ADDR">CIDR</a>
+
+      structure on success.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-CONTAINS">
+<span class="funcdef">
+cidr_contains():     Compare netblocks
+   
+</span>
+<ul>
+<li>
+
+<p>
+     This function is passed two <a href="#CIDR-ADDR">CIDR</a>
+ structures
+     describing a pair of netblocks.
+     It then determines if the latter is wholly contained within the
+     former.
+    
+</p>
+<p>
+     A common use-case of this will generally involve the second "block"
+     actually being a host (/32 or /128) address, as when you're
+     implementing ACL's.
+     But that's really just a specific case of the second block being any
+     other size; there's nothing special or magical about it.
+     As far as libcidr is concerned, they're just two netblocks.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * big:
+</span>
+      The netblock which may (or may not) contain the second arg.
+     
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * little:
+</span>
+      The netblock which may (or may not) be contained within the first
+      arg.
+     
+</ul>
+<li>
+
+<p>
+int
+<p>
+      Returns 0 if little is wholly contained within big.
+      Returns -1 if it's not, or if an error occured.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+0</dt>
+<dd>
+No error (little not in big)</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EINVAL</dt>
+<dd>
+Invalid argument</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOENT</dt>
+<dd>
+Internal error (shouldn't happen)</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EPROTO</dt>
+<dd>
+Protocols don't match</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-DUP">
+<span class="funcdef">
+cidr_dup():     Duplicate a netblock
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Allocate a <a href="#CIDR-ADDR">CIDR</a>
+, and fill it in with a
+     duplicate of the information given.
+    
+</p>
+<p>
+     The returned structure should be cleaned up using
+     <a href="#CIDR-FREE">cidr_free()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * src:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure to be copied.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a <a href="#CIDR-ADDR">CIDR</a>
+ struct containing a copy of
+      src.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-DUP">cidr_dup()</a>
+ can fail and set errno for any of the
+      reasons listed for <a href="#CIDR-ALLOC">cidr_alloc()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-EQUALS">
+<span class="funcdef">
+cidr_equals():     Compare two blocks for equality
+   
+</span>
+<ul>
+<li>
+
+<p>
+     This function is passed two <a href="#CIDR-ADDR">CIDR</a>
+ structures
+     describing a pair of netblocks.
+     It checks to see if they happen to describe the same netblock.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * one:
+</span>
+      One netblock.
+     
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * two:
+</span>
+      Another netblock.
+     
+</ul>
+<li>
+
+<p>
+int
+<p>
+      Returns 0 if the two <a href="#CIDR-ADDR">CIDR</a>
+ structs describe the
+      same netblock.
+      Returns -1 otherwise.
+     
+</p>
+
+
+</ul>
+<li id="CIDR-FREE">
+<span class="funcdef">
+cidr_free(): Free a <a href="#CIDR-ADDR">CIDR</a>
+ structure.
+</span>
+<ul>
+<li>
+
+<p>
+     Takes a <a href="#CIDR-ADDR">CIDR</a>
+ structure and
+     <em class="funcname">
+free()
+</em>
+'s all its component parts.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+<a href="#CIDR-ADDR">CIDR</a>
+ * tofree:
+</span>
+      A single <a href="#CIDR-ADDR">CIDR</a>
+ structure which has outlived its
+      usefulness.
+     
+</ul>
+<li>
+
+<p>
+void
+
+</ul>
+<li id="CIDR-FROM-INADDR">
+<span class="funcdef">
+cidr_from_inaddr():     Parse a struct in_addr
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Takes a populated struct in_addr, as you'd get from
+     <em class="funcname">
+accept()
+</em>
+ or <em class="funcname">
+getaddrinfo()
+</em>
+ or similar
+     functions.
+     Parses it out and generates a <a href="#CIDR-ADDR">CIDR</a>
+ structure
+     based on it.
+     Note that an in_addr only contains a host address, so the netmask is
+     initialized to all-1's (/32).
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const struct in_addr * uaddr:
+</span>
+      A populated struct in_addr, from whatever source obtained.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a populated <a href="#CIDR-ADDR">CIDR</a>
+
+      containing the address in the passed-in struct in_addr.
+      The netmask is initialized to all-1's, and the protocol to IPv4.
+      Use <a href="#CIDR-FREE">cidr_free()</a>
+ to free the structure when you're
+      finished with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-FROM-INADDR">cidr_from_inaddr()</a>
+ can also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-ALLOC">cidr_alloc()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-FROM-IN6ADDR">
+<span class="funcdef">
+cidr_from_in6addr():     Parse a struct in6_addr
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Takes a populated struct in6_addr, as you'd get from
+     <em class="funcname">
+accept()
+</em>
+ or <em class="funcname">
+getaddrinfo()
+</em>
+ or similar
+     functions.
+     Parses it out and generates a <a href="#CIDR-ADDR">CIDR</a>
+ structure
+     based on it.
+     Note that a in6_addr only contains a host address, so the netmask is
+     initialized to all-1's (/128).
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const struct in6_addr * uaddr:
+</span>
+      A populated struct in6_addr, from whatever source obtained.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a populated <a href="#CIDR-ADDR">CIDR</a>
+
+      containing the address in the passed-in struct in6_addr.
+      The netmask is initialized to all-1's, and the protocol to IPv6
+      (though it may contain an IPv4-mapped address).
+      Use <a href="#CIDR-FREE">cidr_free()</a>
+ to free the structure when you're
+      finished with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-FROM-INADDR">cidr_from_inaddr()</a>
+ can also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-ALLOC">cidr_alloc()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-FROM-STR">
+<span class="funcdef">
+cidr_from_str():     Parse a human-readable string
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Takes in a netblock description as a human-readable string, and
+     creates a <a href="#CIDR-ADDR">CIDR</a>
+ structure from it.
+    
+</p>
+<p>
+     This is probably the most intricate function in the library.
+     It accepts addresses in "address/mask" format.
+     'address' is an IP address in valid written form.
+     For IPv4, it's 1 through 4 period-separated pieces, expressed in
+     octal, hex, or decimal, with the last octet being treated as an 8,
+     16, 24, or 32-bit quantity depending on whether there are 4, 3, 2,
+     or 1 pieces given (respectively).
+     Of course, you're nuts for using that flexibility.
+     For IPv6, it's nice and simple; 8 colon-separated double-octets,
+     excepting that the last 4 octets can be expressed as a 4-piece
+     dotted-decimal, like an IPv4 address (the full flexibility of the
+     IPv4 parsing engine is not available, however; intentionally, though
+     that may change if necessary).
+     'mask' can be either a prefix length (/0-/32 for IPv4, /0-/128 for
+     IPv6), or a netmask written in the standard form for the address
+     family.
+    
+</p>
+<p>
+     IPv6 addresses can be specified in fully expanded form, or with
+     ::-style contraction.
+     IPv4-mapped IPv6 addresses (::ffff:a.b.c.d),  will be treated as IPv6
+     addresses.
+     The mask can be left off, in which case addresses are treated as
+     host addresses (/32 or /128, depending on address family).
+    
+</p>
+<p>
+     Also, <a href="#CIDR-FROM-STR">cidr_from_str()</a>
+ will parse DNS PTR-record-style
+     address formats.
+     That is, representations like "4.3.2.1.in-addr.arpa" for IPv4, and
+     an extremely long and annoying form ending in .ip6.arpa for IPv6.
+     <a href="#CIDR-FROM-STR">cidr_from_str()</a>
+ also understands the deprecated
+     RFC1886 form of IPv6 PTR records, which ends in .ip6.int, though
+     <a href="#CIDR-TO-STR">cidr_to_str()</a>
+ will only generate the current
+     RFC3152-style .ip6.arpa version.
+     Note also that while <a href="#CIDR-TO-STR">cidr_to_str()</a>
+ treats all
+     addresses as host addresses when building the PTR string (ignoring
+     the netmask), <a href="#CIDR-FROM-STR">cidr_from_str()</a>
+ will fill in the netmask
+     bits as appropriate for the string given; any octets (or
+     half-octets, in the IPv6 form) that are left off the beginning will
+     have their netmask bits set to 0.
+    
+</p>
+<p>
+     It's not the intention of the author that this function necessarily
+     be able to decipher any possible address format.
+     However, the capabilities given should parse any rational address
+     specification, and many irrational ones (like hex/oct and collapsed
+     v4 addresses).
+     The intention is rather to support the ways the addresses and
+     netmasks are commonly written and read, so that a human-readable
+     form can quickly be transformed into a format that libcidr can then
+     use in its various ways, whether through comparing addresses with
+     functions like <a href="#CIDR-CONTAINS">cidr_contains()</a>
+, or generating
+     references and stats about a netblock with functions like
+     <a href="#CIDR-ADDR-BROADCAST">cidr_addr_broadcast()</a>
+ and <a href="#CIDR-NUMHOST">cidr_numhost()</a>
+,
+     or simply spitting it out in different human-readable forms with
+     <a href="#CIDR-TO-STR">cidr_to_str()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const char * addr:
+</span>
+      A string containing some human-readable IP block.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a pointer to a populated <a href="#CIDR-ADDR">CIDR</a>
+
+      describing (hopefully) the block you talked about in the string.
+      Use <a href="#CIDR-FREE">cidr_free()</a>
+ to free the structure when you're
+      finished with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EINVAL</dt>
+<dd>
+Can't parse the input string</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOENT</dt>
+<dd>
+Internal error (shouldn't happen)</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-FROM-STR">cidr_from_str()</a>
+ can also fail and set errno for any
+      of the reasons listed for
+      <a href="#CIDR-ALLOC">cidr_alloc()</a>
+ or
+      <a href="#CIDR-GET-PFLEN">cidr_get_pflen()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-GET-ADDR">
+<span class="funcdef">
+cidr_get_addr():     Return address bits
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Return the address bits which compose the address.
+     This should be used in preference to simply referencing inside the 
+     <a href="#CIDR-ADDR">CIDR</a>
+ manually in external code, since the
+     structure might change on you.
+    
+</p>
+<p>
+     Generally, if you think you need to call this, you should probably
+     rethink what you're doing.
+     Most of the time, one of the formatted outputs from
+     <a href="#CIDR-TO-STR">cidr_to_str()</a>
+ or one of the manipulation functions
+     like <a href="#CIDR-ADDR-HOSTMIN">cidr_addr_hostmin()</a>
+ is what you want.
+     Still, there are times when you're interesting in manipulating the
+     address by yourself as a bunch of binary bits (the cidrcalc example
+     program does this), so this function should be used instead of
+     groping around in the structure manually.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+uint8_t *
+<p>
+      Returns a pointer to an 16-element array of uint8_t's representing
+      the address.
+      This array must be <em class="funcname">
+free()
+</em>
+'d when you're through with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-GET-MASK">
+<span class="funcdef">
+cidr_get_mask():     Return netmask bits
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Return the netmask bits which of the given netblock.
+     This should be used in preference to simply referencing inside the 
+     <a href="#CIDR-ADDR">CIDR</a>
+ manually in external code, since the
+     structure might change on you.
+    
+</p>
+<p>
+     See further notes about the desirability of using this function
+     above in the notes for <a href="#CIDR-GET-ADDR">cidr_get_addr()</a>
+.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+uint8_t *
+<p>
+      Returns a pointer to an 16-element array of uint8_t's representing
+      the netmask.
+      This array must be <em class="funcname">
+free()
+</em>
+'d when you're through with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-GET-PFLEN">
+<span class="funcdef">
+cidr_get_pflen():     Network bits in the netmask
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Poke around the netmask of the passed-in <a href="#CIDR-ADDR">CIDR</a>
+
+     structure and determine how many bits there are in the netmask, as
+     appropriate to the address family.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * block:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+int
+<p>
+      Returns the number of network bits in the netmask (0-32 for IPv4,
+      0-128 for IPv6).
+      Returns -1 on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EINVAL</dt>
+<dd>
+Invalid (non-contiguous) netmask</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOENT</dt>
+<dd>
+Internal error (shouldn't happen)</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-GET-PROTO">
+<span class="funcdef">
+cidr_get_proto():     Find a netblock's protocol family
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Returns the protocol family of an address using one of the defined
+     constants.
+     The current choices are CIDR_IPV4 and CIDR_IPV6.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+int
+<p>
+      Returns the address family of the given netblock.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-IS-V4MAPPED">
+<span class="funcdef">
+cidr_is_v4mapped():     Is address IPv4-mapped IPv6 address?
+   
+</span>
+<ul>
+<li>
+
+<p>
+     An IPv6 address may be in the network range reserved for IPv4-mapped
+     addresses.
+     This function will tell you whether it is or not.
+     Note that an IPv4 <a href="#CIDR-ADDR">CIDR</a>
+ is NOT considered an
+     IPv4-mapped address, and so will return failure.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+int
+<p>
+      Returns 0 if the address is an IPv4-mapped IPv6 address.
+      Returns -1 otherwise.
+     
+</p>
+
+
+</ul>
+<li id="CIDR-NET-SUBNETS">
+<span class="funcdef">
+cidr_net_subnets():     Divide a netblock
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Take in a netblock, and derive the two netblocks which it divides up
+     into.
+     Return them in an array.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      The netblock to subdivide.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ **
+<p>
+      Returns a 2-element array of <a href="#CIDR-ADDR">CIDR</a>
+ structs,
+      containing the two subnets of addr.
+      Each of the elements should be cleaned up with
+      <a href="#CIDR-FREE">cidr_free()</a>
+, and the array itself then cleaned up
+      with <em class="funcname">
+free()
+</em>
+.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+0</dt>
+<dd>
+No error (already a /32 or /128)</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL argument</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-NET-SUBNETS">cidr_net_subnets()</a>
+ can also fail and set errno for
+      any of the reasons listed for
+      <a href="#CIDR-ADDR-NETWORK">cidr_addr_network()</a>
+ or
+      <a href="#CIDR-DUP">cidr_dup()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-NET-SUPERNET">
+<span class="funcdef">
+cidr_net_supernet():     Undivide a netblock
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Take in a netblock, and derive the parent netblock in which it fits.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      The netblock to find the parent of.
+     
+</ul>
+<li>
+
+<p>
+<a href="#CIDR-ADDR">CIDR</a>
+ *
+<p>
+      Returns a <a href="#CIDR-ADDR">CIDR</a>
+ struct defining the parent
+      network of addr.
+      Clean this up with <a href="#CIDR-FREE">cidr_free()</a>
+ when you're finished
+      with it.
+      Returns NULL on failure.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+0</dt>
+<dd>
+No error (already a /0)</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL argument</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-NET-SUPERNET">cidr_net_supernet()</a>
+ can also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-DUP">cidr_dup()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-NUMADDR">
+<span class="funcdef">
+cidr_numaddr():     Addresses in a netblock
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Determine the total number of addresses in a netblock (including the
+     network and broadcast addresses).
+    
+</p>
+<p>
+     This function returns a pointer to a pre-formatted string because
+     we're potentially returning a value up to 2**128.
+     I don't feel like trying to portably do 128-bit arithmetic.
+     Do you?
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+const char *
+<p>
+      Returns a pointer to a string containing the number of addresses in
+      the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <em class="funcname">
+free()
+</em>
+'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-NUMADDR">cidr_numaddr()</a>
+ can also also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-NUMADDR-PFLEN">cidr_numaddr_pflen()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-NUMADDR-PFLEN">
+<span class="funcdef">
+cidr_numaddr_pflen():     Addresses in a prefix length
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Determine the total number of addresses in a netblock with the given
+     prefix length (including the network and broadcast addresses).
+    
+</p>
+<p>
+     Note that this takes an IPv6 prefix length; that is, 0-128.
+     If you're interested in an IPv4 address with a given prefix length,
+     add 96 to it when you call this function.
+    
+</p>
+<p>
+     See the note in <a href="#CIDR-NUMADDR">cidr_numaddr()</a>
+ for why we're returning
+     a string and not a number.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+int pflen:
+</span>
+      A prefix length (0-128).
+     
+</ul>
+<li>
+
+<p>
+const char *
+<p>
+      Returns a pointer to a string containing the number of addresses in
+      the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <em class="funcname">
+free()
+</em>
+'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EINVAL</dt>
+<dd>
+Invalid prefix length</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-NUMHOST">
+<span class="funcdef">
+cidr_numhost():     Host addresses in a netblock
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Determine the total number of host addresses in a netblock
+     (excluding the network and broadcast addresses).
+    
+</p>
+<p>
+     See the note in <a href="#CIDR-NUMADDR">cidr_numaddr()</a>
+ for why we're returning
+     a string and not a number.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      An arbitrary netblock.
+     
+</ul>
+<li>
+
+<p>
+const char *
+<p>
+      Returns a pointer to a string containing the number of host
+      addresses in the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <em class="funcname">
+free()
+</em>
+'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-NUMHOST">cidr_numhost()</a>
+ can also also fail and set errno for
+      any of the reasons listed for <a href="#CIDR-NUMHOST-PFLEN">cidr_numhost_pflen()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-NUMHOST-PFLEN">
+<span class="funcdef">
+cidr_numhost_pflen():     Host addresses in a prefix length
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Determine the total number of host addresses in a netblock with the
+     given prefix length (excluding the network and broadcast addresses).
+    
+</p>
+<p>
+     Note that this takes an IPv6 prefix length; that is, 0-128.
+     If you're interested in an IPv4 address with a given prefix length,
+     add 96 to it when you call this function.
+    
+</p>
+<p>
+     See the note in <a href="#CIDR-NUMADDR">cidr_numaddr()</a>
+ for why we're returning
+     a string and not a number.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+int pflen:
+</span>
+      A prefix length (0-128).
+     
+</ul>
+<li>
+
+<p>
+const char *
+<p>
+      Returns a pointer to a string containing the number of host
+      addresses in the netblock.
+      Note that this is a static string; it should not be overwritten,
+      and doesn't need to be <em class="funcname">
+free()
+</em>
+'d.
+      Make a copy if you want to manipulate it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EINVAL</dt>
+<dd>
+Invalid prefix length</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-TO-INADDR">
+<span class="funcdef">
+cidr_to_inaddr():     Create a struct in_addr
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Takes in a <a href="#CIDR-ADDR">CIDR</a>
+ and creates a struct in_addr
+     from it.
+     This struct can then be used in <em class="funcname">
+connect()
+</em>
+ or similar
+     network-related functions.
+     If the users passes in a struct in_addr, it will be filled in.
+     Otherwise, one will be allocated and returned.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure describing the host to be
+      translated into a struct in_addr.
+      Note that the netmask is irrelevant and will be ignored.
+      <a href="#CIDR-TO-INADDR">cidr_to_inaddr()</a>
+ supports only IPv4 addresses, as the
+      underlying structure only does.
+     
+<li>
+<span class="argdef">
+struct in_addr * uptr:
+</span>
+      A pointer to a pre-allocated struct in_addr, or NULL.
+      If non-NULL, the pointed-at structure will be filled in.
+      If NULL, a new structure will be allocated, filled in, and
+      returned.
+     
+</ul>
+<li>
+
+<p>
+struct in_addr *
+<p>
+      Returns a pointer to the filled-in struct in_addr.
+      If the user passed one in, this will just point to the same place
+      and can profitably be ignored.
+      If the user passed in NULL, this will point to the struct in_addr
+      we allocated, which should be <em class="funcname">
+free()
+</em>
+'d by the user when
+      they're finished with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EPROTOTYPE</dt>
+<dd>
+Bad protocol type (must be IPv4)</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-TO-IN6ADDR">
+<span class="funcdef">
+cidr_to_in6addr():     Create a struct in6_addr
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Takes in a <a href="#CIDR-ADDR">CIDR</a>
+ and creates a struct in6_addr
+     from it.
+     This struct can then be used in <em class="funcname">
+connect()
+</em>
+ or similar
+     network-related functions.
+     If the users passes in a struct in6_addr, it will be filled in.
+     Otherwise, one will be allocated and returned.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * addr:
+</span>
+      A <a href="#CIDR-ADDR">CIDR</a>
+ structure describing the host to be
+      translated into a struct in6_addr.
+      Note that the netmask is irrelevant and will be ignored.
+      <a href="#CIDR-TO-IN6ADDR">cidr_to_in6addr()</a>
+ supports both IPv4 and IPv6
+      addresses, as the underlying structure does as well.
+      IPv4 addresses are treated as v4-mapped IPv6 addresses.
+     
+<li>
+<span class="argdef">
+struct in6_addr * uptr:
+</span>
+      A pointer to a pre-allocated struct in6_addr, or NULL.
+      If non-NULL, the pointed-at structure will be filled in.
+      If NULL, a new structure will be allocated, filled in, and
+      returned.
+     
+</ul>
+<li>
+
+<p>
+struct in6_addr *
+<p>
+      Returns a pointer to the filled-in struct in6_addr.
+      If the user passed one in, this will just point to the same place
+      and can profitably be ignored.
+      If the user passed in NULL, this will point to the struct in6_addr
+      we allocated, which should be <em class="funcname">
+free()
+</em>
+'d by the user when
+      they're finished with it.
+      Returns NULL on error.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EFAULT</dt>
+<dd>
+Passed NULL</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+EPROTOTYPE</dt>
+<dd>
+Bad protocol type (must be IPv4 or IPv6)</dd>
+</dl>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-TO-STR">
+<span class="funcdef">
+cidr_to_str():     Create a human-readable netblock description
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Takes in a <a href="#CIDR-ADDR">CIDR</a>
+ structure, and generates up a
+     human-readable string describing the netblock.
+     This function has a lot of flexibility, depending on the flags
+     passed to it.
+     The default output is "address/pflen" form, with the address in a
+     reasonably compact form, and the prefix length given numerically.
+     Flags alter the output in various ways, and are set as bitmasks, so
+     they can be combined however you wish.
+     They can be used in any combination that makes sense, and a large
+     number of combinations that don't.
+    
+</p>
+<p>
+     The current flags are:
+     <br>
+
+     CIDR_NOFLAGS: A stand-in for when you just want the default
+     output
+     <br>
+
+     CIDR_NOCOMPACT: Don't do ::-style IPv6 compaction
+     <br>
+
+     CIDR_VERBOSE: Show leading 0's in octets [v6 only]
+     <br>
+
+     CIDR_USEV6: Use IPv4-mapped address form for IPv4 addresses
+     (::ffff:a.b.c.d)
+     <br>
+
+     CIDR_USEV4COMPAT: Use IPv4-compat form (::a.b.c.d) instead of
+     IPv4-mapped form (only meaningful in combination with CIDR_USEV6)
+     <br>
+
+     CIDR_NETMASK: Return a netmask in standard form after the slash,
+     instead of the prefix length.
+     Note that the form of the netmask can thus be altered by the various
+     flags that alter how the address is displayed.
+     <br>
+
+     CIDR_ONLYADDR: Show only the address, without the prefix/netmask
+     <br>
+
+     CIDR_ONLYPFLEN: Show only the prefix length (or netmask, when
+     combined with CIDR_NETMASK), without the address.
+     <br>
+
+     CIDR_WILDCARD: Show a Cisco-style wildcard mask instead of the
+     netmask (only meaningful in combination with CIDR_NETMASK)
+     <br>
+
+     CIDR_FORCEV6: Forces treating the <a href="#CIDR-ADDR">CIDR</a>
+ as an
+     IPv6 address, no matter what it really is.
+     This doesn't do any conversion or translation; just treats the raw
+     data as if it were IPv6.
+     <br>
+
+     CIDR_FORCEV4: Forces treating the <a href="#CIDR-ADDR">CIDR</a>
+ as an
+     IPv4 address, no matter what it really is.
+     This doesn't do any conversion or translation; just treats the raw
+     data as if it were IPv4.
+     <br>
+
+     CIDR_REVERSE: Generates a .in-addr.arpa or .ip6.arpa-style PTR
+     record name for the given block.
+     Note that this always treats it solely as an address; the netmask is
+     ignored.
+     See some notes in <a href="#CIDR-FROM-STR">cidr_from_str()</a>
+ for details of the
+     asymmetric treatment of this form of address representation relating
+     to the netmask.
+    
+</p>
+<p>
+     Many combinations can give somewhat surprising results, but they
+     should allow any of a host of manipulations to output just the data
+     you might be interested in.
+     The "mkstr" test program in the source tree is extremely useful for
+     manual testing of the various flags to see visually what they do,
+     and is a lot quicker than trying to code them all to test it out.
+     Use it to your advantage.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+<span class="argdef">
+const <a href="#CIDR-ADDR">CIDR</a>
+ * block:
+</span>
+      The <a href="#CIDR-ADDR">CIDR</a>
+ structure to generate a string
+      form of.
+      The address family will be autodetected.
+     
+<li>
+<span class="argdef">
+int flags:
+</span>
+      A bitmask of the various possible flags the function accepts.
+     
+</ul>
+<li>
+
+<p>
+char *
+<p>
+      Returns a pointer to a string containing the representation of the
+      network.
+      Be sure to <em class="funcname">
+free()
+</em>
+ it when you're finished.
+     
+</p>
+
+<li>
+Error codes:
+<ul>
+<li>
+<dl>
+<dt>
+EINVAL</dt>
+<dd>
+Invalid argument (bad block or flags)</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOENT</dt>
+<dd>
+Internal error (shouldn't happen)</dd>
+</dl>
+</li>
+<li>
+<dl>
+<dt>
+ENOMEM</dt>
+<dd>
+<em class="funcname">
+malloc()
+</em>
+ failed</dd>
+</dl>
+</li>
+<li>
+<div class="note">
+<p>
+Note:
+</p>
+<p>
+      <a href="#CIDR-TO-STR">cidr_to_str()</a>
+ can also fail and set errno for
+      any of the reasons listed for
+      <a href="#CIDR-ALLOC">cidr_alloc()</a>
+ or
+      <a href="#CIDR-GET-PFLEN">cidr_get_pflen()</a>
+.
+     
+</p>
+
+</div>
+</li>
+</ul>
+
+</ul>
+<li id="CIDR-VERSION">
+<span class="funcdef">
+cidr_version():     Library version
+   
+</span>
+<ul>
+<li>
+
+<p>
+     Returns a static string describing the library release version.
+    
+</p>
+
+<li>
+Arguments:
+<ul>
+<li>
+None
+</li>
+</ul>
+<li>
+
+<p>
+const char *
+<p>
+      Returns a pointer to a static string describing the library version
+      number.
+      It shouldn't be overwritten or <em class="funcname">
+free()
+</em>
+'d.
+     
+</p>
+
+
+</ul>
+
+</ul>
+</div>
+
+</body>
+</html>

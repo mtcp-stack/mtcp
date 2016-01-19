@@ -1,0 +1,7 @@
+# Do stuff to all the test programs
+SUBDIRS = compare inaddr kids mkstr netbc nums parent
+
+all clean:
+	@for i in ${SUBDIRS}; do \
+		(cd $${i} && ${MAKE} ${@}); \
+	done

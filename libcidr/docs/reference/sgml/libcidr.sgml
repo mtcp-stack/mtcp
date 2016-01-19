@@ -1,0 +1,12 @@
+<!DOCTYPE codelibrary PUBLIC "-//Matthew Fuller//DTD Codelibrary 2.0//EN"
+ [
+  <!ENTITY geninfo system "inc/geninfo.sgml">
+  <!ENTITY datastructs system "inc/datastructs.sgml">
+  <!ENTITY functions system "inc/functions.sgml">
+ ]
+>
+<codelibrary name="libcidr">
+ <geninfo> &geninfo; </geninfo>
+ <datastructs> &datastructs; </datastructs>
+ <functions> &functions; </functions>
+</codelibrary>

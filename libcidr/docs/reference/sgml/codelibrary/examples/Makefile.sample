@@ -1,0 +1,158 @@
+# Sample Makefile for codelibrary
+# $Id: Makefile.sample,v 1.5 2003/07/16 15:32:11 fullermd Exp $
+#
+# TARGETS:
+# Only the following targets are useful for manual invocation
+# - main: Build the docs and install finished outputs in the output/
+#         directory
+# - minimal: Build ONLY HTML and TXT verions
+# - validate: Validate the SGML file against the DTD
+# - clean: Clean out the build directory
+# - allclean: Clean out the build and output directories
+
+# To keep things sane
+default: main
+
+# **BEGIN USER-ADJUSTABLE SETTINGS**
+# Variables to be changed
+# The filename for the SGML source file
+FNAME = sample
+
+# The base directory for the DTD and associated files
+# This will get replaced when you install the DTD
+# This is often under something like /usr/local/share
+DTDDIR = ${RTPATH}/..
+
+# Uncomment this, or define on the command-line, to disable
+# running tidy over the HTML output.  Useful for debugging
+# when you're working on the HTML DSSSL specs.
+#NOTIDY=yes
+
+# You may need to adjust this, depending on how Jade was installed
+JADECAT= -c /usr/local/share/sgml/jade/catalog
+
+# Change these targets if you want to adjust the output formats.
+# Make sure you keep them in sync!  I should automate this...
+# Everything
+build-all all-formats: tex dvi ps pdf html-onepage txt rtf
+do-build-minimal: html-onepage txt
+# All our files
+ALLFILES = ${FNAME}.ps ${FNAME}.pdf ${FNAME}.dvi ${FNAME}-big.html \
+		${FNAME}.txt ${FNAME}.rtf
+MINFILES = ${FNAME}-big.html ${FNAME}.txt
+
+# **END USER-ADJUSTABLE SETTINGS**
+
+
+# Don't edit anything below here unless you really know what
+# you're doing
+# Files and paths
+RTPATH ?= ${PWD}
+
+INFILE = ${RTPATH}/${FNAME}.sgml
+
+SSDIR = ${DTDDIR}/dsssl
+CSSDIR = ${DTDDIR}/css
+
+PRINTSS = ${SSDIR}/print.dsl
+HTMLONESS = ${SSDIR}/html-onepage.dsl
+
+OUTDIR = ${RTPATH}/output
+BUILDDIR = ${RTPATH}/.tmp
+
+# Args
+TIDYARGS = -i -raw -quiet -wrap 75
+CLIB_CATALOG = -c ${DTDDIR}/catalog
+JADESTD = ${JADECAT} ${CLIB_CATALOG}
+
+# The main user-invokable 
+main: ${BUILDDIR} build-docs install-docs
+
+minimal: ${BUILDDIR} build-minimal install-minimal
+
+clean:
+	rm -rf ${BUILDDIR}
+
+allclean: clean
+	rm -rf ${OUTDIR}
+
+validate:
+	nsgmls ${CLIB_CATALOG} -s ${INFILE}
+
+build-docs:
+	cd ${BUILDDIR} && \
+		${MAKE} -f ${RTPATH}/Makefile RTPATH=${RTPATH} build-all
+
+install-docs:
+	mkdir -p ${OUTDIR}
+	cd ${BUILDDIR} && \
+		${MAKE} -f ${RTPATH}/Makefile RTPATH=${RTPATH} install-all
+
+build-minimal:
+	cd ${BUILDDIR} && \
+		${MAKE} -f ${RTPATH}/Makefile RTPATH=${RTPATH} do-build-minimal
+
+install-minimal:
+	mkdir -p ${OUTDIR}
+	cd ${BUILDDIR} && \
+		${MAKE} -f ${RTPATH}/Makefile RTPATH=${RTPATH} do-install-minimal
+
+# Don't forget the .css for the HTML file too
+install-all:
+	mkdir -p ${OUTDIR}
+	install -c ${ALLFILES} ${OUTDIR}
+	install -c ${CSSDIR}/codelibrary-html.css ${OUTDIR}
+	@echo %%%%% Install done %%%%%
+
+do-install-minimal:
+	mkdir -p ${OUTDIR}
+	install -c ${MINFILES} ${OUTDIR}
+	install -c ${CSSDIR}/codelibrary-html.css ${OUTDIR}
+	@echo %%%%% Install done %%%%%
+	
+# Aliases
+ps: ${FNAME}.ps
+pdf: ${FNAME}.pdf
+dvi: ${FNAME}.dvi
+tex: ${FNAME}.tex
+txt: ${FNAME}.txt
+ascii: ${FNAME}.txt
+html-onepage: ${FNAME}-big.html
+rtf: ${FNAME}.rtf
+
+${FNAME}.ps: dvi
+	dvips -o ${FNAME}.ps ${FNAME}.dvi
+	@echo %%%%% Postscript built %%%%%
+
+${FNAME}.pdf: tex
+	pdftex "&pdfjadetex" ${FNAME}.tex
+	@echo %%%%% PDF built %%%%%
+
+${FNAME}.dvi: tex
+	tex "&jadetex" ${FNAME}.tex
+	@echo %%%%% DVI built %%%%%
+
+${FNAME}.tex: ${INFILE}
+	jade ${JADESTD} -d ${PRINTSS} -t tex -o ${@} ${INFILE}
+	@echo %%%%% TeX built %%%%%
+
+${FNAME}.rtf: ${INFILE}
+	jade ${JADESTD} -d ${PRINTSS} -t rtf -o ${@} ${INFILE}
+	@echo %%%%% RTF built %%%%%
+
+${FNAME}.txt: html-onepage
+	lynx -dump -nolist ${FNAME}-big.html > ${FNAME}.txt
+	@echo %%%%% ASCII built %%%%%
+
+${FNAME}-big.html: ${INFILE}
+	jade ${JADESTD} -d ${HTMLONESS} -t sgml ${INFILE} | \
+		tidy ${TIDYARGS} > ${FNAME}-big-notidy.html
+.ifndef NOTIDY
+	tidy ${TIDYARGS} < ${FNAME}-big-notidy.html > ${FNAME}-big.html
+.else
+	cp ${FNAME}-big-notidy.html ${FNAME}-big.html
+.endif
+	@echo %%%%% HTML-onepage built %%%%%
+
+${BUILDDIR}:
+	mkdir -p ${BUILDDIR}

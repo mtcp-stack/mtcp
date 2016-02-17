@@ -1,0 +1,1 @@
+cmd_/home/ajamshed/dpdk-2.2.0/build/build/lib/librte_eal/linuxapp/kni/built-in.o :=  rm -f /home/ajamshed/dpdk-2.2.0/build/build/lib/librte_eal/linuxapp/kni/built-in.o; ar rcsD /home/ajamshed/dpdk-2.2.0/build/build/lib/librte_eal/linuxapp/kni/built-in.o

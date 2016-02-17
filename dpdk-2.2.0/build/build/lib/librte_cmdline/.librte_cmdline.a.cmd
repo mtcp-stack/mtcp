@@ -1,0 +1,1 @@
+cmd_librte_cmdline.a = ar crDs librte_cmdline.a cmdline.o cmdline_cirbuf.o cmdline_parse.o cmdline_parse_etheraddr.o cmdline_parse_ipaddr.o cmdline_parse_num.o cmdline_parse_string.o cmdline_rdline.o cmdline_vt100.o cmdline_socket.o cmdline_parse_portlist.o 

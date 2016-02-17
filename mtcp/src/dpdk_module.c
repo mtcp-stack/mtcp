@@ -92,6 +92,7 @@ static struct rte_eth_conf port_conf = {
 	.txmode = {
 		.mq_mode = 		ETH_MQ_TX_NONE,
 	},
+#if 0
 	.fdir_conf = {
                 .mode = RTE_FDIR_MODE_PERFECT,
                 .pballoc = RTE_FDIR_PBALLOC_256K,
@@ -99,6 +100,7 @@ static struct rte_eth_conf port_conf = {
                 //.flexbytes_offset = 0x6,
                 .drop_queue = 127,
         },
+#endif
 };
 
 static const struct rte_eth_rxconf rx_conf = {
@@ -445,6 +447,7 @@ check_all_ports_link_status(uint8_t port_num, uint32_t port_mask)
 	}
 }
 /*----------------------------------------------------------------------------*/
+#if 0
 static void
 dpdk_enable_fdir(int portid, uint8_t is_master)
 {
@@ -489,6 +492,7 @@ dpdk_enable_fdir(int portid, uint8_t is_master)
 	}
 	fprintf(stderr, "Filter for device ifidx: %d added\n", portid);
 }
+#endif
 /*----------------------------------------------------------------------------*/
 void
 dpdk_load_module(void)
@@ -576,9 +580,11 @@ dpdk_load_module(void)
 			       ports_eth_addr[portid].addr_bytes[4],
 			       ports_eth_addr[portid].addr_bytes[5]);
 #endif
+#if 0
 			/* if multi-process support is enabled, then turn on FDIR */
 			if (CONFIG.multi_process)
 				dpdk_enable_fdir(portid, CONFIG.multi_process_is_master);
+#endif
 		}
 	} else { /* CONFIG.multi_process && !CONFIG.multi_process_is_master */
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
@@ -590,8 +596,10 @@ dpdk_load_module(void)
                         if (pktmbuf_pool[rxlcore_id] == NULL)
                                 rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
                 }
+#if 0
                 for (portid = 0; portid < num_devices_attached; portid++)
 			dpdk_enable_fdir(portid, CONFIG.multi_process_is_master);
+#endif
 	}
 	
 	check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);

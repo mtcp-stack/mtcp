@@ -285,7 +285,9 @@ SetInterfaceInfo(char* dev_name_list)
 		struct ifaddrs *ifap;
 		struct ifaddrs *iter_if;
 		char *seek;
-		
+
+		num_queues = MIN(CONFIG.num_cores, MAX_CPUS);
+
 		if (getifaddrs(&ifap) != 0) {
 			perror("getifaddrs: ");
 			exit(EXIT_FAILURE);

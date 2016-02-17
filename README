@@ -130,9 +130,9 @@ mTCP can be prepared in two ways.
    setup_iface_single_process.sh script file present in dpdk-2.2.0/tools/
    directory for this purpose. Please change lines 49-51 to change the IP	
    address. Under default settings, run the script as:
-   	   # ./setup_iface_single_process.sh 3
+   	   # ./setup_iface_single_process.sh 4
 
-   This sets the IP address of your interfaces as 10.0.x.3.
+   This sets the IP address of your interfaces as 10.0.x.4.
 
 3. Create soft links for include/ and lib/ directories inside
    empty dpdk/ directory:

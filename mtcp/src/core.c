@@ -83,26 +83,32 @@ HandleSignal(int signal)
 		core = sched_getcpu();
 		gettimeofday(&cur_ts, NULL);
 
-		if (sigint_cnt[core] > 0 && cur_ts.tv_sec > sigint_ts[core].tv_sec) {
-			for (i = 0; i < num_cpus; i++) {
-				if (running[i]) {
+		if (CONFIG.multi_process) {
+			for (i = 0; i < num_cpus; i++)
+				if (running[i] == TRUE)
 					g_pctx[i]->exit = TRUE;
-				}
-			}
 		} else {
-			for (i = 0; i < num_cpus; i++) {
-				g_pctx[i]->interrupt = TRUE;
-			}
-			if (!app_signal_handler) {
+			if (sigint_cnt[core] > 0 && cur_ts.tv_sec > sigint_ts[core].tv_sec) {
 				for (i = 0; i < num_cpus; i++) {
 					if (running[i]) {
 						g_pctx[i]->exit = TRUE;
 					}
 				}
+			} else {
+				for (i = 0; i < num_cpus; i++) {
+					g_pctx[i]->interrupt = TRUE;
+				}
+				if (!app_signal_handler) {
+					for (i = 0; i < num_cpus; i++) {
+						if (running[i]) {
+							g_pctx[i]->exit = TRUE;
+						}
+					}
+				}
 			}
+			sigint_cnt[core]++;
+			gettimeofday(&sigint_ts[core], NULL);
 		}
-		sigint_cnt[core]++;
-		gettimeofday(&sigint_ts[core], NULL);
 	}
 
 	if (signal != SIGUSR1) {

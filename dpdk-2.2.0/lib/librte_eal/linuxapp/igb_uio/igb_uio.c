@@ -448,7 +448,7 @@ igbuio_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct net_device *netdev;
 	struct net_adapter *adapter = NULL;
 	struct ixgbe_hw *hw_i = NULL;
-#if 0
+#if 1
 	struct e1000_hw *hw_e = NULL;
 #endif
 	static int cards_found = 0;
@@ -573,7 +573,7 @@ igbuio_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 		break;
 	case IGB:
-#if 0
+#if 1
 		hw_e = &adapter->hw._e1000_hw;
 		hw_e->back = adapter;
 		hw_e->hw_addr = ioremap(pci_resource_start(dev, 0),

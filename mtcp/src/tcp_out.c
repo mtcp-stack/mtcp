@@ -287,7 +287,7 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	}
 
 	window32 = cur_stream->rcvvar->rcv_wnd >> wscale;
-	tcph->window = htons(MIN((uint16_t)window32, TCP_MAX_WINDOW));
+	tcph->window = htons((uint16_t)MIN(window32, TCP_MAX_WINDOW));
 	/* if the advertised window is 0, we need to advertise again later */
 	if (window32 == 0) {
 		cur_stream->need_wnd_adv = TRUE;

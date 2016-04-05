@@ -695,10 +695,6 @@ main(int argc, char **argv)
 		}
 		if (process_cpu != -1)
 			break;
-		else {
-			TRACE_CONFIG("Process CPU is: %d\n", process_cpu);
-			exit(-1);
-		}
 	}
 	
 	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
@@ -706,10 +702,6 @@ main(int argc, char **argv)
 
 		if (process_cpu != -1)
 			break;
-		else {
-			TRACE_CONFIG("Process CPU is: %d\n", process_cpu);
-			exit(-1);
-		}
 	}
 	
 	mtcp_destroy();

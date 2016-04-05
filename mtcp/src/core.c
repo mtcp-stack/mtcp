@@ -81,7 +81,7 @@ HandleSignal(int signal)
 		struct timespec cur_ts;
 
 		core = sched_getcpu();
-		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_ts);
+		clock_gettime(CLOCK_REALTIME, &cur_ts);
 
 		if (CONFIG.multi_process) {
 			for (i = 0; i < num_cpus; i++)
@@ -107,7 +107,7 @@ HandleSignal(int signal)
 				}
 			}
 			sigint_cnt[core]++;
-			clock_gettime(CLOCK_THREAD_CPUTIME_ID, &sigint_ts[core]);
+			clock_gettime(CLOCK_REALTIME, &sigint_ts[core]);
 		}
 	}
 

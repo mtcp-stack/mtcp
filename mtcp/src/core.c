@@ -67,7 +67,7 @@ static int running[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 mtcp_sighandler_t app_signal_handler;
 static int sigint_cnt[MAX_CPUS];
-static struct timeval sigint_ts[MAX_CPUS];
+static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
 /*----------------------------------------------------------------------------*/
@@ -78,10 +78,10 @@ HandleSignal(int signal)
 
 	if (signal == SIGINT) {
 		int core;
-		struct timeval cur_ts;
+		struct timespec cur_ts;
 
 		core = sched_getcpu();
-		gettimeofday(&cur_ts, NULL);
+		clock_gettime(CLOCK_THREAD_CPUTIME_ID, &cur_ts);
 
 		if (CONFIG.multi_process) {
 			for (i = 0; i < num_cpus; i++)
@@ -107,7 +107,7 @@ HandleSignal(int signal)
 				}
 			}
 			sigint_cnt[core]++;
-			gettimeofday(&sigint_ts[core], NULL);
+			clock_gettime(CLOCK_THREAD_CPUTIME_ID, &sigint_ts[core]);
 		}
 	}
 

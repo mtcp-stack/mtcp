@@ -1,10 +1,16 @@
 .PHONY: clean
 
+CC=@CC@
+
 all: pslib.a
 
 pslib.a: pslib.c
-	gcc -O3 -c -g -Wall -fPIC -o pslib.o pslib.c
+	$(CC) -O3 -c -g -Wall -fPIC -o pslib.o pslib.c
 	ar rcs libps.a pslib.o
 
 clean:
 	rm -f *.o *.a
+
+distclean: clean
+	rm -f Makefile
+

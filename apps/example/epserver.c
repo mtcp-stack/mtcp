@@ -87,6 +87,7 @@ static int num_cores;
 static int core_limit;
 static pthread_t app_thread[MAX_CPUS];
 static int done[MAX_CPUS];
+static char *conf_file = NULL;
 /*----------------------------------------------------------------------------*/
 const char *www_main;
 static struct file_cache fcache[MAX_FILES];
@@ -532,6 +533,15 @@ SignalHandler(int signum)
 	}
 }
 /*----------------------------------------------------------------------------*/
+static void
+printHelp(const char *prog_name)
+{
+	TRACE_CONFIG("%s -p <path_to_www/> -f <mtcp_conf_file> "
+		     "[-N num_cores] [-c <per-process core_id>] [-h]\n",
+		     prog_name);
+	exit(EXIT_SUCCESS);
+}
+/*----------------------------------------------------------------------------*/
 int 
 main(int argc, char **argv)
 {
@@ -542,31 +552,36 @@ main(int argc, char **argv)
 	uint64_t total_read;
 	struct mtcp_conf mcfg;
 	int cores[MAX_CPUS];
-	int i;
+	int process_cpu;
+	int i, o;
 
 	num_cores = GetNumCPUs();
 	core_limit = num_cores;
+	process_cpu = -1;
+	dir = NULL;
 
 	if (argc < 2) {
-		TRACE_ERROR("$%s directory_to_service\n", argv[0]);
+		TRACE_CONFIG("$%s directory_to_service\n", argv[0]);
 		return FALSE;
 	}
 
-	/* open the directory to serve */
-	www_main = argv[1];
-	dir = opendir(www_main);
-	if (!dir) {
-		TRACE_ERROR("Failed to open %s.\n", www_main);
-		perror("opendir");
-		return FALSE;
-	}
-
-	for (i = 0; i < argc - 1; i++) {
-		if (strcmp(argv[i], "-N") == 0) {
-			core_limit = atoi(argv[i + 1]);
+	while (-1 != (o = getopt(argc, argv, "N:f:p:c:h"))) {
+		switch (o) {
+		case 'p':
+			/* open the directory to serve */
+			www_main = optarg;
+			dir = opendir(www_main);
+			if (!dir) {
+				TRACE_CONFIG("Failed to open %s.\n", www_main);
+				perror("opendir");
+				return FALSE;
+			}
+			break;
+		case 'N':
+			core_limit = atoi(optarg);
 			if (core_limit > num_cores) {
 				TRACE_CONFIG("CPU limit should be smaller than the "
-						"number of CPUS: %d\n", num_cores);
+					     "number of CPUs: %d\n", num_cores);
 				return FALSE;
 			}
 			/** 
@@ -577,7 +592,26 @@ main(int argc, char **argv)
 			mtcp_getconf(&mcfg);
 			mcfg.num_cores = core_limit;
 			mtcp_setconf(&mcfg);
+			break;
+		case 'f':
+			conf_file = optarg;
+			break;
+		case 'c':
+			process_cpu = atoi(optarg);
+			if (process_cpu > core_limit) {
+				TRACE_CONFIG("Starting CPU is way off limits!\n");
+				return FALSE;
+			}
+			break;
+		case 'h':
+			printHelp(argv[0]);
+			break;
 		}
+	}
+
+	if (dir == NULL) {
+		TRACE_CONFIG("You did not pass a valid www_path!\n");
+		exit(EXIT_FAILURE);
 	}
 
 	nfiles = 0;
@@ -600,8 +634,8 @@ main(int argc, char **argv)
 
 		fcache[nfiles].file = (char *)malloc(fcache[nfiles].size);
 		if (!fcache[nfiles].file) {
-			TRACE_ERROR("Failed to allocate memory for file %s\n", 
-					fcache[nfiles].name);
+			TRACE_CONFIG("Failed to allocate memory for file %s\n", 
+				     fcache[nfiles].name);
 			perror("malloc");
 			continue;
 		}
@@ -633,9 +667,14 @@ main(int argc, char **argv)
 	finished = 0;
 
 	/* initialize mtcp */
-	ret = mtcp_init("epserver.conf");
+	if (conf_file == NULL) {
+		TRACE_CONFIG("You forgot to pass the mTCP startup config file!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = mtcp_init(conf_file);
 	if (ret) {
-		TRACE_ERROR("Failed to initialize mtcp\n");
+		TRACE_CONFIG("Failed to initialize mtcp\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -644,20 +683,33 @@ main(int argc, char **argv)
 
 	TRACE_INFO("Application initialization finished.\n");
 
-	for (i = 0; i < core_limit; i++) {
+	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
 		cores[i] = i;
 		done[i] = FALSE;
 		
 		if (pthread_create(&app_thread[i], 
 				   NULL, RunServerThread, (void *)&cores[i])) {
 			perror("pthread_create");
-			TRACE_ERROR("Failed to create server thread.\n");
+			TRACE_CONFIG("Failed to create server thread.\n");
+				exit(EXIT_FAILURE);
+		}
+		if (process_cpu != -1)
+			break;
+		else {
+			TRACE_CONFIG("Process CPU is: %d\n", process_cpu);
 			exit(-1);
 		}
 	}
 	
-	for (i = 0; i < core_limit; i++) {
+	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
 		pthread_join(app_thread[i], NULL);
+
+		if (process_cpu != -1)
+			break;
+		else {
+			TRACE_CONFIG("Process CPU is: %d\n", process_cpu);
+			exit(-1);
+		}
 	}
 	
 	mtcp_destroy();

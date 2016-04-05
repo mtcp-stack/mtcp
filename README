@@ -75,31 +75,20 @@ mTCP can be prepared in two ways.
   - refer to http://shader.kaist.edu/packetshader/io_engine/
   - you may need to change the ip address in install.py:46
 
-3. make in io_engine/lib:
-   	   # make 
-  - check libps.a
-
-4. Setup mtcp library:
+3. Setup mtcp library:
    	   # ./configure --with-psio-lib=<$path_to_ioengine>
 	     ## e.g. ./configure --with-psio-lib=`echo $PWD`/io_engine
-	   # cd mtcp/src
    	   # make
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
+  - check example binary files in apps/example
 
-5. make in util/:
-   	   # make
-
-6. make in apps/example:
-   	   # make
-  - check example binary files
-
-7. Check the configurations
+4. Check the configurations in apps/example
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
 
-8. Run the applications!
+5. Run the applications!
 
 
 - DPDK VERSION -
@@ -144,24 +133,17 @@ mTCP can be prepared in two ways.
 	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
 	     ## And not dpdk-2.2.0!
 	     ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
-	   # cd mtcp/src
    	   # make
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
+  - check example binary files in apps/example
 
-5. make in util/:
-   	   # make
-
-6. make in apps/example:
-   	   # make
-  - check example binary files
-
-7. Check the configurations
+5. Check the configurations in apps/example
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
 
-8. Run the applications!
+6. Run the applications!
 
 
 - NETMAP VERSION (EXPERIMENTAL) -
@@ -175,24 +157,17 @@ mTCP can be prepared in two ways.
 
 2. Setup mtcp library:
    	   # ./configure --enable-netmap
-	   # cd mtcp/src
    	   # make
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
+  - check example binary files in apps/example
 
-5. make in util/:
-   	   # make
-
-6. make in apps/example:
-   	   # make
-  - check example binary files
-
-7. Check the configurations
+3. Check the configurations in apps/example
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
 
-8. Run the applications. *If you run the application with one thread,
+4. Run the applications. *If you run the application with one thread,
 mTCP core will assume that the multi-queues option is disabled. This
 assumption is only valid for netmap version.*
 

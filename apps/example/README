@@ -3,13 +3,27 @@
 ========================================================================
 
 epserver: a simple mtcp-epoll-based web server
-   usage: ./epserver www_home [-N #cores]
-      ex) ./epserver /home/notav/www -N 8
+   Single-Process, Multi-threaded Usage:
+      ./epserver -p www_home -f epserver.conf [-N #cores] 
+      ex) ./epserver -p /home/notav/www -f epserver.conf -N 8
+
+   Multi-Process, Single-threaded Usage [DPDK-only]
+      (Master runs on core 0 by default, Slave processes on core 1~N)
+      ex) ./epserver -p /home/notav/www -f epserver-master.conf -c 0
+      	  for i in {1..7}
+	  do
+	     ./epserver -p /home/notav/www -f epserver-slave.conf -c $i
+	  done
+
 
 options:
   www_home: the directory to server. # max files are limited to 
             MAX_FILES in epserver.c:36
   -N: number of CPU cores to use. default: all existing cores
+  -p: path to www/ files
+  -f: path to mtcp configuration file
+  -c: the core_id on which the process should run
+      [only works for multi-process mode]
 
 ========================================================================
 

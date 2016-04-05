@@ -1,5 +1,5 @@
 ### GCC ###
-GCC = gcc
+GCC=@CC@
 GCC_OPT = -m64 -Wall -fPIC -c
 GCC_OPT += -DNDEBUG -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 
@@ -16,3 +16,5 @@ all:
 clean:
 	rm -rf *~ *.o
 
+distclean: clean
+	rm -f Makefile

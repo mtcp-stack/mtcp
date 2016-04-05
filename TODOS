@@ -2,8 +2,6 @@
  TODOs list for mTCP
 ========================================================================
 
-* Complete the multi-process support for mTCP-dpdk
-
 * Add I/O module for netmap
 
 * Add I/O module for libpcap

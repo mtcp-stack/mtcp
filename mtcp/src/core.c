@@ -56,17 +56,17 @@
 
 /*----------------------------------------------------------------------------*/
 /* handlers for threads */
-struct mtcp_thread_context *g_pctx[MAX_CPUS];
-struct log_thread_context *g_logctx[MAX_CPUS];
+struct mtcp_thread_context *g_pctx[MAX_CPUS] = {0};
+struct log_thread_context *g_logctx[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
-static pthread_t g_thread[MAX_CPUS];
-static pthread_t log_thread[MAX_CPUS];;
+static pthread_t g_thread[MAX_CPUS] = {0};
+static pthread_t log_thread[MAX_CPUS]  = {0};
 /*----------------------------------------------------------------------------*/
 static sem_t g_init_sem[MAX_CPUS];
-static int running[MAX_CPUS];
+static int running[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 mtcp_sighandler_t app_signal_handler;
-static int sigint_cnt[MAX_CPUS];
+static int sigint_cnt[MAX_CPUS] = {0};
 static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
@@ -1109,6 +1109,13 @@ mtcp_create_context(int cpu)
 					cpu, CONFIG.num_cores);
 		return NULL;
 	}
+
+        /* check if mtcp_create_context() was already initialized */
+        if (g_logctx[cpu] != NULL) {
+                TRACE_ERROR("%s was already initialized before!\n",
+                            __FUNCTION__);
+                return NULL;
+        }
 
 	ret = sem_init(&g_init_sem[cpu], 0, 0);
 	if (ret) {

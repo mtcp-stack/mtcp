@@ -165,7 +165,7 @@ DestroyContext(thread_context_t ctx)
 	free(ctx);
 }
 /*----------------------------------------------------------------------------*/
-inline int 
+static inline int 
 CreateConnection(thread_context_t ctx)
 {
 	mctx_t mctx = ctx->mctx;
@@ -211,7 +211,7 @@ CreateConnection(thread_context_t ctx)
 	return sockid;
 }
 /*----------------------------------------------------------------------------*/
-inline void 
+static inline void 
 CloseConnection(thread_context_t ctx, int sockid)
 {
 	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_DEL, sockid, NULL);

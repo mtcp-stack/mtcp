@@ -14,13 +14,13 @@ AC_DISABLE_OPTION_CHECKING
 # Checks for header files.
 AC_CHECK_HEADERS([linux/sched.h pthread.h numa.h arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
 
-# Check for AC_PTHREAD
-AX_PTHREAD( [
-            AC_DEFINE(HAVE_PTHREAD,1,[Define if you have POSIX threads libraries and header files.])
-            CLIBS="$PTHREAD_LIBS $LIBS"
-            CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-            LDFLAGS="$LDFLAGS $PTHREAD_CFLAGS"
-            CC="$PTHREAD_CC"],[])
+# Check for AC_PTHREAD [FC is preventing this to be enabled..]
+#AX_PTHREAD( [
+#            AC_DEFINE(HAVE_PTHREAD,1,[Define if you have POSIX threads libraries and header files.])
+#            CLIBS="$PTHREAD_LIBS $LIBS"
+#            CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+#            LDFLAGS="$LDFLAGS $PTHREAD_CFLAGS"
+#            CC="$PTHREAD_CC"],[])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE

@@ -110,7 +110,7 @@ void
 ParseTCPOptions(tcp_stream *cur_stream, 
 		uint32_t cur_ts, uint8_t *tcpopt, int len);
 
-inline int 
+extern inline int 
 ProcessTCPUplink(mtcp_manager_t mtcp, uint32_t cur_ts, tcp_stream *cur_stream, 
 		const struct tcphdr *tcph, uint32_t seq, uint32_t ack_seq, 
 		uint8_t *payload, int payloadlen, uint32_t window);

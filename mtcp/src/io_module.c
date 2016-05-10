@@ -28,7 +28,7 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 /*----------------------------------------------------------------------------*/
-io_module_func *current_iomodule_func = NULL;
+io_module_func *current_iomodule_func = &dpdk_module_func;
 #define ALL_STRING			"all"
 #define MAX_PROCLINE_LEN		1024
 #define MAX(a, b) 			((a)>(b)?(a):(b))

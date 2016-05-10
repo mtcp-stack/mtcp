@@ -17,28 +17,28 @@ struct rto_hashstore
 struct rto_hashstore* 
 InitRTOHashstore();
 
-inline void 
+extern inline void 
 AddtoRTOList(mtcp_manager_t mtcp, tcp_stream *cur_stream);
 
-inline void 
+extern inline void 
 RemoveFromRTOList(mtcp_manager_t mtcp, tcp_stream *cur_stream);
 
-inline void 
+extern inline void 
 AddtoTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts);
 
-inline void 
+extern inline void 
 RemoveFromTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream);
 
-inline void 
+extern inline void 
 AddtoTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream);
 
-inline void 
+extern inline void 
 RemoveFromTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream);
 
-inline void 
+extern inline void 
 UpdateTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream);
 
-inline void
+extern inline void
 UpdateRetransmissionTimer(mtcp_manager_t mtcp, 
 		tcp_stream *cur_stream, uint32_t cur_ts);
 

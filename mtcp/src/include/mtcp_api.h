@@ -5,7 +5,13 @@
 #include <netinet/in.h>
 #include <sys/uio.h>
 
+#ifndef UNUSED
 #define UNUSED(x)	(void)x
+#endif
+
+#ifndef INPORT_ANY
+#define INPORT_ANY	(uint16_t)0
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -105,27 +111,19 @@ mtcp_connect(mctx_t mctx, int sockid,
 int 
 mtcp_close(mctx_t mctx, int sockid);
 
-int 
-mtcp_abort(mctx_t mctx, int sockid);
-
-int
-mtcp_read(mctx_t mctx, int sockid, char *buf, int len);
+ssize_t
+mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len);
 
 /* readv should work in atomic */
 int
 mtcp_readv(mctx_t mctx, int sockid, struct iovec *iov, int numIOV);
 
-int
-mtcp_write(mctx_t mctx, int sockid, char *buf, int len);
+ssize_t
+mtcp_write(mctx_t mctx, int sockid, char *buf, size_t len);
 
 /* writev should work in atomic */
 int
 mtcp_writev(mctx_t mctx, int sockid, struct iovec *iov, int numIOV);
-
-#if 0
-int
-mtcp_delete(mctx_t mctx, int sockid, int len);
-#endif
 
 #ifdef __cplusplus
 };

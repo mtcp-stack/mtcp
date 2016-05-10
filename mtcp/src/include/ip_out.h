@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "tcp_stream.h"
 
-inline int 
+extern inline int 
 GetOutputInterface(uint32_t daddr);
 
 void

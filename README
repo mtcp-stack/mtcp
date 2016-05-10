@@ -79,6 +79,9 @@ mTCP can be prepared in two ways.
    	   # ./configure --with-psio-lib=<$path_to_ioengine>
 	     ## e.g. ./configure --with-psio-lib=`echo $PWD`/io_engine
    	   # make
+  - In case `./configure' script prints an error, run the
+    following command; and then re-do step-3 (configure again):
+    	   # autoreconf -ivf
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
   - check example binary files in apps/example
@@ -134,6 +137,9 @@ mTCP can be prepared in two ways.
 	     ## And not dpdk-2.2.0!
 	     ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
    	   # make
+  - In case `./configure' script prints an error, run the
+    following command; and then re-do step-4 (configure again):
+    	   # autoreconf -ivf
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
   - check example binary files in apps/example
@@ -158,6 +164,9 @@ mTCP can be prepared in two ways.
 2. Setup mtcp library:
    	   # ./configure --enable-netmap
    	   # make
+  - In case `./configure' script prints an error, run the
+    following command; and then re-do step-2 (configure again):
+    	   # autoreconf -ivf
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
   - check example binary files in apps/example

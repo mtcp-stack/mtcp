@@ -592,14 +592,16 @@ mtcp_connect(mctx_t mctx, int sockid,
 	dport = addr_in->sin_port;
 
 	/* address binding */
-	if (socket->opts & MTCP_ADDR_BIND) {
+	if ((socket->opts & MTCP_ADDR_BIND) && 
+	    socket->saddr.sin_port != INADDR_ANY &&
+	    socket->saddr.sin_addr.s_addr != INPORT_ANY) {
 		int rss_core;
 		uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
 			0 : 1;
-	
+		
 		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip, 
 					 socket->saddr.sin_port, dport, num_queues, endian_check);
-
+		
 		if (rss_core != mctx->cpu) {
 			errno = EINVAL;
 			return -1;
@@ -966,8 +968,8 @@ CopyToUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 	return copylen;
 }
 /*----------------------------------------------------------------------------*/
-int
-mtcp_read(mctx_t mctx, int sockid, char *buf, int len)
+ssize_t
+mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len)
 {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;
@@ -1255,8 +1257,8 @@ CopyFromUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
-int
-mtcp_write(mctx_t mctx, int sockid, char *buf, int len)
+ssize_t
+mtcp_write(mctx_t mctx, int sockid, char *buf, size_t len)
 {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;

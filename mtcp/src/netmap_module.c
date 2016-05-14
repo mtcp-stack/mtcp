@@ -24,7 +24,7 @@ struct netmap_private_context {
 	struct nm_desc *local_nmd[MAX_DEVICES];
 	unsigned char snd_pktbuf[MAX_DEVICES][ETHERNET_FRAME_SIZE];
 	unsigned char *rcv_pktbuf[MAX_PKT_BURST];
-	uint8_t rcv_pkt_len[MAX_PKT_BURST];
+	uint16_t rcv_pkt_len[MAX_PKT_BURST];
 	uint16_t snd_pkt_size[MAX_DEVICES];
 } __attribute__((aligned(__WORDSIZE)));
 /*----------------------------------------------------------------------------*/

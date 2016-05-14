@@ -231,6 +231,18 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 	while (walk) {
 		next = TAILQ_NEXT(walk, addr_link);
 
+		if (saddr->sin_addr.s_addr != INADDR_ANY &&
+		    walk->addr.sin_addr.s_addr != saddr->sin_addr.s_addr) {
+			walk = next;
+			continue;
+		}
+
+		if (saddr->sin_port != INPORT_ANY &&
+		    walk->addr.sin_port != saddr->sin_port) {
+			walk = next;
+			continue;
+		}
+
 		rss_core = GetRSSCPUCore(ntohl(walk->addr.sin_addr.s_addr), 
 					 ntohl(daddr->sin_addr.s_addr), ntohs(walk->addr.sin_port), 
 					 ntohs(daddr->sin_port), num_queues, endian_check);

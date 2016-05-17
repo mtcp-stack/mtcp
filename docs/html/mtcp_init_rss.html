@@ -1,0 +1,173 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Wed May 18 01:43:07 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_init_rss</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_init_rss</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#NOTES">NOTES</a><br>
+<a href="#ERRORS">ERRORS</a><br>
+<a href="#NOTES">NOTES</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_init_rss
+&minus; initialize RSS-based NIC-queue-to-TCP-port numbers
+mapping pool</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_init_rss(mctx_t</b> <i>mctx</i><b>, in_addr_t</b>
+<i>srcip</i><b>, int</b> <i>num_addr</i><b>, in_addr_t</b>
+<i>dstip</i><b>, in_addr_t</b> <i>dport</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_init_rss</b>()
+creates a pool of TCP source ports that can be used by a
+client to generate outgoing connections for an arbitrary
+tuple of &lt; <i>srcip, dstip,</i> and, <i>dport</i> &gt;
+where ( <i>srcip</i> = source IPv4 address, <i>dstip</i> =
+destination IPv4 address, and <i>dport</i> = destination
+port number respectively). Choosing the appropriate set of
+source ports for each mTCP context, <i>mctx</i> (running on
+each CPU) is important for connecting to peer TCP endpoints:
+mTCP relies on the underlying symmetric RSS-based hash
+algorithm (based on Toeplitz function) to read traffic from
+NIC hardware queues. This function ensures that all packets,
+irrespective of the flow direction, are processed in the
+same CPU core.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Please note
+that <b>mtcp_init_rss()</b> assumes that the CPU core-id (as
+set inside <i>mctx</i> structure) will be used as the value
+for NIC queue-id, which the mTCP context will eventually
+access during its operation. For example, mTCP context
+running on core 3 will read traffic from NIC hardware
+queue-id 3.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><i>num_addr</i>
+is a reserved argument whose value should be set to 1 for
+the time being.</p>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns 0 on
+success; -1 on failure. In case of failure, <i>errno</i> is
+set appropriately.</p>
+
+<h2>NOTES
+<a name="NOTES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The default RSS
+algorithm set in NIC device is normally asymmetric. During
+NIC driver initialization, the mTCP core ensures that the
+seed for the RSS algorithm is re-set to make traffic
+reception symmetric. Also, during the driver intialization
+stage, the mTCP core assigns NIC queue(s) binding with
+arbitrary CPU core(s).</p>
+
+<h2>ERRORS
+<a name="ERRORS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p style="margin-top: 1em"><b>ENOMEM</b></p></td>
+<td width="6%"></td>
+<td width="74%">
+
+
+<p style="margin-top: 1em">Failure to create mapping pool
+due to insufficient memory.</p></td></tr>
+</table>
+
+<h2>NOTES
+<a name="NOTES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">See
+<b>http://an.kaist.ac.kr/~shinae/paper/2012-srss.pdf</b> for
+details on symmetric Receive-Side Scaling (RSS).</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_init</b>(),
+<b>mtcp_destroy</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

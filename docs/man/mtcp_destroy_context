@@ -1,0 +1,40 @@
+.TH mtcp_destroy_context 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_destroy_context \- destroy mTCP context
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "void mtcp_destroy_context(mctx_t " mctx );
+
+.SH DESCRIPTION
+.BR mtcp_destroy_context () 
+cleans up the per-thread (with CPU core-id as specified
+in the
+.I "mctx"
+structure) mTCP context in the process.
+This is usually the last function called (specific to
+mTCP API) before the mTCP application thread is
+terminated from the process address space.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+.BR mtcp_destroy_context()
+returns nothing.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_create_context (),
+.BR mtcp_init (),
+.BR mtcp_destroy ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

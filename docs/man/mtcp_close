@@ -1,0 +1,90 @@
+.TH mtcp_close 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_close \- close an mTCP socket descriptor
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_close(mctx_t " mctx ", int " sockid );
+
+.SH DESCRIPTION
+.BR mtcp_close () 
+closes the socket associated with
+.I "sockid"
+descriptor. This call can be used to gracefully terminate 
+the underlying connection for active sockets. All the
+underlying resources pertaining to the connection are also 
+destroyed.
+.BR "mtcp_close()"
+can also be used to shut down a passive listening socket. In both
+cases, the socket ID is made available for re-use for a future
+incoming connection request.
+.\""""""after a mandatory 
+.\"""""".BR "TCP_TIMEOUT"
+.\""""""threshold period passes.
+ 
+.BR mtcp_close ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure and 
+.I "errno"
+is set appropriately. 
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EAGAIN"
+The request to close the connection was refused.
+
+.TP 10
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor for closing.
+
+.TP 10
+.B "EINVAL"
+The socket specific to
+.I "sockid"
+has invalid type.
+
+.TP 10
+.B "ENOTCONN"
+The connection referred to by
+.I "sockid"
+is already terminated.
+
+.TP 10
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+is not valid.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+Please note that the same
+.I "mctx"
+context should be used to destroy the socket that created
+the socket via
+.BR "mtcp_socket ()"
+call in the first place. The user may experience unpredictable
+behavior if this practice is not followed.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_socket ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

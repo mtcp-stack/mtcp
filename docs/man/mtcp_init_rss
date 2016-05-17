@@ -1,0 +1,87 @@
+.TH mtcp_init_rss 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_init_rss \- initialize RSS-based NIC-queue-to-TCP-port numbers mapping pool
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_init_rss(mctx_t " mctx ", in_addr_t " srcip ", int " num_addr ", in_addr_t " dstip ", in_addr_t " dport );
+
+.SH DESCRIPTION
+.BR mtcp_init_rss () 
+creates a pool of TCP source ports that can be used by a
+client to generate outgoing connections for an arbitrary
+tuple of <
+.I "srcip,"
+.I "dstip,"
+and,
+.I "dport"
+> where (
+.I "srcip"
+= source IPv4 address,
+.I "dstip"
+= destination IPv4 address, and
+.I "dport"
+= destination port number respectively).
+Choosing the appropriate set of source ports for each mTCP
+context,
+.I "mctx"
+(running on each CPU) is important for connecting to peer
+TCP endpoints: mTCP relies on the underlying symmetric 
+RSS-based hash algorithm (based on Toeplitz function) to
+read traffic from NIC hardware queues. This function ensures
+that all packets, irrespective of the flow direction, are
+processed in the same CPU core.
+
+Please note that
+.BR "mtcp_init_rss()"
+assumes that the CPU core-id (as set inside
+.I "mctx"
+structure) will be used as the value for NIC queue-id,
+which the mTCP context will eventually access during 
+its operation. For example, mTCP context running on
+core 3 will read traffic from NIC hardware queue-id 3.
+
+.I "num_addr"
+is a reserved argument whose value should be set to 1
+for the time being.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+The default RSS algorithm set in NIC device is normally asymmetric.
+During NIC driver initialization, the mTCP core ensures that
+the seed for the RSS algorithm is re-set to make traffic reception
+symmetric. Also, during the driver intialization stage, the mTCP
+core assigns NIC queue(s) binding with arbitrary CPU core(s).
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B ENOMEM
+Failure to create mapping pool due to insufficient memory.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+See 
+.BR "http://an.kaist.ac.kr/~shinae/paper/2012-srss.pdf"
+for details on symmetric Receive-Side Scaling (RSS).
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_init (),
+.BR mtcp_destroy ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

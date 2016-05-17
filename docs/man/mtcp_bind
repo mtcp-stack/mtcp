@@ -1,0 +1,98 @@
+.TH mtcp_bind 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_bind \- bind an IP address to an mTCP socket
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_bind(mctx_t " mctx ", int " sockid ", const struct sockaddr *" addr ", socklen_t " addrlen );
+
+.SH DESCRIPTION
+.BR mtcp_bind () 
+can be used to bind an IPv4 address (assigning a
+name) to an mTCP socket. This socket is referred to by the
+.I "sockid"
+argument.
+The
+.I "addr"
+structure contains the address and the port number
+(both in network byte order) to be bound while the
+.I "addrlen"
+specifies the size of the address structure pointing to
+.I "addr."
+The actual structure passed for the
+.I "addr"
+argument is defined as:
+.in +4n
+.nf
+
+struct sockaddr {
+    sa_family_t sa_family;     /* AF_INET */
+    char        sa_data[14];   /* IPv4 address + TCP port */
+}
+
+.fi
+.in
+
+It is necessary to assign a local address using
+.BR mtcp_bind()
+on a passive socket before it can be used to receive
+connections using
+.BR mtcp_accept().
+
+The 
+.BR mtcp_bind ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor for binding to an address.
+
+.TP 10
+.B "EINVAL"
+The
+.I "addr"
+argument is NULL. This may also mean that an address is already bound
+to the current
+.I "sockid"
+descriptor. 
+
+.TP 10
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+has an invalid type.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_socket (),
+.BR mtcp_listen (),
+.BR mtcp_accept (),
+.BR mtcp_connect (),
+.BR mtcp_read (),
+.BR mtcp_write ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

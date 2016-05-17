@@ -1,0 +1,108 @@
+.TH mtcp_setsockopt 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_setsockopt, mtcp_getsockopt \- set and get options on mTCP sockets
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_setsockopt(mctx_t " mctx ", int " sockid ", int " level ", int " optname ", const void *" optval ", socklen_t " optlen );
+
+.BI "int mtcp_getsockopt(mctx_t " mctx ", int " sockid ", int " level ", int " optname ", const void *" optval ", socklen_t *" optlen );
+
+.SH DESCRIPTION
+.BR mtcp_setsockopt () 
+and
+.BR mtcp_getsockopt ()
+manipulate options for the socket referred to by the
+.I "sockid"
+descriptor. These options may exist at multiple protocol
+levels. When manipulating socket options, the level at
+which the options resides and the name of the option
+must be specified. A user can use
+.BR "SOL_SOCKET"
+.I "level"
+(the only available level available for mTCP at the
+moment) to adjust these options. 
+
+The arguments
+.I "optval"
+and
+.I "optlen"
+are used to set options values for
+.BR mtcp_setsockopt().
+For
+.BR mtcp_getsockopt()
+.I "optval"
+identifies the buffer in which the value for the requested
+option is to be returned and the
+.I "optlen"
+argument is updated to indicate the actual size of the
+.I "optval"
+returned. It is the user's responsibility to allocate
+memory for both
+.I "optval"
+and
+.I "optlen"
+arguments.
+
+At the moment, mTCP only provides one
+.I "optname"
+named
+.BR "SO_ERROR"
+that can only be used for
+.BR mtcp_getsockopt()
+function. A successful execution of this function call
+with the specified option name returns the most recently
+recorded socket error for the particular connection (specific
+to the
+.I "sockid"
+socket descriptor).
+
+Both the functions take an additional argument named 
+.I "mctx"
+that represent the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor.
+
+.TP 10
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+is not valid.
+
+.TP 10
+.B "ENOSYS"
+Either the
+.I "level"
+or the
+.I "optname"
+is not implemented.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_socket ()
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -1,0 +1,109 @@
+.TH mtcp_socket 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_socket \- instantiate an mTCP endpoint for communication
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_socket(mctx_t " mctx ", int " domain ", int " type ", int " protocol );
+
+.SH DESCRIPTION
+.BR mtcp_socket () 
+can be used to create a communication endpoint for
+mTCP-based network connection. In many ways, it behaves
+similar to a BSD socket. An 
+.BR mtcp_socket ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+
+The
+.I "domain"
+argument is used to specify a communication domain; in mTCP,
+the only available protocol family for the domain is
+.BR AF_INET
+which represents IPv4 Internet protocol.
+
+The socket
+.I "type"
+denotes the communication semantics and the only available
+type in mTCP at the moment is
+.BR SOCK_STREAM
+which represents TCP's reliable, sequenced, full-duplex communication
+between two endpoints.
+
+The
+.I "protocol"
+argument represents the specific protocol ID to be used with the
+socket. mTCP assumes this argument to be 0 (since it only supports
+single-protocol sockets).
+
+Sockets of type
+.BR SOCK_STREAM
+are full-duplex bytestreams. A stream socket must be in
+.BR ESTABLISHED
+TCP state before data can be sent or received on it. A connection
+to another peer endpoint can be created with an
+.BR mtcp_connect()
+call. Once connected, data may be exchanged using
+.BR mtcp_read()
+and
+.BR mtcp_write()
+calls. When a session needs to be terminated,
+.BR mtcp_close()
+can be called. Socket operations can be manipulated using socket
+level options via
+.BR mtcp_setsockopt()
+and
+.BR mtcp_getsockopt()
+function calls. mTCP sockets run in non-blocking mode by
+default.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns an mTCP descriptor ID on success; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately. Please note that each mTCP context (referred
+to by
+.I "mctx"
+) creates its own dedicated pool of sockets.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 15
+.B "EAFNOSUPPORT"
+.I "domain"
+is not supported.
+
+.TP 15
+.B "EINVAL"
+The socket
+.I "type"
+is invalid.
+
+.TP 15
+.B "ENFILE"
+No socket descriptor is available in the pool at the moment.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_bind (),
+.BR mtcp_listen (),
+.BR mtcp_accept (),
+.BR mtcp_connect (),
+.BR mtcp_read (),
+.BR mtcp_write ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

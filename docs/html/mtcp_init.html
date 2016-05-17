@@ -1,0 +1,256 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Wed May 18 01:43:07 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_init</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_init</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#NOTES">NOTES</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_init
+&minus; initialize the mTCP stack.</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_init(char *</b><i>config_file</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_init</b>()
+call is used to set the stack parameters of an mTCP-based
+application. These parameters are loaded inside the process
+via a startup configuration file. A developer is required to
+first call <b>mtcp_init</b>() function before he/she can
+invoke any follow-up mTCP functions in his/her
+application.</p>
+
+<p style="margin-left:11%; margin-top: 1em">A user can
+populate an mTCP configuration file with the following
+parameters:</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p style="margin-top: 1em">io</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p style="margin-top: 1em">The underlying I/O driver he/she
+wants to use for his/her application. A user can specify
+either <i>dpdk</i> or <i>psio</i> (but not both) as the
+choice of the network I/O driver. Please note that
+<i>psio</i> is only supported for linux-2.6.32~linux-2.6.38
+kernels.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>num_cores</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>The number of cores one needs to use to run the mTCP
+application. Each core will spawn a pair of mTCP core thread
+and mTCP application thread. This variable is also used to
+set the number of RSS-based NIC hardware queues based on
+which traffic is split across different mTCP core threads in
+the application. It is assumed that each mTCP thread only
+reads from one hardware queue per NIC.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>num_mem_ch</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>The number of memory channels that are currently
+inserted in the CPU per socket. Note that this option is
+used only for <i>dpdk</i> I/O driver. Default value is
+0.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>port</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>Space-separated NIC port(s) (specified as interface
+names) that will be used by the mTCP application.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>max_concurrency</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>Maximum number of concurrent connections that can be
+accomodated by the mTCP stack <i>per-core.</i> Default value
+is 100000 connections per core.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>rcvbuf</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>Receive buffer size of each mTCP socket. Default value
+is 8192 bytes.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>sndbuf</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>Send buffer size of each mTCP socket. Default value is
+8192 bytes.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>tcp_timeout</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>TCP timeout (in seconds) of a connection. Default value
+is 30 seconds. Putting the value as -1 disables the timeout
+check.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>tcp_timewait</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>TCP timewait value (in seconds). Default value is 0
+seconds.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="23%">
+
+
+<p>stat_print</p></td>
+<td width="3%"></td>
+<td width="63%">
+
+
+<p>Per-second traffic statistics printing of the specified
+interface.</p> </td></tr>
+</table>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns 0 on
+success; -1 on failure.</p>
+
+<h2>NOTES
+<a name="NOTES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">See
+<b>config/sample_mtcp.conf</b> to view example startup mTCP
+configuration file. Make sure that the mTCP configuration
+file has a specified I/O driver. Also make sure that
+num_mem_ch value is appropriately set when dpdk driver is
+being used.</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_destroy</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

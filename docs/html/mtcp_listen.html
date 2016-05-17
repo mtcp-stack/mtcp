@@ -1,0 +1,177 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Wed May 18 01:43:08 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_listen</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_listen</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#ERRORS">ERRORS</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_listen
+&minus; listen for connections on an mTCP socket</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_listen(mctx_t</b> <i>mctx</i><b>, int</b>
+<i>sockid</i><b>, int</b> <i>backlog</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_listen</b>()
+marks the mTCP socket referred to by <i>sockid</i> as a
+passive socket of type <b>SOCK_STREAM.</b> Once this
+function is called on a mTCP socket, it is ready to start
+accepting incoming connection requests.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The
+<i>backlog</i> argument is used to set the maximum length of
+the queue that the passive socket, referred to by
+<i>sockid</i> can accomodate for pending connections
+requests.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_listen</b>()
+call takes an additional argument named <i>mctx</i> that
+represents the per-core mTCP context in an application (see
+<b>mtcp_create_context()</b> for details).</p>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns 0 on
+success; -1 on failure. In case of failure, <i>errno</i> is
+set appropriately.</p>
+
+<h2>ERRORS
+<a name="ERRORS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p style="margin-top: 1em"><b>EBADF</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p style="margin-top: 1em"><i>sockid</i> is not a valid
+socket descriptor.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>EINVAL</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>The <i>backlog</i> argument is either &lt;= 0 or exceeds
+the maximum conneciton concurrency limit as set by the mTCP
+startup configuration file (see <b>mtcp_init()</b> for
+details).</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>ENOMEM</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>There is not enough available memory to create the
+listening <i>backlog</i> queue.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>ENOTSOCK</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>The socket referred to by <i>sockid</i> is not
+valid.</p> </td></tr>
+</table>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_bind</b>(),
+<b>mtcp_socket</b>(), <b>mtcp_accept</b>(),
+<b>mtcp_connect</b>(), <b>mtcp_read</b>(),
+<b>mtcp_write</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

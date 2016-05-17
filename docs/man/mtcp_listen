@@ -1,0 +1,87 @@
+.TH mtcp_listen 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_listen \- listen for connections on an mTCP socket
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_listen(mctx_t " mctx ", int " sockid ", int " backlog );
+
+.SH DESCRIPTION
+.BR mtcp_listen () 
+marks the mTCP socket referred to by
+.I "sockid"
+as a passive socket of type
+.BR SOCK_STREAM.
+Once this function is called on a
+mTCP socket, it is ready to start accepting incoming
+connection requests. 
+
+The
+.I "backlog"
+argument is used to set the maximum length of the
+queue that the passive socket, referred to by
+.I "sockid"
+can accomodate for pending connections requests.
+
+.BR mtcp_listen ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor.
+
+.TP 10
+.B "EINVAL"
+The
+.I "backlog"
+argument is either <= 0 or exceeds the maximum conneciton concurrency
+limit as set by the mTCP startup configuration file (see 
+.BR mtcp_init()
+for details).
+
+.TP 10
+.B "ENOMEM"
+There is not enough available memory to create the listening
+.I "backlog"
+queue.
+
+.TP 10
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+is not valid.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_bind (),
+.BR mtcp_socket (),
+.BR mtcp_accept (),
+.BR mtcp_connect (),
+.BR mtcp_read (),
+.BR mtcp_write ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -1,0 +1,60 @@
+.TH mtcp_create_context 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_create_context \- create mTCP context for network communication
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "mctx_t mtcp_create_context(int " cpu );
+
+.SH DESCRIPTION
+.BR mtcp_create_context () 
+creates the underlying mTCP stack based on the
+parameters passed by the
+.BR mtcp_init()
+function call.
+Each mTCP thread requires its own exclusive invocation
+of the 
+.BR mtcp_create_context()
+routine before the stack can be used for network
+communication. The function requires a sole
+.I "cpu"
+integer argument that passes the CPU core-id of the
+system on which the stack is instantiated.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 
+.I "mctx"
+on success; NULL on failure. Please see the
+.BR "NOTES"
+section for details.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+The user cannot call
+.BR mtcp_create_context()
+function more than once using the same cpu-id in a
+process. 
+
+Passing an invalid CPU core-id (value < 0 or value > max_cpus)
+will prevent the creation of the mTCP stack.
+
+It is suggested that the user creates only 1 mTCP context thread
+per core for performance reasons.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_destroy_context (),
+.BR mtcp_init (),
+.BR mtcp_destroy ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

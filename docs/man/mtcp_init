@@ -1,0 +1,104 @@
+.TH mtcp_init 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_init \- initialize the mTCP stack.
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_init(char *" "config_file" );
+
+.SH DESCRIPTION
+.BR mtcp_init () 
+call is used to set the stack parameters of an mTCP-based
+application. These parameters are loaded inside the process 
+via a startup configuration file. A developer is required
+to first call
+.BR mtcp_init ()
+function before he/she can invoke any follow-up mTCP functions in
+his/her application.
+
+A user can populate an mTCP configuration file with the following
+parameters:
+
+.TP 17
+.IP "io"
+The underlying I/O driver he/she wants to use for his/her application.
+A user can specify either
+.I "dpdk"
+or
+.I "psio"
+(but not both) as the choice of the network I/O driver. Please note
+that
+.I "psio"
+is only supported for linux-2.6.32~linux-2.6.38 kernels.
+
+.IP "num_cores"
+The number of cores one needs to use to run the mTCP application.
+Each core will spawn a pair of mTCP core thread and mTCP application
+thread. This variable is also used to set the number of RSS-based
+NIC hardware queues based on which traffic is split across
+different mTCP core threads in the application. It is assumed
+that each mTCP thread only reads from one hardware queue per
+NIC.
+
+.IP "num_mem_ch"
+The number of memory channels that are currently inserted in
+the CPU per socket. Note that this option is used only for
+.I "dpdk"
+I/O driver. Default value is 0.
+
+.IP "port"
+Space-separated NIC port(s) (specified as interface names)
+that will be used by the mTCP application.
+
+.IP "max_concurrency"
+Maximum number of concurrent connections that can be
+accomodated by the mTCP stack
+.I "per-core."
+Default value is 100000 connections per core.
+
+.IP "rcvbuf"
+Receive buffer size of each mTCP socket. Default value is 8192
+bytes.
+
+.IP "sndbuf"
+Send buffer size of each mTCP socket. Default value is 8192
+bytes.
+
+.IP "tcp_timeout"
+TCP timeout (in seconds) of a connection. Default value is 30 seconds.
+Putting the value as -1 disables the timeout check.
+
+.IP "tcp_timewait"
+TCP timewait value (in seconds). Default value is 0 seconds.
+
+.IP "stat_print"
+Per-second traffic statistics printing of the specified
+interface. 
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""".
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+See 
+.BR "config/sample_mtcp.conf"
+to view example startup mTCP configuration file. Make
+sure that the mTCP configuration file has a specified
+I/O driver. Also make sure that num_mem_ch value is
+appropriately set when dpdk driver is being used.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_destroy ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

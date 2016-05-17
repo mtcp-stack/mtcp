@@ -1,0 +1,194 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Wed May 18 01:43:07 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_close</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_close</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#ERRORS">ERRORS</a><br>
+<a href="#NOTES">NOTES</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_close
+&minus; close an mTCP socket descriptor</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_close(mctx_t</b> <i>mctx</i><b>, int</b>
+<i>sockid</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_close</b>()
+closes the socket associated with <i>sockid</i> descriptor.
+This call can be used to gracefully terminate the underlying
+connection for active sockets. All the underlying resources
+pertaining to the connection are also destroyed.
+<b>mtcp_close()</b> can also be used to shut down a passive
+listening socket. In both cases, the socket ID is made
+available for re-use for a future incoming connection
+request.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_close</b>()
+call takes an additional argument named <i>mctx</i> that
+represents the per-core mTCP context in an application (see
+<b>mtcp_create_context()</b> for details).</p>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns 0 on
+success; -1 on failure and <i>errno</i> is set
+appropriately.</p>
+
+<h2>ERRORS
+<a name="ERRORS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p style="margin-top: 1em"><b>EAGAIN</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p style="margin-top: 1em">The request to close the
+connection was refused.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>EBADF</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p><i>sockid</i> is not a valid socket descriptor for
+closing.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>EINVAL</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>The socket specific to <i>sockid</i> has invalid
+type.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>ENOTCONN</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>The connection referred to by <i>sockid</i> is already
+terminated.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>ENOTSOCK</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>The socket referred to by <i>sockid</i> is not
+valid.</p> </td></tr>
+</table>
+
+<h2>NOTES
+<a name="NOTES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Please note
+that the same <i>mctx</i> context should be used to destroy
+the socket that created the socket via <b>mtcp_socket ()</b>
+call in the first place. The user may experience
+unpredictable behavior if this practice is not followed.</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_socket</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

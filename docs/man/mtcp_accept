@@ -1,0 +1,134 @@
+.TH mtcp_accept 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_accept \- accept a connection on an mTCP socket
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_accept(mctx_t " mctx ", int " sockid ", struct sockaddr *" addr ", socklen_t *" addrlen );
+
+.SH DESCRIPTION
+.BR mtcp_accept () 
+function is used to accept an incoming connection request from
+a TCP client. During a successful
+.BR mtcp_accept()
+call, the mTCP stack extracts the first connection request from
+the listening queue of pending connections associated with the
+passive socket ID
+.I "sockid."
+It then creates a new socket and returns its corresponding socket
+ID to the user. The newly created socket (that is returned) can be
+used to communicate with the TCP client while the original socket
+.I "sockid"
+is unaffected by this call. The passive socket represented by the
+.I "sockid"
+socket descriptor should be bound to a local address using
+.BR "mtcp_bind()"
+function and should be listening for connections by
+calling
+.BR "mtcp_listen()"
+function before it can be used for accepting new connection
+requests.
+
+The
+.I "addr"
+argument is a pointer to
+.I "sockaddr"
+structure that gets filled up with the address of the peer node while
+the
+.I "addrlen"
+field contains the size of the peer address. If the
+.I "addr"
+argument is NULL, nothing is filled in and as a result,
+.I "addrlen"
+is not used and should also be NULL.
+
+If no pending connections are present on the queue, mtcp_accept()
+fails with error
+.BR "EAGAIN"
+errno.
+
+In order to be notified of incoming connections on a socket,
+the user can use
+.BR "mtcp_epoll_wait()"
+function call. A readable event is delivered when a new
+connection arrives on the listening socket.
+
+An 
+.BR mtcp_accept ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns an mTCP descriptor ID of the newly created active mTCP
+socket; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EAGAIN"
+No connections requests are available at the moment.
+
+.TP 10
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor for accepting connections.
+
+.TP 10
+.B "EINTR"
+The application thread is scheduled to shut down.
+
+.TP 10
+.B "EINVAL"
+The socket referred to by the
+.I "sockid"
+argument is not a listening (passive) socket.
+
+.TP 10
+.B "ENFILE"
+New active socket could not be created as the mTCP
+core is out of socket descriptors at the moment.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+For performance reasons, it is recommended that the 
+.I "same"
+thread 
+(represented by
+.I "mctx"
+argument) that spawns the active socket via
+.BR mtcp_accept()
+should handle operations
+.BR (mtcp_read(),
+.BR mtcp_write(),
+and
+.BR mtcp_getsockopt())
+on that socket for the entire lifetime of the
+connection (till
+.BR mtcp_close()).
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_bind (),
+.BR mtcp_listen (),
+.BR mtcp_socket (),
+.BR mtcp_connect (),
+.BR mtcp_read (),
+.BR mtcp_write ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

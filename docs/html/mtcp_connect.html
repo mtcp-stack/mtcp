@@ -1,0 +1,239 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Wed May 18 01:43:07 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_connect</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_connect</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#ERRORS">ERRORS</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_connect
+&minus; create a connection on an mTCP socket</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_connect(mctx_t</b> <i>mctx</i><b>, int</b>
+<i>sockid</i><b>, const struct sockaddr *</b><i>addr</i><b>,
+socklen_t</b> <i>addrlen</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_connect</b>()
+connects the socket referred via <i>sockid</i> argument to
+the TCP peer whose address and port number are filled by the
+user in <i>addr</i> structure in network byte order. The
+<i>addrlen</i> argument specifies the size of the
+<i>addr</i> address in bytes. The user is responsible for
+allocating memory for <i>addr</i> and <i>addrlen</i>
+arguments. A successful invocation of <b>mtcp_connect()</b>
+call yields in a connection of the socket to its peer
+endpoint.</p>
+
+<p style="margin-left:11%; margin-top: 1em">An
+<b>mtcp_connect</b>() call takes an additional argument
+named <i>mctx</i> that represents the per-core mTCP context
+in an application (see <b>mtcp_create_context()</b> for
+details). The user is expected to use a specific
+&lt;srcipaddr, srctcpport, destipaddr, desttcpport&gt; tuple
+which ensures that bidirectional traffic of the connection
+is handled by the same <i>mctx</i> context. See
+<b>mtcp_init_rss()</b> man page for details.</p>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns 0 on
+success; -1 on failure. In case of failure, <i>errno</i> is
+set appropriately.</p>
+
+<h2>ERRORS
+<a name="ERRORS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p style="margin-top: 1em"><b>EAFNOSUPPORT</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p style="margin-top: 1em">The size of the <i>addrlen</i>
+argument passed is invalid.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>EALREADY</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>The socket referred to by <i>sockid</i> descriptor is
+already connected (with a TCP state &lt; <b>ESTABLISHED</b>)
+to a peer endpoint.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>EBADF</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p><i>sockid</i> is not a valid socket descriptor for
+creating a connection.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>EFAULT</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>The <i>addr</i> argument passed is NULL.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>EINVAL</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>Connection request for the given <i>addr</i> is invalid
+(due to incorrect &lt;addr,port&gt;-to-NIC_queue
+binding).</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>EISCONN</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>The socket referred to by <i>sockid</i> descriptor
+already has an established connection with a peer
+endpoint.</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>ENOMEM</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>Connection failed due to insufficient memory.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>ENOTSOCK</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>The socket referred to by <i>sockid</i> does not have a
+valid socket type.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="18%">
+
+
+<p><b>ETIMEDOUT</b></p></td>
+<td width="5%"></td>
+<td width="66%">
+
+
+<p>Connection failure due to TCP timeout.</p></td></tr>
+</table>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_bind</b>(),
+<b>mtcp_listen</b>(), <b>mtcp_accept</b>(),
+<b>mtcp_socket</b>(), <b>mtcp_read</b>(),
+<b>mtcp_write</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

@@ -1,0 +1,127 @@
+.TH mtcp_connect 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_connect \- create a connection on an mTCP socket
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "int mtcp_connect(mctx_t " mctx ", int " sockid ", const struct sockaddr *" addr ", socklen_t " addrlen );
+
+.SH DESCRIPTION
+.BR mtcp_connect () 
+connects the socket referred via
+.I "sockid"
+argument to the TCP peer whose address and port number are filled by the user
+in
+.I "addr"
+structure in network byte order. The
+.I "addrlen"
+argument specifies the size of the
+.I "addr"
+address in bytes. The user is responsible for allocating memory
+for
+.I "addr"
+and
+.I "addrlen"
+arguments. A successful invocation of
+.BR "mtcp_connect()"
+call yields in a connection of the socket to its peer endpoint.
+.\""""in
+.\"""".BR "ESTABLISHED"
+.\""""TCP state.
+
+An 
+.BR mtcp_connect ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details). The user is expected to use a specific
+<srcipaddr, srctcpport, destipaddr, desttcpport> tuple which
+ensures that bidirectional traffic of the connection is handled
+by the same
+.I "mctx"
+context. See
+.BR "mtcp_init_rss()"
+man page for details.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Returns 0 on success; -1 on failure. In case
+of failure,
+.I "errno"
+is set appropriately. 
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 15
+.B "EAFNOSUPPORT"
+The size of the
+.I "addrlen"
+argument passed is invalid.
+
+.TP 15
+.B "EALREADY"
+The socket referred to by
+.I "sockid"
+descriptor is already connected (with a TCP state < 
+.BR "ESTABLISHED") 
+to a peer endpoint.
+
+.TP 15
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor for creating a connection.
+
+.TP 15
+.B "EFAULT"
+The
+.I "addr"
+argument passed is NULL.
+
+.TP 15
+.B "EINVAL"
+Connection request for the given
+.I "addr"
+is invalid (due to incorrect <addr,port>-to-NIC_queue binding).
+
+.TP 15
+.B "EISCONN"
+The socket referred to by
+.I "sockid"
+descriptor already has an established connection with a peer
+endpoint.
+
+.TP 15
+.B "ENOMEM"
+Connection failed due to insufficient memory.
+
+.TP 15
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+does not have a valid socket type.
+
+.TP 15
+.B "ETIMEDOUT"
+Connection failure due to TCP timeout.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_bind (),
+.BR mtcp_listen (),
+.BR mtcp_accept (),
+.BR mtcp_socket (),
+.BR mtcp_read (),
+.BR mtcp_write ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

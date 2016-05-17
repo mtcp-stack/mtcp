@@ -1,0 +1,224 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Wed May 18 01:43:07 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_accept</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_accept</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#ERRORS">ERRORS</a><br>
+<a href="#NOTES">NOTES</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_accept
+&minus; accept a connection on an mTCP socket</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_accept(mctx_t</b> <i>mctx</i><b>, int</b>
+<i>sockid</i><b>, struct sockaddr *</b><i>addr</i><b>,
+socklen_t *</b><i>addrlen</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_accept</b>()
+function is used to accept an incoming connection request
+from a TCP client. During a successful <b>mtcp_accept()</b>
+call, the mTCP stack extracts the first connection request
+from the listening queue of pending connections associated
+with the passive socket ID <i>sockid.</i> It then creates a
+new socket and returns its corresponding socket ID to the
+user. The newly created socket (that is returned) can be
+used to communicate with the TCP client while the original
+socket <i>sockid</i> is unaffected by this call. The passive
+socket represented by the <i>sockid</i> socket descriptor
+should be bound to a local address using <b>mtcp_bind()</b>
+function and should be listening for connections by calling
+<b>mtcp_listen()</b> function before it can be used for
+accepting new connection requests.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The <i>addr</i>
+argument is a pointer to <i>sockaddr</i> structure that gets
+filled up with the address of the peer node while the
+<i>addrlen</i> field contains the size of the peer address.
+If the <i>addr</i> argument is NULL, nothing is filled in
+and as a result, <i>addrlen</i> is not used and should also
+be NULL.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If no pending
+connections are present on the queue, mtcp_accept() fails
+with error <b>EAGAIN</b> errno.</p>
+
+<p style="margin-left:11%; margin-top: 1em">In order to be
+notified of incoming connections on a socket, the user can
+use <b>mtcp_epoll_wait()</b> function call. A readable event
+is delivered when a new connection arrives on the listening
+socket.</p>
+
+<p style="margin-left:11%; margin-top: 1em">An
+<b>mtcp_accept</b>() call takes an additional argument named
+<i>mctx</i> that represents the per-core mTCP context in an
+application (see <b>mtcp_create_context()</b> for
+details).</p>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns an mTCP
+descriptor ID of the newly created active mTCP socket; -1 on
+failure. In case of failure, <i>errno</i> is set
+appropriately.</p>
+
+<h2>ERRORS
+<a name="ERRORS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p style="margin-top: 1em"><b>EAGAIN</b></p></td>
+<td width="6%"></td>
+<td width="74%">
+
+
+<p style="margin-top: 1em">No connections requests are
+available at the moment.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p><b>EBADF</b></p></td>
+<td width="6%"></td>
+<td width="74%">
+
+
+<p><i>sockid</i> is not a valid socket descriptor for
+accepting connections.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p><b>EINTR</b></p></td>
+<td width="6%"></td>
+<td width="74%">
+
+
+<p>The application thread is scheduled to shut down.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p><b>EINVAL</b></p></td>
+<td width="6%"></td>
+<td width="74%">
+
+
+<p>The socket referred to by the <i>sockid</i> argument is
+not a listening (passive) socket.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p><b>ENFILE</b></p></td>
+<td width="6%"></td>
+<td width="74%">
+
+
+<p>New active socket could not be created as the mTCP core
+is out of socket descriptors at the moment.</p></td></tr>
+</table>
+
+<h2>NOTES
+<a name="NOTES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">For performance
+reasons, it is recommended that the <i>same</i> thread
+(represented by <i>mctx</i> argument) that spawns the active
+socket via <b>mtcp_accept()</b> should handle operations
+<b>(mtcp_read(), mtcp_write(),</b> and
+<b>mtcp_getsockopt())</b> on that socket for the entire
+lifetime of the connection (till <b>mtcp_close()).</b></p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_bind</b>(),
+<b>mtcp_listen</b>(), <b>mtcp_socket</b>(),
+<b>mtcp_connect</b>(), <b>mtcp_read</b>(),
+<b>mtcp_write</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

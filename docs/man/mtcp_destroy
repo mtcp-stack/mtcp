@@ -1,0 +1,37 @@
+.TH mtcp_destroy 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_destroy \- clean up the mTCP stack.
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "void mtcp_destroy();"
+
+.SH DESCRIPTION
+.BR mtcp_destroy () 
+call is used to clean up the networking stack for the mTCP
+application. This is usually the last call the application
+makes before terminating.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+Nothing is returned.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH NOTES
+This function only needs to be called once in an mTCP 
+application.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_init ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

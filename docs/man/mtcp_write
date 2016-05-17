@@ -1,0 +1,91 @@
+.TH mtcp_write 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_write \- send bytestream to an mTCP socket
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "ssize_t mtcp_write(mctx_t " mctx ", int " sockid ", char *" buf ", size_t " len );
+
+.SH DESCRIPTION
+.BR mtcp_write () 
+sends up to
+.I "len"
+number of bytes from the buffer that is being pointed by
+.I "buf."
+The bytestream is sent to the mTCP socket using the
+.I "sockid"
+descriptor.
+
+An
+.BR mtcp_write()
+function call may write less number of bytes than
+.I "len"
+if there is insufficient space in the write buffer of the
+socket. In such a case, the return value is considered the
+actual number of bytes successfully written.
+ 
+.BR mtcp_write ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+On success, the number of bytes dispatched via the socket
+are returned. The number of bytes sent can be less than
+.I "count"
+if there is insufficient space in the write buffer of
+the socket. On error, -1 is returned and
+.I "errno"
+is set appropriately. 
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EAGAIN"
+The write buffer of the socket is currently full. The user should
+call the write function again once the write buffer has space
+available. 
+
+.TP 10
+.B "EBADF"
+.I "sockid"
+is not a valid socket descriptor for writing.
+
+.TP 10
+.B "ENOTCONN"
+The underlying connection is not in a TCP state that allows data
+transmission (i.e. the TCP flow is neither in
+.BR "ESTABLISHED"
+or 
+.BR "CLOSE_WAIT"
+state).
+
+.TP 10
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+is not valid.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_bind (),
+.BR mtcp_listen (),
+.BR mtcp_accept (),
+.BR mtcp_connect (),
+.BR mtcp_read (),
+.BR mtcp_socket ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

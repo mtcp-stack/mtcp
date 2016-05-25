@@ -1,1 +1,0 @@
-../../lib/librte_ether/rte_dev_info.h

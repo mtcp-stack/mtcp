@@ -18,6 +18,7 @@
 #define MAX_PKT_BURST			64
 #define ETHERNET_FRAME_SIZE		1514
 #define MAX_IFNAMELEN			(IF_NAMESIZE + 10)
+#define EXTRA_BUFS			512
 /*----------------------------------------------------------------------------*/
 
 struct netmap_private_context {
@@ -26,6 +27,7 @@ struct netmap_private_context {
 	unsigned char *rcv_pktbuf[MAX_PKT_BURST];
 	uint16_t rcv_pkt_len[MAX_PKT_BURST];
 	uint16_t snd_pkt_size[MAX_DEVICES];
+	uint8_t dev_poll_flag;
 } __attribute__((aligned(__WORDSIZE)));
 /*----------------------------------------------------------------------------*/
 void
@@ -46,6 +48,8 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 	
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
 
+	npc->dev_poll_flag = 1;
+
 	/* initialize per-thread netmap interfaces  */
 	for (j = 0; j < num_devices_attached; j++) {
 		if (if_indextoname(devices_attached[j], ifname) == NULL) {
@@ -60,10 +64,11 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 		else
 			sprintf(nifname, "netmap:%s-%d", ifname, ctxt->cpu);
 		
-		TRACE_INFO("Opening %s with j: %d\n", nifname, j);
+		TRACE_INFO("Opening %s with j: %d (cpu: %d)\n", nifname, j, ctxt->cpu);
 
 		struct nmreq base_nmd;
 		memset(&base_nmd, 0, sizeof(base_nmd));
+		base_nmd.nr_arg3 = EXTRA_BUFS;
 
 		npc->local_nmd[j] = nm_open(nifname, &base_nmd, 0, NULL);
 		if (npc->local_nmd[j] == NULL) {
@@ -110,10 +115,16 @@ netmap_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 	mtcp->nstat.tx_packets[nif]++;
 	mtcp->nstat.tx_bytes[nif] += pkt_size + 24;
 #endif
-
+	
+ tx_again:
 	if (nm_inject(npc->local_nmd[idx], npc->snd_pktbuf[idx], pkt_size) == 0) {
 		TRACE_DBG("Failed to send pkt of size %d on interface: %d\n",
 			  pkt_size, idx);
+#ifdef NETSTAT
+		mtcp->nstat.rx_errors[idx]++;
+#endif
+		ioctl(npc->local_nmd[idx]->fd, NIOCTXSYNC, NULL);
+		//goto tx_again;
 	}
 
 	npc->snd_pkt_size[idx] = 0;
@@ -186,26 +197,26 @@ netmap_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t
 int32_t
 netmap_select(struct mtcp_thread_context *ctxt)
 {
-	static __thread int flag = 0;
-	struct netmap_private_context *npc;
-
-	npc = (struct netmap_private_context *)ctxt->io_private_context;
+	struct netmap_private_context *npc = 
+		(struct netmap_private_context *)ctxt->io_private_context;
+	
+	if (npc->local_nmd[0] == NULL)	return -1;
 	struct pollfd pfd = { .fd = npc->local_nmd[0]->fd, .events = POLLIN };
 
 	do { 
 		int i = poll(&pfd, 1, 1000);
 		if (i > 0 && !(pfd.revents & POLLERR)) {
-			flag = 1;
+			npc->dev_poll_flag = 1;
 			break;
 		}
-	} while (flag == 0);
+	} while (npc->dev_poll_flag == 0);
 	
 	if (pfd.revents & POLLERR) {
 		TRACE_ERROR("Poll failed! (cpu: %d\n, err: %d)\n",
 			    ctxt->cpu, errno);
 		exit(EXIT_FAILURE);
 	}
-
+	
 	return 0;
 }
 /*----------------------------------------------------------------------------*/

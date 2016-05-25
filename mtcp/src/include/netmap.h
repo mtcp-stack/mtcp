@@ -502,6 +502,9 @@ struct nmreq {
 #define NETMAP_BDG_DELIF	7	/* destroy a virtual port */
 #define NETMAP_PT_HOST_CREATE	8	/* create ptnetmap kthreads */
 #define NETMAP_PT_HOST_DELETE	9	/* delete ptnetmap kthreads */
+#define NETMAP_BDG_POLLING_ON	10	/* delete polling kthread */
+#define NETMAP_BDG_POLLING_OFF	11	/* delete polling kthread */
+#define NETMAP_VNET_HDR_GET	12      /* get the port virtio-net-hdr length */
 	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
 
@@ -530,6 +533,14 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 /* request ptnetmap host support */
 #define NR_PASSTHROUGH_HOST	NR_PTNETMAP_HOST /* deprecated */
 #define NR_PTNETMAP_HOST	0x1000
+#define NR_RX_RINGS_ONLY	0x2000
+#define NR_TX_RINGS_ONLY	0x4000
+/* Applications set this flag if they are able to deal with virtio-net headers,
+ * that is send/receive frames that start with a virtio-net header.
+ * If not set, NIOCREGIF will fail with netmap ports that require applications
+ * to use those headers. If the flag is set, the application can use the
+ * NETMAP_VNET_HDR_GET command to figure out the header length. */
+#define NR_ACCEPT_VNET_HDR	0x8000
 
 
 /*
@@ -615,7 +626,7 @@ struct nm_ifreq {
 /*
  * netmap kernel thread configuration
  */
-/* bhyve/vmm.ko MSIX paramenters for IOCTL */
+/* bhyve/vmm.ko MSIX parameters for IOCTL */
 struct ptn_vmm_ioctl_msix {
 	uint64_t        msg;
 	uint64_t        addr;
@@ -629,8 +640,9 @@ struct nm_kth_ioctl {
 		struct ptn_vmm_ioctl_msix msix;
 	} data;
 };
-/* event configuration */
-struct nm_kth_event_cfg {
+
+/* Configuration of a ptnetmap ring */
+struct ptnet_ring_cfg {
 	uint64_t ioeventfd;		/* eventfd in linux, tsleep() parameter in FreeBSD */
 	uint64_t irqfd;			/* eventfd in linux, ioctl fd in FreeBSD */
 	struct nm_kth_ioctl ioctl;	/* ioctl parameter to send irq (only used in bhyve/FreeBSD) */

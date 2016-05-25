@@ -97,7 +97,7 @@
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 #endif /* likely and unlikely */
 
-#include <netmap.h>
+#include "netmap.h"
 
 /* helper macro */
 #define _NETMAP_OFFSET(type, ptr, offset) \
@@ -313,6 +313,8 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
  *		z		zero copy monitor
  *		t		monitor tx side
  *		r		monitor rx side
+ *		R		bind only RX ring(s)
+ *		T		bind only TX ring(s)
  *
  * req		provides the initial values of nmreq before parsing ifname.
  *		Remember that the ifname parsing will override the ring
@@ -700,6 +702,12 @@ nm_open(const char *ifname, const struct nmreq *req,
 				break;
 			case 'r':
 				nr_flags |= NR_MONITOR_RX;
+				break;
+			case 'R':
+				nr_flags |= NR_RX_RINGS_ONLY;
+				break;
+			case 'T':
+				nr_flags |= NR_TX_RINGS_ONLY;
 				break;
 			default:
 				snprintf(errmsg, MAXERRMSG, "unrecognized flag: '%c'", *port);

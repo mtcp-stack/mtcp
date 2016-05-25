@@ -1,1 +1,0 @@
-../../lib/librte_power/rte_power.h

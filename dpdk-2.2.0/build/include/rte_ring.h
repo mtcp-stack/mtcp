@@ -1,1 +1,0 @@
-../../lib/librte_ring/rte_ring.h

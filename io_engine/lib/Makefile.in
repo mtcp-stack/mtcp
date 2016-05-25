@@ -1,7 +1,9 @@
 .PHONY: clean
 
 CC=@CC@
+PS=@PSIO@
 
+ifeq ($(PS),1)
 all: pslib.a
 
 pslib.a: pslib.c
@@ -10,7 +12,12 @@ pslib.a: pslib.c
 
 clean:
 	rm -f *.o *.a
+else
+all:
+
+clean:
+
+endif
 
 distclean: clean
 	rm -f Makefile
-

@@ -2,8 +2,6 @@
  TODOs list for mTCP
 ========================================================================
 
-* Add I/O module for netmap
-
 * Add I/O module for libpcap
 
 * Add virtualization support for mTCP

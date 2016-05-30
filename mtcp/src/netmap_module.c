@@ -19,6 +19,9 @@
 #define ETHERNET_FRAME_SIZE		1514
 #define MAX_IFNAMELEN			(IF_NAMESIZE + 10)
 #define EXTRA_BUFS			512
+#define IDLE_POLL_WAIT			1 /* msecs */
+#define IDLE_POLL_COUNT			10
+//#define CONST_POLLING			1
 /*----------------------------------------------------------------------------*/
 
 struct netmap_private_context {
@@ -27,7 +30,8 @@ struct netmap_private_context {
 	unsigned char *rcv_pktbuf[MAX_PKT_BURST];
 	uint16_t rcv_pkt_len[MAX_PKT_BURST];
 	uint16_t snd_pkt_size[MAX_DEVICES];
-	uint8_t dev_poll_flag;
+	uint8_t dev_poll_flag[MAX_DEVICES];
+	uint8_t idle_poll_count; 
 } __attribute__((aligned(__WORDSIZE)));
 /*----------------------------------------------------------------------------*/
 void
@@ -47,8 +51,6 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 	}
 	
 	npc = (struct netmap_private_context *)ctxt->io_private_context;
-
-	npc->dev_poll_flag = 1;
 
 	/* initialize per-thread netmap interfaces  */
 	for (j = 0; j < num_devices_attached; j++) {
@@ -120,15 +122,16 @@ netmap_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 	if (nm_inject(npc->local_nmd[idx], npc->snd_pktbuf[idx], pkt_size) == 0) {
 		TRACE_DBG("Failed to send pkt of size %d on interface: %d\n",
 			  pkt_size, idx);
-#ifdef NETSTAT
-		mtcp->nstat.rx_errors[idx]++;
-#endif
+
 		ioctl(npc->local_nmd[idx]->fd, NIOCTXSYNC, NULL);
-		//goto tx_again;
+		goto tx_again;
 	}
-
+	
+#ifdef NETSTAT
+	//	mtcp->nstat.rx_errors[idx]++;
+#endif
 	npc->snd_pkt_size[idx] = 0;
-
+	
 	return 1;
 }
 /*----------------------------------------------------------------------------*/
@@ -162,7 +165,7 @@ netmap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 
 
 
-	for (c = 0; c < n && cnt != got; c++) {
+	for (c = 0; c < n && cnt != got && npc->dev_poll_flag[ifidx]; c++) {
 		/* compute current ring to use */
 		struct netmap_ring *ring;
 		
@@ -181,6 +184,8 @@ netmap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 	}
 	d->cur_rx_ring = ri;
 
+	npc->dev_poll_flag[ifidx] = 0;
+
 	return p;
 }
 /*----------------------------------------------------------------------------*/
@@ -197,26 +202,34 @@ netmap_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t
 int32_t
 netmap_select(struct mtcp_thread_context *ctxt)
 {
+	int i, rc;
+	struct pollfd pfd[MAX_DEVICES];
 	struct netmap_private_context *npc = 
 		(struct netmap_private_context *)ctxt->io_private_context;
 	
-	if (npc->local_nmd[0] == NULL)	return -1;
-	struct pollfd pfd = { .fd = npc->local_nmd[0]->fd, .events = POLLIN };
+	/* see if num_devices have been registered */
+	if (npc->local_nmd[0] == NULL)
+		return -1;
 
-	do { 
-		int i = poll(&pfd, 1, 1000);
-		if (i > 0 && !(pfd.revents & POLLERR)) {
-			npc->dev_poll_flag = 1;
-			break;
-		}
-	} while (npc->dev_poll_flag == 0);
-	
-	if (pfd.revents & POLLERR) {
-		TRACE_ERROR("Poll failed! (cpu: %d\n, err: %d)\n",
-			    ctxt->cpu, errno);
-		exit(EXIT_FAILURE);
+	for (i = 0; i < num_devices_attached; i++) {
+		pfd[i].fd = npc->local_nmd[i]->fd;
+		pfd[i].events = POLLIN;
 	}
-	
+
+#ifndef CONST_POLLING	
+	if (npc->idle_poll_count >= IDLE_POLL_COUNT) {
+		rc = poll(pfd, num_devices_attached, IDLE_POLL_WAIT);
+	} else
+#endif
+		{
+			rc = poll(pfd, num_devices_attached, 0);
+		}
+
+	npc->idle_poll_count = (rc == 0) ? (npc->idle_poll_count + 1) : 0;
+
+	for (i = 0; rc > 0 && i < num_devices_attached; i++)
+		if (!(pfd[i].revents & (POLLERR)))
+			npc->dev_poll_flag[i] = 1;
 	return 0;
 }
 /*----------------------------------------------------------------------------*/

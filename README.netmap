@@ -1,0 +1,83 @@
+- NETMAP VERSION -
+------------------
+1. Install the netmap driver and the corresponding ixgbe/ driver
+  - please go through netmap's documentation for installation
+  instructions. We used the following command to set the compilation
+  scripts for netmap (for ixgbe driver).
+  	   # ./configure --kernel-dir=/path/to/kernel/src --no-drivers=i40e,virtio_net.c
+  - To run mTCP clients correctly, you need to modify the RSS
+  seed in ixgbe_main.c:ixgbe_setup_mrqc() function. Our mTCP stack
+  uses a specific RSS seed (mentioned below). 
+
+   	   - seed[10] should be reset to { 
+	     	      	  0x05050505, 0x05050505, 0x05050505,
+			  0x05050505, 0x05050505, 0x05050505, 0x05050505,
+			  0x05050505, 0x05050505, 0x05050505
+	     };
+  
+  - Make sure that the underlying kernel module is correctly
+  working. You can use sample applications to validate your 
+  setup.
+	   # make
+	   # sudo insmod ./netmap.ko
+	   # sudo insmod ./ixgbe/ixgbe.ko
+
+  - For optimum performance you are suggested to bind NICS IRQs to arbitrary
+  CPUs. Please use affinity-netmap.py script for this purpose. The current
+  script is setup for the netmap ixgbe driver. Please use a variant
+  of this file for other cases (igb, i40e etc.).
+  	   # ./config/affinity-netmap.py ${IFACE}
+
+  - Disable flow control in Ethernet layer
+    	   # sudo ethtool -A ${IFACE} rx off
+    	   # sudo ethtool -A ${IFACE} tx off
+
+  - Disable lro (large receive offload) in Ethernet device. mTCP
+  does not support large packet sizes (> 1514B) yet)
+       	   # sudo ethtool -K ${IFACE} lro off
+
+  - We used example/pktgen to test netmap raw network I/O
+  performance. Netmap's pktgen can be used not only for
+  packet generation but also packet reception. Since mTCP
+  relies on RSS-based NIC hardware queues, we recommend using
+  the following command-line arguments to test pkt-gen as a
+  sink before testing mTCP for netmap.
+  	   -SINK- (assuming the machine has 4 cpus)
+	   # sudo ./pkt-gen -i ${IFACE}-0 -f rx -c 1 -a 0 -b 64 &
+	   # sudo ./pkt-gen -i ${IFACE}-1 -f rx -c 1 -a 1 -b 64 &
+	   # sudo ./pkt-gen -i ${IFACE}-2 -f rx -c 1 -a 2 -b 64 &
+	   # sudo ./pkt-gen -i ${IFACE}-3 -f rx -c 1 -a 3 -b 64 &
+
+  where ${IFACE} is netmap-enabled interface.
+  The netmap README file shows a concise description on how to
+  use the driver. We reiterate some points that are essential in
+  understanding the command line arguments above. An interface
+  name post-appended with a number means that the process will
+  read traffic from the specified NIC hardware queue. `-a` argument
+  lets the program bind to a specific core.
+  
+2. Setup mtcp library:
+   	   # ./configure --enable-netmap
+   	   # make
+  - In case `./configure' script prints an error, run the
+    following command; and then re-do step-2 (configure again):
+    	   # autoreconf -ivf
+  - check libmtcp.a in mtcp/lib
+  - check header files in mtcp/include
+  - check example binary files in apps/example
+
+3. Check the configurations in apps/example
+  - epserver.conf for server-side configuration
+  - epwget.conf for client-side configuration
+  - you may write your own configuration file for your application
+
+4. Run the applications. *If you run the application with one thread,
+mTCP core will assume that the multi-queues option is disabled. This
+assumption is only valid for netmap version.*
+
+5. Netmap module (mtcp/src/netmap_module.c) by default uses blocking
+I/O by default. Most microbenchmarking applications (epserver/epwget)
+shows best performance with this setup in our testbed. In case the
+performance is sub-optimal in yours, we recommend that you try polling
+mode (by enabling CONST_POLLING in line 24). You can also try tweaking
+IDLE_POLL_WAIT/IDLE_POLL_COUNT macros while testing blocking mode I/O.

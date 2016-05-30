@@ -151,36 +151,6 @@ mTCP can be prepared in two ways.
 
 6. Run the applications!
 
-
-- NETMAP VERSION (EXPERIMENTAL) -
----------------------------------
-1. Install the netmap driver and the corresponding ixgbe/ driver
-  - please go through netmap's documentation for installation
-  instructions
-  - Make sure that the underlying kernel module is correctly
-  working. You can use sample applications to validate your 
-  setup.
-
-2. Setup mtcp library:
-   	   # ./configure --enable-netmap
-   	   # make
-  - In case `./configure' script prints an error, run the
-    following command; and then re-do step-2 (configure again):
-    	   # autoreconf -ivf
-  - check libmtcp.a in mtcp/lib
-  - check header files in mtcp/include
-  - check example binary files in apps/example
-
-3. Check the configurations in apps/example
-  - epserver.conf for server-side configuration
-  - epwget.conf for client-side configuration
-  - you may write your own configuration file for your application
-
-4. Run the applications. *If you run the application with one thread,
-mTCP core will assume that the multi-queues option is disabled. This
-assumption is only valid for netmap version.*
-
-
 ========================================================================
  TESTED ENVIRONMENTS
 ========================================================================

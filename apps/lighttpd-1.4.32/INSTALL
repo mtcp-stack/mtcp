@@ -50,13 +50,15 @@ Configure the program with the following arguments:
   $ ./configure --without-bzip2 CFLAGS="-O3" \
     --with-libmtcp=${PATH_TO_LIBMTCP} \
     --with-libpsio=${PATH_TO_LIBPSIO} \
-    --with-libdpdk=${PATH_TO_LIBDPDK}
+    --with-libdpdk=${PATH_TO_LIBDPDK} \
+    --enable-netmap
     
   (e.g.
 	$ ./configure --without-bzip2 CFLAGS="-g -O3" \
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
 	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
-	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/" \
+	--enable-netmap
   )
 
 The path should be absolute.
@@ -64,13 +66,14 @@ The path should be absolute.
   ## For debugging
   $ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
     --with-libmtcp=${PATH_TO_LIBMTCP} --with-libpsio=${PATH_TO_LIBPSIO} \
-    --with-libdpdk=${PATH_TO_LIBDPDK}
+    --with-libdpdk=${PATH_TO_LIBDPDK} --enable-netmap
 
   (e.g.
 	$ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
 	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
-	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/" \
+	--enable-netmap
   )
 
 Please remember to adjust lighttpd.conf file carefully.

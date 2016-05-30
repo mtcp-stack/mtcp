@@ -29,6 +29,9 @@ If you want to use ab with mTCP,
 	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
   )
 
+-FOR NETMAP VERSION-
+ $ ./configure --with-libmtcp=${PATH_TO_LIBMTCP}
+
 Without this option, you can use multi-threaded version of ab.
 
  $ ./configure

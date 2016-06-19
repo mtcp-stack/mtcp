@@ -2,13 +2,7 @@
  TODOs list for mTCP
 ========================================================================
 
-* Add I/O module for libpcap
-
-* Add virtualization support for mTCP
-
-* Enable TCP SACK
-
-* Test with 32-bit machines
+See https://github.com/eunyoung14/mtcp/wiki/Supported-Features for details.
 
 ** This is only a small list of ideas that we have in our mind. Please 
 contact the authors if you want to help develop mTCP even further.

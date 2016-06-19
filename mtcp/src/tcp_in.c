@@ -687,8 +687,9 @@ Handle_TCP_ST_LISTEN (mtcp_manager_t mtcp, uint32_t cur_ts,
 		tcp_stream* cur_stream, struct tcphdr* tcph) {
 	
 	if (tcph->syn) {
+		if (cur_stream->state == TCP_ST_LISTEN)
+			cur_stream->rcv_nxt++;
 		cur_stream->state = TCP_ST_SYN_RCVD;
-		cur_stream->rcv_nxt++;
 		TRACE_STATE("Stream %d: TCP_ST_SYN_RCVD\n", cur_stream->id);
 		AddtoControlList(mtcp, cur_stream, cur_ts);
 	} else {

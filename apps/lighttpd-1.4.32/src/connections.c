@@ -1613,12 +1613,16 @@ int connection_state_machine(server *srv, connection *con) {
 					}
 				}
 #endif
+#ifdef HAVE_LIBMTCP
+				connection_close(srv, con);
+#else				
 				if ((0 == shutdown(con->fd, SHUT_WR))) {
 					con->close_timeout_ts = srv->cur_ts;
 					connection_set_state(srv, con, CON_STATE_CLOSE);
 				} else {
 					connection_close(srv, con);
 				}
+#endif
 
 				srv->con_closed++;
 			}
@@ -1786,9 +1790,11 @@ int connection_state_machine(server *srv, connection *con) {
 				}
 				break;
 			}
-
+			
 			connection_reset(srv, con);
-
+#ifdef HAVE_LIBMTCP
+			connection_close(srv, con);
+#else
 			/* close the connection */
 			if ((0 == shutdown(con->fd, SHUT_WR))) {
 				con->close_timeout_ts = srv->cur_ts;
@@ -1801,6 +1807,7 @@ int connection_state_machine(server *srv, connection *con) {
 			} else {
 				connection_close(srv, con);
 			}
+#endif
 
 			con->keep_alive = 0;
 

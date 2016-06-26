@@ -256,6 +256,22 @@ netdev_xmit(struct sk_buff *skb, struct net_device *netdev) {
 }
 /*----------------------------------------------------------------------------*/
 /**
+ * netdev_set_mac - Change the Ethernet Address of the DPDK port 
+ * @netdev: network interface device structure 
+ * @p: pointer to an address structure
+ * Returns 0 on success, negative on failure
+ */
+static int
+netdev_set_mac(struct net_device *netdev, void *p)
+{
+	struct sockaddr *addr = p;
+	if (!is_valid_ether_addr((unsigned char *)(addr->sa_data)))
+		return -EADDRNOTAVAIL;
+	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+/**
  * A naive net_device_ops struct to get the interface visible to the OS
  */
 static const struct net_device_ops netdev_ops = {
@@ -264,7 +280,7 @@ static const struct net_device_ops netdev_ops = {
         .ndo_start_xmit         = netdev_xmit,
         .ndo_set_rx_mode        = netdev_no_ret,
         .ndo_validate_addr      = netdev_open,
-        .ndo_set_mac_address    = NULL,
+        .ndo_set_mac_address    = netdev_set_mac,
         .ndo_change_mtu         = NULL,
         .ndo_tx_timeout         = netdev_no_ret,
         .ndo_vlan_rx_add_vid    = NULL,

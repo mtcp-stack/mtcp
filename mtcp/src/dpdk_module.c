@@ -24,6 +24,8 @@
 /* for ioctl */
 #include <sys/ioctl.h>
 #endif /* !ENABLE_STATS_IOCTL */
+/* for ip pseudo-chksum */
+#include <rte_ip.h>
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
@@ -193,9 +195,9 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 #ifdef ENABLE_STATS_IOCTL
 	dpc->fd = open("/dev/dpdk-iface", O_RDWR);
 	if (dpc->fd == -1) {
-		TRACE_ERROR("Can't open /dev/dpdk-iface for context->cpu: %d!\n",
+		TRACE_ERROR("Can't open /dev/dpdk-iface for context->cpu: %d! "
+			    "Are you using mlx4/mlx5 driver?\n",
 			    ctxt->cpu);
-		exit(EXIT_FAILURE);
 	}
 #endif /* !ENABLE_STATS_IOCTL */
 }
@@ -239,13 +241,15 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 #ifdef NETSTAT
 		mtcp->nstat.tx_packets[nif] += cnt;
 #ifdef ENABLE_STATS_IOCTL
-		ss.tx_pkts = mtcp->nstat.tx_packets[nif];
-		ss.tx_bytes = mtcp->nstat.tx_bytes[nif];
-		ss.rx_pkts = mtcp->nstat.rx_packets[nif];
-		ss.rx_bytes = mtcp->nstat.rx_bytes[nif];
-		ss.qid = ctxt->cpu;
-		ss.dev = nif;
-		ioctl(dpc->fd, 0, &ss);
+		if (likely(dpc->fd >= 0)) {
+			ss.tx_pkts = mtcp->nstat.tx_packets[nif];
+			ss.tx_bytes = mtcp->nstat.tx_bytes[nif];
+			ss.rx_pkts = mtcp->nstat.rx_packets[nif];
+			ss.rx_bytes = mtcp->nstat.rx_bytes[nif];
+			ss.qid = ctxt->cpu;
+			ss.dev = nif;
+			ioctl(dpc->fd, 0, &ss);
+		}
 #endif /* !ENABLE_STATS_IOCTL */
 #endif
 		do {
@@ -385,7 +389,8 @@ dpdk_destroy_handle(struct mtcp_thread_context *ctxt)
 
 #ifdef ENABLE_STATS_IOCTL
 	/* free fd */
-	close(dpc->fd);
+	if (dpc->fd >= 0)
+		close(dpc->fd);
 #endif /* !ENABLE_STATS_IOCTL */
 
 	/* free it all up */
@@ -498,6 +503,8 @@ void
 dpdk_load_module(void)
 {
 	int portid, rxlcore_id, ret;
+	/* for Ethernet flow control settings */
+	struct rte_eth_fc_conf fc_conf;
 	/* setting the rss key */
 	static const uint8_t key[] = {
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
@@ -570,6 +577,19 @@ dpdk_load_module(void)
 			printf("done: \n");
 			rte_eth_promiscuous_enable(portid);
 			
+                        /* retrieve current flow control settings per port */
+			memset(&fc_conf, 0, sizeof(fc_conf));
+                        ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
+			if (ret != 0)
+                                rte_exit(EXIT_FAILURE, "Failed to get flow control info!\n");
+                        
+			/* and just disable the rx/tx flow control */
+			fc_conf.mode = RTE_FC_NONE;
+			ret = rte_eth_dev_flow_ctrl_set(portid, &fc_conf);
+                        if (ret != 0) 
+                                rte_exit(EXIT_FAILURE, "Failed to set flow control info!: errno: %d\n",
+                                         ret);
+			
 #ifdef DEBUG
 			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
 			       (unsigned) portid,
@@ -605,6 +625,40 @@ dpdk_load_module(void)
 	check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
 }
 /*----------------------------------------------------------------------------*/
+int32_t
+dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
+{
+	struct dpdk_private_context *dpc;
+	struct rte_mbuf *m;
+	int len_of_mbuf;
+	struct iphdr *iph;
+	struct tcphdr *tcph;
+
+	iph = (struct iphdr *)argp;
+	dpc = (struct dpdk_private_context *)ctx->io_private_context;
+	len_of_mbuf = dpc->wmbufs[nif].len;
+	
+	switch (cmd) {
+	case PKT_TX_IP_CSUM:
+		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m->ol_flags = PKT_TX_IP_CKSUM | PKT_TX_IPV4;
+		m->l2_len = sizeof(struct ether_hdr);
+		m->l3_len = (iph->ihl<<2);
+		break;
+	case PKT_TX_TCP_CSUM:
+		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		tcph = (struct tcphdr *)((unsigned char *)iph + (iph->ihl<<2));
+		m->ol_flags |= PKT_TX_TCP_CKSUM;
+		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
+		break;
+	default:
+		goto dev_ioctl_err;
+	}
+	return 0;
+ dev_ioctl_err:
+	return -1;
+}
+/*----------------------------------------------------------------------------*/
 io_module_func dpdk_module_func = {
 	.load_module		   = dpdk_load_module,
 	.init_handle		   = dpdk_init_handle,
@@ -615,7 +669,8 @@ io_module_func dpdk_module_func = {
 	.recv_pkts		   = dpdk_recv_pkts,
 	.get_rptr	   	   = dpdk_get_rptr,
 	.select			   = dpdk_select,
-	.destroy_handle		   = dpdk_destroy_handle
+	.destroy_handle		   = dpdk_destroy_handle,
+	.dev_ioctl		   = dpdk_dev_ioctl
 };
 /*----------------------------------------------------------------------------*/
 #else
@@ -629,7 +684,8 @@ io_module_func dpdk_module_func = {
 	.recv_pkts		   = NULL,
 	.get_rptr	   	   = NULL,
 	.select			   = NULL,
-	.destroy_handle		   = NULL
+	.destroy_handle		   = NULL,
+	.dev_ioctl		   = NULL
 };
 /*----------------------------------------------------------------------------*/
 #endif /* !DISABLE_DPDK */

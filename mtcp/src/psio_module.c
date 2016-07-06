@@ -383,7 +383,8 @@ io_module_func ps_module_func = {
 	.recv_pkts		   = psio_recv_pkts,
 	.get_rptr	   	   = psio_get_rptr,
 	.select			   = psio_select,
-	.destroy_handle		   = psio_destroy_handle
+	.destroy_handle		   = psio_destroy_handle,
+	.dev_ioctl		   = NULL
 };
 #else
 io_module_func ps_module_func = {
@@ -396,7 +397,8 @@ io_module_func ps_module_func = {
 	.recv_pkts		   = NULL,
 	.get_rptr	   	   = NULL,
 	.select			   = NULL,
-	.destroy_handle		   = NULL
+	.destroy_handle		   = NULL,
+	.dev_ioctl		   = NULL
 };
 /*----------------------------------------------------------------------------*/
 #endif /* !DISABLE_PSIO */

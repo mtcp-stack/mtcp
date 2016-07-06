@@ -254,7 +254,8 @@ io_module_func netmap_module_func = {
 	.recv_pkts		   = netmap_recv_pkts,
 	.get_rptr	   	   = netmap_get_rptr,
 	.select			   = netmap_select,
-	.destroy_handle		   = netmap_destroy_handle
+	.destroy_handle		   = netmap_destroy_handle,
+	.dev_ioctl		   = NULL
 };
 /*----------------------------------------------------------------------------*/
 #else
@@ -268,7 +269,8 @@ io_module_func netmap_module_func = {
 	.recv_pkts		   = NULL,
 	.get_rptr	   	   = NULL,
 	.select			   = NULL,
-	.destroy_handle		   = NULL
+	.destroy_handle		   = NULL,
+	.dev_ioctl		   = NULL
 };
 /*----------------------------------------------------------------------------*/
 #endif /* !DISABLE_NETMAP */

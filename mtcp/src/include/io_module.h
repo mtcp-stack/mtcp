@@ -49,6 +49,8 @@ struct mtcp_thread_context;
  *		   destroy_handle() : free up resources allocated during 
  * 				      init_handle(). Normally called during 
  *				      process termination.
+ *
+ *                 dev_ioctl()      : contains submodules for select drivers
  *		   
  */
 typedef struct io_module_func {
@@ -62,6 +64,7 @@ typedef struct io_module_func {
 	int32_t   (*recv_pkts)(struct mtcp_thread_context *ctx, int ifidx);
 	int32_t	  (*select)(struct mtcp_thread_context *ctx);
 	void	  (*destroy_handle)(struct mtcp_thread_context *ctx);
+	int32_t	  (*dev_ioctl)(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp);
 } io_module_func __attribute__((aligned(__WORDSIZE)));
 /*----------------------------------------------------------------------------*/
 /* set I/O module context */
@@ -69,6 +72,10 @@ int SetInterfaceInfo(char *);
 /*----------------------------------------------------------------------------*/
 /* ptr to the `running' I/O module context */
 extern io_module_func *current_iomodule_func;
+
+/* dev_ioctl related macros */
+#define PKT_TX_IP_CSUM          0x01
+#define PKT_TX_TCP_CSUM         0x02
 
 /* registered psio context */
 #ifdef DISABLE_PSIO

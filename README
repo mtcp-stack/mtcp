@@ -151,6 +151,15 @@ mTCP can be prepared in two ways.
 
 6. Run the applications!
 
+7. #NEW#: mTCP-dpdk now supports multi-process mode. epserver.c in
+   apps/example/ subdirectory illustrates how one can run multiple
+   simultaneous instances of the server in multi-process mode.
+   Please see apps/example/README for details.  
+
+- NETMAP VERSION -
+------------------
+Please see README.netmap for details.
+
 ========================================================================
  TESTED ENVIRONMENTS
 ========================================================================
@@ -200,6 +209,7 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 1. Intel-82598		ixgbe		(Max-queue-limit: 16)
 2. Intel-82599		ixgbe		(Max-queue-limit: 16)
 3. Intel-I350		igb		(Max-queue-limit: 08)
+4. Mellanox-ConnectX-3	mlx4		(queue-limit:	  2^N)
  
 ========================================================================
  FREQUENTLY ASKED QUESTIONS

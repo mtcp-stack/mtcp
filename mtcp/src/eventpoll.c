@@ -127,7 +127,7 @@ mtcp_epoll_create(mctx_t mctx, int size)
 		return -1;
 	}
 
-	TRACE_EPOLL("epoll structure of size %d created.\n", ep->size);
+	TRACE_EPOLL("epoll structure of size %d created.\n", size);
 
 	mtcp->ep = ep;
 	epsocket->ep = ep;

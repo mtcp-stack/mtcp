@@ -490,6 +490,12 @@ ParseConfiguration(char *line)
 			TRACE_CONFIG("The maximum concurrency should be larger than 0.\n");
 			return -1;
 		}
+	} else if (strcmp(p, "num_ip") == 0) {
+		CONFIG.num_ip = atoi(q);
+		if (CONFIG.num_ip < 0) {
+			TRACE_CONFIG("Number of source ip should be larger than 0.\n");
+			return -1;
+		}
 	} else if (strcmp(p, "max_num_buffers") == 0) {
 		CONFIG.max_num_buffers = atoi(q);
 		if (CONFIG.max_num_buffers < 0) {
@@ -567,6 +573,7 @@ LoadConfiguration(char *fname)
 	/* set default configuration */
 	CONFIG.num_cores = num_cpus;
 	CONFIG.max_concurrency = 100000;
+	CONFIG.num_ip = 1;
 	CONFIG.max_num_buffers = 100000;
 	CONFIG.rcvbuf_size = 8192;
 	CONFIG.sndbuf_size = 8192;
@@ -614,6 +621,7 @@ PrintConfiguration()
 	TRACE_CONFIG("Number of CPU cores to use: %d\n", CONFIG.num_cores);
 	TRACE_CONFIG("Maximum number of concurrency per core: %d\n", 
 			CONFIG.max_concurrency);
+	TRACE_CONFIG("Number of source ip to use: %d\n", CONFIG.num_ip);
 	if (CONFIG.multi_process == 1) {
 		TRACE_CONFIG("Multi-process support is enabled and current core is: %d\n",
 			     CONFIG.multi_process_curr_core);

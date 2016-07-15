@@ -31,6 +31,7 @@ struct mtcp_conf
 {
 	int num_cores;
 	int max_concurrency;
+	int num_ip;
 
 	int max_num_buffers;
 	int rcvbuf_size;

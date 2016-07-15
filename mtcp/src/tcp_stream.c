@@ -263,6 +263,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->sndvar->wscale_peer = 0;
 	stream->sndvar->nif_out = GetOutputInterface(stream->daddr);
 
+	next_seed = time(NULL);
 	stream->sndvar->iss = rand_r(&next_seed) % TCP_MAX_SEQ;
 	//stream->sndvar->iss = 0;
 	stream->rcvvar->irs = 0;

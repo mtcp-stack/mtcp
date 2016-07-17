@@ -1039,7 +1039,7 @@ static inline void
 Handle_TCP_ST_FIN_WAIT_2 (mtcp_manager_t mtcp, uint32_t cur_ts,
 		tcp_stream* cur_stream, struct tcphdr* tcph, uint32_t seq, uint32_t ack_seq,
 		uint8_t *payload, int payloadlen, uint16_t window)
-{	
+{
 	if (tcph->ack) {
 		if (cur_stream->sndvar->sndbuf) {
 			ProcessACK(mtcp, cur_stream, cur_ts, 
@@ -1154,16 +1154,25 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 		return ERROR;
 
 #if VERIFY_RX_CHECKSUM
-	check = TCPCalcChecksum((uint16_t *)tcph, 
-			(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr);
-	if (check) {
-		tcph->check = 0;
-		TRACE_DBG("Checksum Error: Original: 0x%04x, calculated: 0x%04x\n", 
-				check, TCPCalcChecksum((uint16_t *)tcph, 
-				(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr));
-		return ERROR;
+#ifdef ENABLELRO
+	if (tcph->check) 
+#endif
+	{
+		check = TCPCalcChecksum((uint16_t *)tcph, 
+					(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr);
+		if (check) {
+			TRACE_DBG("Checksum Error: Original: 0x%04x, calculated: 0x%04x\n", 
+				  tcph->check, TCPCalcChecksum((uint16_t *)tcph, 
+				  (tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr));
+			tcph->check = 0;
+			return ERROR;
+		}
 	}
 #endif
+
+#if defined(NETSTAT) && defined(ENABLELRO)
+	mtcp->nstat.rx_gdptbytes += payloadlen;
+#endif /* NETSTAT */
 
 	s_stream.saddr = iph->daddr;
 	s_stream.sport = tcph->dest;

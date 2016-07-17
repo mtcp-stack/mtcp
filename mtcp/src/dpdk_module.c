@@ -15,6 +15,7 @@
 #include <rte_ethdev.h>
 /* for delay funcs */
 #include <rte_cycles.h>
+#include <rte_errno.h>
 #define ENABLE_STATS_IOCTL		1
 #ifdef ENABLE_STATS_IOCTL
 /* for close */
@@ -31,7 +32,11 @@
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
 #define MAX_TX_QUEUE_PER_PORT		MAX_CPUS
 
+#ifdef ENABLELRO
+#define MBUF_SIZE 			(16384 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
+#else
 #define MBUF_SIZE 			(2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
+#endif /* !ENABLELRO */
 #define NB_MBUF				8192
 #define MEMPOOL_CACHE_SIZE		256
 
@@ -84,6 +89,9 @@ static struct rte_eth_conf port_conf = {
 		.hw_vlan_filter = 	0, /**< VLAN filtering disabled */
 		.jumbo_frame    = 	0, /**< Jumbo Frame Support disabled */
 		.hw_strip_crc   = 	1, /**< CRC stripped by hardware */
+#ifdef ENABLELRO
+		.enable_lro	=	1, /**< Enable LRO */
+#endif
 	},
 	.rx_adv_conf = {
 		.rss_conf = {
@@ -139,6 +147,9 @@ struct dpdk_private_context {
 	struct mbuf_table wmbufs[RTE_MAX_ETHPORTS];
 	struct rte_mempool *pktmbuf_pool;
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
+#ifdef ENABLELRO
+	struct rte_mbuf *cur_rx_m;
+#endif
 #ifdef ENABLE_STATS_IOCTL
 	int fd;
 #endif /* !ENABLE_STATS_IOCTL */
@@ -320,7 +331,7 @@ free_pkts(struct rte_mbuf **mtable, unsigned len)
 
 	/* free the freaking packets */
 	for (i = 0; i < len; i++) {
-		rte_pktmbuf_free_seg(mtable[i]);
+		rte_pktmbuf_free(mtable[i]);
 		RTE_MBUF_PREFETCH_TO_FREE(mtable[i+1]);
 	}
 }
@@ -355,7 +366,6 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 
 	dpc = (struct dpdk_private_context *) ctxt->io_private_context;	
 
-
 	m = dpc->pkts_burst[index];
 	//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 	*len = m->pkt_len;
@@ -363,6 +373,10 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 
 	/* enqueue the pkt ptr in mbuf */
 	dpc->rmbufs[ifidx].m_table[index] = m;
+
+#ifdef ENABLELRO
+	dpc->cur_rx_m = m;
+#endif /* ENABLELRO */
 
 	return pktbuf;
 }
@@ -529,7 +543,8 @@ dpdk_load_module(void)
 						   rte_pktmbuf_init, NULL,
 						   rte_socket_id(), 0);
 			if (pktmbuf_pool[rxlcore_id] == NULL)
-				rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");	
+				rte_exit(EXIT_FAILURE, "Cannot init mbuf pool, errno: %d\n",
+					 rte_errno);	
 		}
 		
 		/* Initialise each port */
@@ -633,7 +648,10 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 	int len_of_mbuf;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
-
+#ifdef ENABLELRO
+	uint8_t *payload, *to;
+	int seg_off;
+#endif
 	iph = (struct iphdr *)argp;
 	dpc = (struct dpdk_private_context *)ctx->io_private_context;
 	len_of_mbuf = dpc->wmbufs[nif].len;
@@ -651,6 +669,33 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		m->ol_flags |= PKT_TX_TCP_CKSUM;
 		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
 		break;
+#ifdef ENABLELRO
+	case PKT_RX_TCP_LROSEG:
+		m = dpc->cur_rx_m;
+		//if (m->next != NULL)
+		//	rte_prefetch0(rte_pktmbuf_mtod(m->next, void *));
+		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct ether_hdr));
+		tcph = (struct tcphdr *)((u_char *)iph + (iph->ihl << 2));
+		payload = (uint8_t *)tcph + (tcph->doff << 2);
+
+		seg_off = m->data_len -
+			sizeof(struct ether_hdr) - (iph->ihl << 2) -
+			(tcph->doff << 2);
+
+		to = (uint8_t *) argp;
+		m = m->next;
+		memcpy(to, payload, seg_off);
+		while (m != NULL) {
+			//if (m->next != NULL)
+			//	rte_prefetch0(rte_pktmbuf_mtod(m->next, void *));
+			memcpy(to + seg_off,
+			       rte_pktmbuf_mtod(m, uint8_t *),
+			       m->data_len);
+			seg_off += m->data_len;
+			m = m->next;
+		}
+		break;
+#endif
 	default:
 		goto dev_ioctl_err;
 	}

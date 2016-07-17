@@ -76,6 +76,7 @@ extern io_module_func *current_iomodule_func;
 /* dev_ioctl related macros */
 #define PKT_TX_IP_CSUM          0x01
 #define PKT_TX_TCP_CSUM         0x02
+#define PKT_RX_TCP_LROSEG	0x03
 
 /* registered psio context */
 #ifdef DISABLE_PSIO

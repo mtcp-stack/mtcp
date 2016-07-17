@@ -70,6 +70,7 @@ static int sigint_cnt[MAX_CPUS] = {0};
 static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
+static unsigned max_pkt_size[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
@@ -179,13 +180,17 @@ PrintThreadNetworkStats(mtcp_manager_t mtcp, struct net_stat *ns)
 		if (CONFIG.eths[i].stat_print) {
 			fprintf(stderr, "[CPU%2d] %s flows: %6u, "
 					"RX: %7ld(pps) (err: %5ld), %5.2lf(Gbps), "
-					"TX: %7ld(pps), %5.2lf(Gbps)\n", 
+					"TX: %7ld(pps), %5.2lf(Gbps), max_pkt_size: %u\n", 
 					mtcp->ctx->cpu, CONFIG.eths[i].dev_name, mtcp->flow_cnt, 
 					ns->rx_packets[i], ns->rx_errors[i], GBPS(ns->rx_bytes[i]), 
-					ns->tx_packets[i], GBPS(ns->tx_bytes[i]));
+				ns->tx_packets[i], GBPS(ns->tx_bytes[i]), max_pkt_size[mtcp->ctx->cpu]);
 		}
 #endif
 	}
+#ifdef ENABLELRO
+	ns->rx_gdptbytes = mtcp->nstat.rx_gdptbytes - mtcp->p_nstat.rx_gdptbytes;
+	ns->tx_gdptbytes = mtcp->nstat.tx_gdptbytes - mtcp->p_nstat.tx_gdptbytes;
+#endif
 	mtcp->p_nstat = mtcp->nstat;
 
 }
@@ -272,6 +277,10 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 				g_nstat.tx_drops[j] += ns.tx_drops[j];
 				g_nstat.tx_bytes[j] += ns.tx_bytes[j];
 			}
+#ifdef ENABLELRO
+			g_nstat.rx_gdptbytes += ns.rx_gdptbytes;
+			g_nstat.tx_gdptbytes += ns.tx_gdptbytes;
+#endif
 #endif
 		}
 	}
@@ -286,6 +295,10 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 					GBPS(g_nstat.tx_bytes[i]));
 		}
 	}
+#ifdef ENABLELRO
+	fprintf(stderr, "[ ALL ] Goodput RX: %5.2lf(Gbps), TX: %5.2lf(Gbps)\n",
+			GBPS(g_nstat.rx_gdptbytes), GBPS(g_nstat.tx_gdptbytes));
+#endif
 #endif
 
 #if ROUND_STAT
@@ -750,6 +763,8 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 				uint16_t len;
 				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
+				max_pkt_size[mtcp->ctx->cpu] = (max_pkt_size[mtcp->ctx->cpu] < len) ?
+					len : max_pkt_size[mtcp->ctx->cpu];
 				ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
 			}
 		}
@@ -908,7 +923,11 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 		CTRACE_ERROR("Failed to create send ring buffer.\n");
 		return NULL;
 	}
+#ifdef ENABLELRO
+	mtcp->rbm_rcv = RBManagerCreate(mtcp, CONFIG.rcvbuf_size, CONFIG.max_num_buffers);
+#else
 	mtcp->rbm_rcv = RBManagerCreate(CONFIG.rcvbuf_size, CONFIG.max_num_buffers);
+#endif
 	if (!mtcp->rbm_rcv) {
 		CTRACE_ERROR("Failed to create recv ring buffer.\n");
 		return NULL;

@@ -25,6 +25,9 @@ enum rb_caller
 	AT_MTCP
 };
 /*----------------------------------------------------------------------------*/
+#ifdef ENABLELRO
+typedef struct mtcp_manager* mtcp_manager_t;
+#endif
 typedef struct rb_manager* rb_manager_t;
 /*----------------------------------------------------------------------------*/
 struct fragment_ctx
@@ -60,7 +63,11 @@ void RBPrintInfo(struct tcp_ring_buffer* buff);
 void RBPrintStr(struct tcp_ring_buffer* buff);
 void RBPrintHex(struct tcp_ring_buffer* buff);
 /*----------------------------------------------------------------------------*/
+#ifdef ENABLELRO
+rb_manager_t RBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum);
+#else
 rb_manager_t RBManagerCreate(size_t chunk_size, uint32_t cnum);
+#endif
 /*----------------------------------------------------------------------------*/
 struct tcp_ring_buffer* RBInit(rb_manager_t rbm,  uint32_t init_seq);
 void RBFree(rb_manager_t rbm, struct tcp_ring_buffer* buff);

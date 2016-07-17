@@ -51,6 +51,10 @@ struct net_stat
 	uint64_t rx_packets[MAX_DEVICES];
 	uint64_t rx_bytes[MAX_DEVICES];
 	uint64_t rx_errors[MAX_DEVICES];
+#ifdef ENABLELRO
+	uint64_t tx_gdptbytes;
+	uint64_t rx_gdptbytes;
+#endif
 };
 
 struct bcast_stat

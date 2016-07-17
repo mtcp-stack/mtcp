@@ -668,6 +668,7 @@ PSLIBPATH
 DPDKLIBPATH
 NETMAP
 PSIO
+LRO
 DPDK
 LIBOBJS
 EGREP
@@ -722,6 +723,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_stuff
+enable_lro
 enable_netmap
 enable_dependency_tracking
 enable_silent_rules
@@ -1349,7 +1351,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --enable-netmap         Enable netmap module (EXPERIMENTAL)
+  --enable-lro            Enable dpdk lro (for relevant NICs)
+  --enable-netmap         Enable netmap module
   --enable-dependency-tracking
                           do not reject slow dependency extractors
   --disable-dependency-tracking
@@ -1360,7 +1363,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-dpdk-lib      path to the dpdk-2.2.0 install root
+  --with-dpdk-lib      path to the dpdk-16.04 install root
   --with-psio-lib      path to the ioengine install root
 
 Some influential environment variables:
@@ -4089,6 +4092,9 @@ done
 # Reset DPDK to 0
 DPDK=0
 
+# Reset DPDK's LRO to 0
+LRO=0
+
 # Reset PSIO to 0
 PSIO=0
 
@@ -4096,7 +4102,7 @@ PSIO=0
 NETMAP=0
 
 
-# Check dpdk-1.8.0 path (lib & inc)
+# Check dpdk-16.04 path (lib & inc)
 
 # Check whether --with-stuff was given.
 if test "${with_stuff+set}" = set; then :
@@ -4109,6 +4115,20 @@ then
 
 	DPDK=1
 
+fi
+# Check whether --enable-lro was given.
+if test "${enable_lro+set}" = set; then :
+  enableval=$enable_lro;
+fi
+
+
+if test "$with_dpdk_lib" != ""
+then
+	if test "x$enable_lro" = "xyes"
+	then
+		LRO=1
+
+	fi
 fi
 
 # Check psio path (lib & inc)

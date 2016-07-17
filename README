@@ -156,6 +156,16 @@ mTCP can be prepared in two ways.
    simultaneous instances of the server in multi-process mode.
    Please see apps/example/README for details.  
 
+8. #NEW#: mTCP-dpdk's large receive offload (LRO) mode can be
+   enabled by running:
+
+   	   # ./configure --with-dpdk-lib=`echo $PWD`/dpdk --enable-lro
+
+   This mode is currently disabled by default as the patch
+   may be revised in future commits.
+
+
+
 - NETMAP VERSION -
 ------------------
 Please see README.netmap for details.

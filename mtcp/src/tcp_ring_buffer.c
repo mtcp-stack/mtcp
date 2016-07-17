@@ -12,7 +12,14 @@
 #define MAX_RB_SIZE (16*1024*1024)
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
-
+#ifdef ENABLELRO
+#define __MEMCPY_DATA_2_BUFFER						\
+	mtcp_manager_t mtcp = rbm->mtcp;				\
+	if (mtcp->iom == &dpdk_module_func && len > TCP_DEFAULT_MSS)	\
+		mtcp->iom->dev_ioctl(mtcp->ctx, 0, PKT_RX_TCP_LROSEG, buff->head + putx); \
+	else								\
+		memcpy(buff->head + putx, data, len);
+#endif
 /*----------------------------------------------------------------------------*/
 struct rb_manager
 {
@@ -25,7 +32,9 @@ struct rb_manager
 
 	rb_frag_queue_t free_fragq;		/* free fragment queue (for app thread) */
 	rb_frag_queue_t free_fragq_int;	/* free fragment quuee (only for mtcp) */
-
+#ifdef ENABLELRO
+	mtcp_manager_t mtcp;
+#endif
 } rb_manager;
 /*----------------------------------------------------------------------------*/
 uint32_t
@@ -66,7 +75,11 @@ RBPrintHex(struct tcp_ring_buffer* buff)
 }
 /*----------------------------------------------------------------------------*/
 rb_manager_t
+#ifdef ENABLELRO
+RBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum)
+#else
 RBManagerCreate(size_t chunk_size, uint32_t cnum)
+#endif
 {
 	rb_manager_t rbm = (rb_manager_t) calloc(1, sizeof(rb_manager));
 
@@ -111,6 +124,9 @@ RBManagerCreate(size_t chunk_size, uint32_t cnum)
 		return NULL;
 	}
 
+#ifdef ENABLELRO
+	rbm->mtcp = mtcp;
+#endif
 	return rbm;
 }
 /*----------------------------------------------------------------------------*/
@@ -290,8 +306,13 @@ RBPut(rb_manager_t rbm, struct tcp_ring_buffer* buff,
 		buff->head_offset = 0;
 		buff->head = buff->data;
 	}
+#ifdef ENABLELRO
+	// copy data to buffer
+	__MEMCPY_DATA_2_BUFFER;
+#else
 	//copy data to buffer
 	memcpy(buff->head + putx, data, len);
+#endif
 	if (buff->tail_offset < buff->head_offset + end_off) 
 		buff->tail_offset = buff->head_offset + end_off;
 	buff->last_len = buff->tail_offset - buff->head_offset;

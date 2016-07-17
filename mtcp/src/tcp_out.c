@@ -192,8 +192,11 @@ SendTCPPacketStandalone(struct mtcp_manager *mtcp,
 	// copy payload if exist
 	if (payloadlen > 0) {
 		memcpy((uint8_t *)tcph + TCP_HEADER_LEN + optlen, payload, payloadlen);
+#if defined(NETSTAT) && defined(ENABLELRO)
+		mtcp->nstat.tx_gdptbytes += payloadlen;
+#endif /* NETSTAT */
 	}
-
+		
 #if TCP_CALCULATE_CHECKSUM
 	tcph->check = TCPCalcChecksum((uint16_t *)tcph, 
 			TCP_HEADER_LEN + optlen + payloadlen, saddr, daddr);
@@ -300,6 +303,9 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	// copy payload if exist
 	if (payloadlen > 0) {
 		memcpy((uint8_t *)tcph + TCP_HEADER_LEN + optlen, payload, payloadlen);
+#if defined(NETSTAT) && defined(ENABLELRO)
+		mtcp->nstat.tx_gdptbytes += payloadlen;
+#endif /* NETSTAT */
 	}
 
 #if TCP_CALCULATE_CHECKSUM
@@ -328,7 +334,7 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 				cur_ts, cur_stream->sndvar->rto, cur_stream->sndvar->ts_rto);
 		AddtoRTOList(mtcp, cur_stream);
 	}
-
+		
 	return payloadlen;
 }
 /*----------------------------------------------------------------------------*/

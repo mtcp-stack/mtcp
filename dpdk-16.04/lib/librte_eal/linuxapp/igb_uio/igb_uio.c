@@ -596,7 +596,7 @@ igbuio_pci_remove(struct pci_dev *dev)
 		iounmap(udev->adapter->hw._ixgbe_hw.hw_addr);
 		break;
 	case IGB:
-		iounmap(udev->adapter->hw._ixgbe_hw.hw_addr);
+		iounmap(udev->adapter->hw._e1000_hw.hw_addr);
 		break;
 	}
 	free_netdev(netdev);

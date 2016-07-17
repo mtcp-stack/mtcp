@@ -1905,6 +1905,7 @@ main(int argc, char **argv) {
 
 	/* This part of code is only executed in the single-process, single-threaded version (non-mtcp/non-multithreaded) */
 	/* Under USE_MTCP settings, each individual `running_thread' executes the `main-loop' */
+	/* In USE_MTCP settings main thread will execute the flowing step */
 	/* main-loop */
 	while (!srv_shutdown) {
 		int n;

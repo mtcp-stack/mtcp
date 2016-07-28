@@ -255,7 +255,7 @@ SetInterfaceInfo(char* dev_name_list)
 					CONFIG.eths[eidx].netmask = *(uint32_t *)&sin;
 				}
 				close(sock);
-				
+				/* find out interface index */
 				for (j = 0; j < num_devices; j++) {
 					if (!memcmp(&CONFIG.eths[eidx].haddr[0], &ports_eth_addr[j],
 						    ETH_ALEN))

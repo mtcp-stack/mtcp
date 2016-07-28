@@ -235,7 +235,7 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 {
 	struct dpdk_private_context *dpc;
 	mtcp_manager_t mtcp;
-	int ret, i;
+	int ret, i,ifo;
 	
 	dpc = (struct dpdk_private_context *)ctxt->io_private_context;
 	mtcp = ctxt->mtcp_manager;
@@ -265,7 +265,8 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 #endif
 		do {
 			/* tx cnt # of packets */
-			ret = rte_eth_tx_burst(nif, ctxt->cpu, 
+			ifo = nif % num_devices;
+			ret = rte_eth_tx_burst(ifo, ctxt->cpu, 
 					       pkts, cnt);
 			pkts += ret;
 			cnt -= ret;
@@ -340,7 +341,7 @@ int32_t
 dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
 	struct dpdk_private_context *dpc;
-	int ret;
+	int ret,ifi;
 
 	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
 
@@ -349,7 +350,8 @@ dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 		dpc->rmbufs[ifidx].len = 0;
 	}
 
-	ret = rte_eth_rx_burst((uint8_t)ifidx, ctxt->cpu,
+	ifi = ifidx % num_devices;
+	ret = rte_eth_rx_burst((uint8_t)ifi, ctxt->cpu,
 			       dpc->pkts_burst, MAX_PKT_BURST);
 
 	dpc->rmbufs[ifidx].len = ret;
@@ -548,7 +550,7 @@ dpdk_load_module(void)
 		}
 		
 		/* Initialise each port */
-		for (portid = 0; portid < num_devices_attached; portid++) {
+		for (portid = 0; portid < num_devices ; portid++) {
 			/* init port */
 			printf("Initializing port %u... ", (unsigned) portid);
 			fflush(stdout);
@@ -590,7 +592,7 @@ dpdk_load_module(void)
 					 ret, (unsigned) portid);
 			
 			printf("done: \n");
-			rte_eth_promiscuous_enable(portid);
+			//rte_eth_promiscuous_enable(portid);
 			
                         /* retrieve current flow control settings per port */
 			memset(&fc_conf, 0, sizeof(fc_conf));
@@ -637,7 +639,7 @@ dpdk_load_module(void)
 #endif
 	}
 	
-	check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
+	check_all_ports_link_status(num_devices, 0xFFFFFFFF);
 }
 /*----------------------------------------------------------------------------*/
 int32_t

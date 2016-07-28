@@ -820,7 +820,9 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			ts_prev = ts;
 			if (ctx->cpu == mtcp_master) {
 				ARPTimer(mtcp, ts);
+#ifdef NETSTAT
 				PrintNetworkStats(mtcp, ts);
+#endif
 			}
 		}
 

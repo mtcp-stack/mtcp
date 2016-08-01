@@ -77,7 +77,7 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 			*(int *)optval = ETIMEDOUT;
 			*optlen = sizeof(int);
 
-			return 0;
+			return -1;
 		}
 	}
 
@@ -87,12 +87,12 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 			*(int *)optval = ECONNRESET;
 			*optlen = sizeof(int);
 
-			return 0;
+			return -1;
 		}
 	}
 
-	errno = ENOSYS;
-	return -1;
+//	errno = ENOSYS;
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 int 
@@ -135,8 +135,8 @@ mtcp_getsockopt(mctx_t mctx, int sockid, int level,
 		}
 	}
 
-	errno = ENOSYS;
-	return -1;
+//	errno = ENOSYS;
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 int 

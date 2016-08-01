@@ -38,12 +38,18 @@ char *close_reason_str[] = {
 };
 /*---------------------------------------------------------------------------*/
 /* for rand_r() functions */
-static __thread unsigned int next_seed = 1;
+static __thread unsigned int next_seed;
 /*---------------------------------------------------------------------------*/
 inline char *
 TCPStateToString(const tcp_stream *stream)
 {
 	return state_str[stream->state];
+}
+/*---------------------------------------------------------------------------*/
+inline void
+InitializeTCPStreamManager()
+{
+	next_seed = time(NULL);
 }
 /*---------------------------------------------------------------------------*/
 unsigned int

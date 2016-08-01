@@ -91,6 +91,18 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 		}
 	}
 
+	/*
+	 * `base case`: If socket sees no so_error, then
+	 * this also means close_reason will always be
+	 * TCP_NOT_CLOSED. 
+	 */
+	if (cur_stream->close_reason == TCP_NOT_CLOSED) {
+		*(int *)optval = 0;
+		*optlen = sizeof(int);		
+		
+		return 0;
+	}
+
 	errno = ENOSYS;
 	return -1;
 }

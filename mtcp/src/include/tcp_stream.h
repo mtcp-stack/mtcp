@@ -228,4 +228,7 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream);
 void 
 DumpStream(mtcp_manager_t mtcp, tcp_stream *stream);
 
+extern inline void
+InitializeTCPStreamManager();
+
 #endif /* __TCP_STREAM_H_ */

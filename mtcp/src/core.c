@@ -70,7 +70,6 @@ static int sigint_cnt[MAX_CPUS] = {0};
 static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
-static unsigned max_pkt_size[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
@@ -180,10 +179,10 @@ PrintThreadNetworkStats(mtcp_manager_t mtcp, struct net_stat *ns)
 		if (CONFIG.eths[i].stat_print) {
 			fprintf(stderr, "[CPU%2d] %s flows: %6u, "
 					"RX: %7ld(pps) (err: %5ld), %5.2lf(Gbps), "
-					"TX: %7ld(pps), %5.2lf(Gbps), max_pkt_size: %u\n", 
+					"TX: %7ld(pps), %5.2lf(Gbps)\n", 
 					mtcp->ctx->cpu, CONFIG.eths[i].dev_name, mtcp->flow_cnt, 
 					ns->rx_packets[i], ns->rx_errors[i], GBPS(ns->rx_bytes[i]), 
-				ns->tx_packets[i], GBPS(ns->tx_bytes[i]), max_pkt_size[mtcp->ctx->cpu]);
+				ns->tx_packets[i], GBPS(ns->tx_bytes[i]));
 		}
 #endif
 	}
@@ -763,8 +762,6 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 				uint16_t len;
 				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
-				max_pkt_size[mtcp->ctx->cpu] = (max_pkt_size[mtcp->ctx->cpu] < len) ?
-					len : max_pkt_size[mtcp->ctx->cpu];
 				ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
 			}
 		}
@@ -934,6 +931,8 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 		CTRACE_ERROR("Failed to create recv ring buffer.\n");
 		return NULL;
 	}
+
+	InitializeTCPStreamManager();
 
 	mtcp->smap = (socket_map_t)calloc(CONFIG.max_concurrency, sizeof(struct socket_map));
 	if (!mtcp->smap) {

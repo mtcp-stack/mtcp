@@ -161,7 +161,7 @@ SetInterfaceInfo(char* dev_name_list)
 		for (ret = 0; ret < cpu; ret++)
 			cpumask = (cpumask | (1 << ret));
 		sprintf(cpumaskbuf, "%X", cpumask);
-
+printf("\n\ncpumask:%x\n",cpumask);
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {
 			TRACE_ERROR("DPDK module requires # of memory channels "

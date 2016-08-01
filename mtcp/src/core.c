@@ -1170,6 +1170,7 @@ mtcp_create_context(int cpu)
 #ifndef DISABLE_DPDK
 		int master;
 		master = rte_get_master_lcore();
+		printf("master:%d cpu:%d\n",master,cpu);
 		if (master == cpu) {
 			lcore_config[master].ret = 0;
 			lcore_config[master].state = FINISHED;

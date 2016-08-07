@@ -75,7 +75,7 @@ for reading.
 .\"""""POSIX.1-2001.
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH AUTHORS
-mTCP development team <mtcp@list.ndsl.kaist.edu>
+mTCP development team <mtcp-user@list.ndsl.kaist.edu>
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH SEE ALSO
 .BR mtcp_bind (),

@@ -44,7 +44,7 @@ It is suggested that the user creates only 1 mTCP context thread
 per core for performance reasons.
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH AUTHORS
-mTCP development team <mtcp@list.ndsl.kaist.edu>
+mTCP development team <mtcp-user@list.ndsl.kaist.edu>
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH SEE ALSO
 .BR mtcp_destroy_context (),

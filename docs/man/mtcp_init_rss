@@ -72,7 +72,7 @@ See
 for details on symmetric Receive-Side Scaling (RSS).
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH AUTHORS
-mTCP development team <mtcp@list.ndsl.kaist.edu>
+mTCP development team <mtcp-user@list.ndsl.kaist.edu>
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH SEE ALSO
 .BR mtcp_init (),

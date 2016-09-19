@@ -500,8 +500,8 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 			sndvar->fss = stream->snd_nxt;
 		}
 
-		if (CONFIG.tcp_timeout > 0)
-			RemoveFromTimeoutList(mtcp, stream);
+		/*if (CONFIG.tcp_timeout > 0)
+			RemoveFromTimeoutList(mtcp, stream);*/
 
 		if (stream->have_reset) {
 			handled++;

@@ -77,6 +77,9 @@ RemoveFromRTOList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 inline void 
 AddtoTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 {
+	if (CONFIG.tcp_timeout > 0)
+		RemoveFromTimeoutList(mtcp, cur_stream);
+
 	cur_stream->rcvvar->ts_tw_expire = cur_ts + CONFIG.tcp_timewait;
 
 	if (cur_stream->on_timewait_list) {

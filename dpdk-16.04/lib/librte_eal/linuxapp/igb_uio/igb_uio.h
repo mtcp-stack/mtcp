@@ -297,7 +297,11 @@ static const struct net_device_ops netdev_ops = {
         .ndo_get_vf_config      = NULL,
         .ndo_get_stats          = netdev_stats,
         .ndo_setup_tc           = NULL,
+#ifdef CONFIG_NET_POLL_CONTROLLER
         .ndo_poll_controller    = netdev_no_ret,
+        .ndo_netpoll_setup      = NULL,
+        .ndo_netpoll_cleanup    = NULL,
+#endif
         .ndo_set_features 	= netdev_set_features,
         .ndo_fix_features 	= netdev_fix_features,
         .ndo_fdb_add            = NULL,

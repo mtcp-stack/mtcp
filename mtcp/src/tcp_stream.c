@@ -496,7 +496,9 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 		if (mtcp->ap) {
 			ret = FreeAddress(mtcp->ap, &addr);
 		} else {
-			ret = FreeAddress(ap, &addr);
+			int nif;
+			nif = GetOutputInterface(addr.sin_addr.s_addr);
+			ret = FreeAddress(ap[nif], &addr);
 		}
 		if (ret < 0) {
 			TRACE_ERROR("(NEVER HAPPEN) Failed to free address.\n");

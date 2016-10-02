@@ -70,6 +70,7 @@ static int sigint_cnt[MAX_CPUS] = {0};
 static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
+static unsigned max_pkt_size[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
@@ -96,7 +97,8 @@ HandleSignal(int signal)
 				}
 			} else {
 				for (i = 0; i < num_cpus; i++) {
-					g_pctx[i]->interrupt = TRUE;
+					if (running[i])
+						g_pctx[i]->interrupt = TRUE;
 				}
 				if (!app_signal_handler) {
 					for (i = 0; i < num_cpus; i++) {
@@ -179,10 +181,10 @@ PrintThreadNetworkStats(mtcp_manager_t mtcp, struct net_stat *ns)
 		if (CONFIG.eths[i].stat_print) {
 			fprintf(stderr, "[CPU%2d] %s flows: %6u, "
 					"RX: %7ld(pps) (err: %5ld), %5.2lf(Gbps), "
-					"TX: %7ld(pps), %5.2lf(Gbps)\n", 
+					"TX: %7ld(pps), %5.2lf(Gbps), max_pkt_size: %u\n", 
 					mtcp->ctx->cpu, CONFIG.eths[i].dev_name, mtcp->flow_cnt, 
 					ns->rx_packets[i], ns->rx_errors[i], GBPS(ns->rx_bytes[i]), 
-				ns->tx_packets[i], GBPS(ns->tx_bytes[i]));
+				ns->tx_packets[i], GBPS(ns->tx_bytes[i]), max_pkt_size[mtcp->ctx->cpu]);
 		}
 #endif
 	}
@@ -692,7 +694,7 @@ DestroyRemainingFlows(mtcp_manager_t mtcp)
 #endif
 	for (i = 0; i < NUM_BINS; i++) {
 		TAILQ_FOREACH(walk, &ht->ht_table[i], rcvvar->he_link) {
-#if 0
+#ifdef DUMP_STREAM
 			thread_printf(mtcp, mtcp->log_fp, 
 					"CPU %d: Destroying stream %d\n", mtcp->ctx->cpu, walk->id);
 			DumpStream(mtcp, walk);
@@ -762,6 +764,8 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 				uint16_t len;
 				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
+				max_pkt_size[mtcp->ctx->cpu] = (max_pkt_size[mtcp->ctx->cpu] < len) ?
+					len : max_pkt_size[mtcp->ctx->cpu];
 				ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
 			}
 		}
@@ -1219,7 +1223,9 @@ mtcp_destroy_context(mctx_t mctx)
 			if (mtcp->smap[i].socktype == MTCP_SOCK_STREAM) {
 				TRACE_DBG("Closing remaining socket %d (%s)\n", 
 						i, TCPStateToString(mtcp->smap[i].stream));
+#ifdef DUMP_STREAM
 				DumpStream(mtcp, mtcp->smap[i].stream);
+#endif
 				mtcp_close(mctx, i);
 			}
 		}
@@ -1385,7 +1391,7 @@ mtcp_setconf(const struct mtcp_conf *conf)
 }
 /*----------------------------------------------------------------------------*/
 int 
-mtcp_init(char *config_file)
+mtcp_init(const char *config_file)
 {
 	int i;
 	int ret;
@@ -1421,11 +1427,13 @@ mtcp_init(char *config_file)
 	}
 	PrintConfiguration();
 
-	/* TODO: this should be fixed */
-	ap = CreateAddressPool(CONFIG.eths[0].ip_addr, 1);
-	if (!ap) {
-		TRACE_CONFIG("Error occured while creating address pool.\n");
-		return -1;
+	for (i = 0; i < CONFIG.eths_num; i++) {
+		ap[i] = CreateAddressPool(CONFIG.eths[i].ip_addr, 1);
+		if (!ap[i]) {
+			TRACE_CONFIG("Error occured while create address pool[%d]\n",
+				     i);
+			return -1;
+		}
 	}
 	
 	PrintInterfaceInfo();
@@ -1468,7 +1476,8 @@ mtcp_destroy()
 		}
 	}
 
-	DestroyAddressPool(ap);
+	for (i = 0; i < CONFIG.eths_num; i++)
+		DestroyAddressPool(ap[i]);
 
 	TRACE_INFO("All MTCP threads are joined.\n");
 }

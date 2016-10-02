@@ -298,9 +298,9 @@ struct mtcp_thread_context
 /*----------------------------------------------------------------------------*/
 typedef struct mtcp_thread_context* mtcp_thread_context_t;
 /*----------------------------------------------------------------------------*/
-struct mtcp_manager *g_mtcp[MAX_CPUS];
-struct mtcp_config CONFIG;
-addr_pool_t ap;
+extern struct mtcp_manager *g_mtcp[MAX_CPUS];
+extern struct mtcp_config CONFIG;
+extern addr_pool_t ap[ETH_NUM];
 /*----------------------------------------------------------------------------*/
 
 #endif /* __MTCP_H_ */

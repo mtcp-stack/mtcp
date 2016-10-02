@@ -392,7 +392,8 @@ wait:
 				deadline.tv_sec += sec;
 				timeout -= sec * 1000;
 			}
-			deadline.tv_nsec += timeout*1000000;
+
+			deadline.tv_nsec += timeout * 1000000;
 
 			if (deadline.tv_nsec >= 1000000000) {
 				deadline.tv_sec++;

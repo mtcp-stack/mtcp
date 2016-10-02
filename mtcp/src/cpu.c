@@ -54,7 +54,7 @@ mtcp_core_affinitize(int cpu)
 	if (numa_max_node() == 0)
 		return ret;
 
-	bmask = numa_bitmask_alloc(n);
+	bmask = numa_bitmask_alloc(numa_max_node() + 1);
 	assert(bmask);
 
 	/* read physical id of the core from sys information */

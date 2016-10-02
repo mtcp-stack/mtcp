@@ -1,5 +1,5 @@
 TARGETS = epserver epwget
-CC=@CC@ -g -O3
+CC=@CC@ -g -O3 -Wall -Werror
 DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@

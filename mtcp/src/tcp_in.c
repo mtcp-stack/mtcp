@@ -205,7 +205,7 @@ ProcessRST(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t ack_seq)
 	}
 
 	if (cur_stream->state == TCP_ST_SYN_RCVD) {
-		if (ack_seq == cur_stream->rcv_nxt) {
+		if (ack_seq == cur_stream->snd_nxt) {
 			cur_stream->state = TCP_ST_CLOSED;
 			cur_stream->close_reason = TCP_RESET;
 			DestroyTCPStream(mtcp, cur_stream);
@@ -1197,7 +1197,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 #ifdef DBGMSG
 			DumpIPPacket(mtcp, iph, ip_len);
 #endif
-#if DUMP_STREAM
+#ifdef DUMP_STREAM
 			DumpStream(mtcp, cur_stream);
 #endif
 			return TRUE;

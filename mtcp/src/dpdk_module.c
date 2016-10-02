@@ -39,6 +39,9 @@
 #endif /* !ENABLELRO */
 #define NB_MBUF				8192
 #define MEMPOOL_CACHE_SIZE		256
+//#define RX_IDLE_ENABLE			1
+#define RX_IDLE_TIMEOUT			1	/* in micro-seconds */
+#define RX_IDLE_THRESH			64
 
 /*
  * RX and TX Prefetch, Host, and Write-back threshold values should be
@@ -147,6 +150,9 @@ struct dpdk_private_context {
 	struct mbuf_table wmbufs[RTE_MAX_ETHPORTS];
 	struct rte_mempool *pktmbuf_pool;
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
+#ifdef RX_IDLE_ENABLE
+	uint8_t rx_idle;
+#endif
 #ifdef ENABLELRO
 	struct rte_mbuf *cur_rx_m;
 #endif
@@ -351,7 +357,9 @@ dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 
 	ret = rte_eth_rx_burst((uint8_t)ifidx, ctxt->cpu,
 			       dpc->pkts_burst, MAX_PKT_BURST);
-
+#ifdef RX_IDLE_ENABLE	
+	dpc->rx_idle = (likely(ret != 0)) ? 0 : dpc->rx_idle + 1;
+#endif
 	dpc->rmbufs[ifidx].len = ret;
 
 	return ret;
@@ -384,8 +392,15 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 int32_t
 dpdk_select(struct mtcp_thread_context *ctxt)
 {
-	/* this is empty as dpdk is non-blocking */
-
+#ifdef RX_IDLE_ENABLE
+	struct dpdk_private_context *dpc;
+	
+	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
+	if (dpc->rx_idle > RX_IDLE_THRESH) {
+		dpc->rx_idle = 0;
+		usleep(RX_IDLE_TIMEOUT);
+	}
+#endif
 	return 0;
 }
 /*----------------------------------------------------------------------------*/

@@ -1,0 +1,171 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Fri Sep 30 22:26:50 2016 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>mtcp_getsockname</title>
+
+</head>
+<body>
+
+<h1 align="center">mtcp_getsockname</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#RETURN VALUE">RETURN VALUE</a><br>
+<a href="#ERRORS">ERRORS</a><br>
+<a href="#NOTES">NOTES</a><br>
+<a href="#AUTHORS">AUTHORS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+<a href="#COLOPHON">COLOPHON</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em">mtcp_getsockname
+&minus; get socket name</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>#include
+&lt;mtcp_api.h&gt;</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>int
+mtcp_getsockname(mctx_t</b> <i>mctx</i><b>, int</b>
+<i>sockfd</i><b>, struct sockaddr *</b><i>addr</i><b>,
+socklen_t *</b><i>addrlen</i><b>);</b></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_getsockname</b>()
+returns the current address to which the socket
+<i>sockfd</i> is bound, in the buffer pointed to by
+<i>addr.</i> The <i>addrlen</i> argument should be
+initialized to indicate the amount of space (in bytes)
+pointed to by <i>addr.</i> On return it contains the actual
+size of the socket address.</p>
+
+<p style="margin-left:11%; margin-top: 1em">An
+<b>mtcp_getsockname</b>() call takes an additional argument
+named <i>mctx</i> that represents the per-core mTCP context
+in an application (see <b>mtcp_create_context()</b> for
+details).</p>
+
+<h2>RETURN VALUE
+<a name="RETURN VALUE"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Returns zero on
+success; -1 on failure. In case of failure, <i>errno</i> is
+set appropriately.</p>
+
+<h2>ERRORS
+<a name="ERRORS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p style="margin-top: 1em"><b>EBADF</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p style="margin-top: 1em">The argument <i>sockfd</i> is
+not a valid socket descriptor.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>EINVAL</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p><i>addrlen</i> argument is invalid (e.g., is
+negative).</p> </td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="12%">
+
+
+<p><b>ENOTSOCK</b></p></td>
+<td width="3%"></td>
+<td width="74%">
+
+
+<p>The argument <i>sockfd</i> is pointing to an invalid
+mTCP socket.</p></td></tr>
+</table>
+
+<h2>NOTES
+<a name="NOTES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The third
+argument of <b>mtcp_getsockname()</b> is in reality an
+<i>int *</i> (and this is what 4.x BSD and libc4 and libc5
+have). Some POSIX confusion resulted in the present
+<i>socklen_t ,</i> also used by glibc.</p>
+
+<h2>AUTHORS
+<a name="AUTHORS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">mTCP
+development team &lt;mtcp-user@list.ndsl.kaist.edu&gt;</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>mtcp_bind</b>(),
+<b>mtcp_socket</b>()</p>
+
+<h2>COLOPHON
+<a name="COLOPHON"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page is
+part of mTCP release 3.0 <i>docs</i> section. A description
+of the project, and information about reporting bugs, can be
+found at http://shader.kaist.edu/mtcp/.</p>
+<hr>
+</body>
+</html>

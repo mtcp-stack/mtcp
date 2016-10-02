@@ -43,7 +43,7 @@ struct mtcp_conf
 typedef struct mtcp_context *mctx_t;
 
 int 
-mtcp_init(char *config_file);
+mtcp_init(const char *config_file);
 
 void 
 mtcp_destroy();
@@ -111,19 +111,28 @@ mtcp_connect(mctx_t mctx, int sockid,
 int 
 mtcp_close(mctx_t mctx, int sockid);
 
+/** Returns the current address to which the socket sockfd is bound
+ * @param [in] mctx: mtcp context
+ * @param [in] addr: address buffer to be filled
+ * @param [in] addrlen: amount of space pointed to by addr
+ * @return 0 on success, -1 on error
+ */
+int
+mtcp_getsockname(mctx_t mctx, int sock, struct sockaddr *addr, socklen_t *addrlen);
+
 ssize_t
 mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len);
 
 /* readv should work in atomic */
 int
-mtcp_readv(mctx_t mctx, int sockid, struct iovec *iov, int numIOV);
+mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV);
 
 ssize_t
-mtcp_write(mctx_t mctx, int sockid, char *buf, size_t len);
+mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len);
 
 /* writev should work in atomic */
 int
-mtcp_writev(mctx_t mctx, int sockid, struct iovec *iov, int numIOV);
+mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV);
 
 #ifdef __cplusplus
 };

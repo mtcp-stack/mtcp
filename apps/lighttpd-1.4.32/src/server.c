@@ -1196,7 +1196,7 @@ show_help(void) {
 " -f <name>  filename of the config-file\n" \
 " -m <name>  module directory (default: "LIBRARY_DIR")\n" \
 " -p         print the parsed config-file in internal form, and exit\n" \
-" -c <#cpus> number of cpu cores that lighttpd will use\n" \
+" -n <#cpus> number of cpu cores that lighttpd will use\n" \
 " -t         test the config-file, and exit\n" \
 " -D         don't go to background (default: go to background)\n" \
 " -v         show version\n" \

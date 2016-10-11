@@ -10,10 +10,6 @@
 #endif
 #include "debug.h"
 #include "memory_mgt.h"
-#ifndef DISABLE_DPDK
-#include "rte_malloc.h"
-#include "rte_lcore.h"
-#endif
 /*----------------------------------------------------------------------------*/
 typedef struct tag_mem_chunk
 {
@@ -64,7 +60,6 @@ MPCreate(int chunk_size, size_t total_size, int is_hugepage)
 	mp->mp_total_chunks = mp->mp_free_chunks;
 	total_size = chunk_size * ((size_t)mp->mp_free_chunks);
 
-#ifdef DISABLE_DPDK
 	/* allocate the big memory chunk */
 #ifdef HUGETABLE
 	if (is_hugepage == MEM_HUGEPAGE) {
@@ -93,16 +88,7 @@ MPCreate(int chunk_size, size_t total_size, int is_hugepage)
 		if (mlock(mp->mp_startptr, total_size) < 0) 
 			TRACE_ERROR("m_lock failed, size=%ld\n", total_size);
 	}
-#else /* !DISABLE_DPDK */
-	mp->mp_startptr = rte_zmalloc_socket(NULL, total_size, getpagesize(),
-					     rte_socket_id());
-	if (mp->mp_startptr == NULL) {
-		TRACE_ERROR("rte_zmalloc_socket(size=%zu, socket=%d)\n",
-			    total_size, rte_socket_id());
-		free(mp);
-		return NULL;
-	}
-#endif
+
 	mp->mp_freeptr = (mem_chunk_t)mp->mp_startptr;
 	mp->mp_freeptr->mc_free_chunks = mp->mp_free_chunks;
 	mp->mp_freeptr->mc_next = NULL;
@@ -154,7 +140,6 @@ MPFreeChunk(mem_pool_t mp, void *p)
 void
 MPDestroy(mem_pool_t mp)
 {
-#ifdef DISABLE_DPDK
 #ifdef HUGETABLE
 	if(mp->mp_type == MEM_HUGEPAGE) {
 		free_huge_pages(mp->mp_startptr);
@@ -163,9 +148,6 @@ MPDestroy(mem_pool_t mp)
 		free(mp->mp_startptr);
 #ifdef HUGETABLE
 	}
-#endif
-#else /* !DISABLE_DPDK */
-	rte_free(mp->mp_startptr);
 #endif
 	free(mp);
 }

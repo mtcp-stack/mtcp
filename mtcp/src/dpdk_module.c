@@ -208,7 +208,7 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 			    "Can't allocate memory\n");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	sprintf(mempool_name, "mbuf_pool-%d", ctxt->cpu);
 	dpc = (struct dpdk_private_context *)ctxt->io_private_context;
 	dpc->pktmbuf_pool = pktmbuf_pool[ctxt->cpu];
@@ -232,12 +232,12 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 	int max_flows;
 	int socket;
 	uint64_t frag_cycles;
-	
+
 	max_flows = CONFIG.max_concurrency / CONFIG.num_cores;
 	frag_cycles = (rte_get_tsc_hz() + MS_PER_S - 1)
 		/ MS_PER_S * max_flows;
 	socket = rte_lcore_to_socket_id(ctxt->cpu);
-	
+
 	if ((dpc->frag_tbl = rte_ip_frag_table_create(max_flows,
 						      IP_FRAG_TBL_BUCKET_ENTRIES,
 						      max_flows,
@@ -264,55 +264,55 @@ int
 dpdk_link_devices(struct mtcp_thread_context *ctxt)
 {
 	/* linking takes place during mtcp_init() */
-	
+
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
 void
 dpdk_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *pkt_data, int len)
 {
-	/* 
+	/*
 	 * do nothing over here - memory reclamation
-	 * will take place in dpdk_recv_pkts 
+	 * will take place in dpdk_recv_pkts
 	 */
 }
 /*----------------------------------------------------------------------------*/
 int
-dpdk_send_pkts(struct mtcp_thread_context *ctxt, int nif)
+dpdk_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
 	struct dpdk_private_context *dpc;
 	mtcp_manager_t mtcp;
-	int ret, i;
-	
+	int ret, i, portid = CONFIG.eths[ifidx].ifindex;
+
 	dpc = (struct dpdk_private_context *)ctxt->io_private_context;
 	mtcp = ctxt->mtcp_manager;
 	ret = 0;
-	
+
 	/* if there are packets in the queue... flush them out to the wire */
-	if (dpc->wmbufs[nif].len >/*= MAX_PKT_BURST*/ 0) {
+	if (dpc->wmbufs[ifidx].len >/*= MAX_PKT_BURST*/ 0) {
 		struct rte_mbuf **pkts;
 #ifdef ENABLE_STATS_IOCTL
 		struct stats_struct ss;
 #endif /* !ENABLE_STATS_IOCTL */
-		int cnt = dpc->wmbufs[nif].len;
-		pkts = dpc->wmbufs[nif].m_table;
+		int cnt = dpc->wmbufs[ifidx].len;
+		pkts = dpc->wmbufs[ifidx].m_table;
 #ifdef NETSTAT
-		mtcp->nstat.tx_packets[nif] += cnt;
+		mtcp->nstat.tx_packets[ifidx] += cnt;
 #ifdef ENABLE_STATS_IOCTL
 		if (likely(dpc->fd >= 0)) {
-			ss.tx_pkts = mtcp->nstat.tx_packets[nif];
-			ss.tx_bytes = mtcp->nstat.tx_bytes[nif];
-			ss.rx_pkts = mtcp->nstat.rx_packets[nif];
-			ss.rx_bytes = mtcp->nstat.rx_bytes[nif];
+			ss.tx_pkts = mtcp->nstat.tx_packets[ifidx];
+			ss.tx_bytes = mtcp->nstat.tx_bytes[ifidx];
+			ss.rx_pkts = mtcp->nstat.rx_packets[ifidx];
+			ss.rx_bytes = mtcp->nstat.rx_bytes[ifidx];
 			ss.qid = ctxt->cpu;
-			ss.dev = nif;
+			ss.dev = portid;
 			ioctl(dpc->fd, 0, &ss);
 		}
 #endif /* !ENABLE_STATS_IOCTL */
 #endif
 		do {
 			/* tx cnt # of packets */
-			ret = rte_eth_tx_burst(nif, ctxt->cpu, 
+			ret = rte_eth_tx_burst(portid, ctxt->cpu,
 					       pkts, cnt);
 			pkts += ret;
 			cnt -= ret;
@@ -320,24 +320,24 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 		} while (cnt > 0);
 
 		/* time to allocate fresh mbufs for the queue */
-		for (i = 0; i < dpc->wmbufs[nif].len; i++) {
-			dpc->wmbufs[nif].m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
+		for (i = 0; i < dpc->wmbufs[ifidx].len; i++) {
+			dpc->wmbufs[ifidx].m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
 			/* error checking */
-			if (unlikely(dpc->wmbufs[nif].m_table[i] == NULL)) {
+			if (unlikely(dpc->wmbufs[ifidx].m_table[i] == NULL)) {
 				TRACE_ERROR("Failed to allocate %d:wmbuf[%d] on device %d!\n",
-					    ctxt->cpu, i, nif);
+					    ctxt->cpu, i, ifidx);
 				exit(EXIT_FAILURE);
 			}
 		}
 		/* reset the len of mbufs var after flushing of packets */
-		dpc->wmbufs[nif].len = 0;
+		dpc->wmbufs[ifidx].len = 0;
 	}
-	
+
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
-dpdk_get_wptr(struct mtcp_thread_context *ctxt, int nif, uint16_t pktsize)
+dpdk_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t pktsize)
 {
 	struct dpdk_private_context *dpc;
 	mtcp_manager_t mtcp;
@@ -347,14 +347,14 @@ dpdk_get_wptr(struct mtcp_thread_context *ctxt, int nif, uint16_t pktsize)
 
 	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
 	mtcp = ctxt->mtcp_manager;
-	
+
 	/* sanity check */
-	if (unlikely(dpc->wmbufs[nif].len == MAX_PKT_BURST))
+	if (unlikely(dpc->wmbufs[ifidx].len == MAX_PKT_BURST))
 		return NULL;
 
-	len_of_mbuf = dpc->wmbufs[nif].len;
-	m = dpc->wmbufs[nif].m_table[len_of_mbuf];
-	
+	len_of_mbuf = dpc->wmbufs[ifidx].len;
+	m = dpc->wmbufs[ifidx].m_table[len_of_mbuf];
+
 	/* retrieve the right write offset */
 	ptr = (void *)rte_pktmbuf_mtod(m, struct ether_hdr *);
 	m->pkt_len = m->data_len = pktsize;
@@ -362,12 +362,12 @@ dpdk_get_wptr(struct mtcp_thread_context *ctxt, int nif, uint16_t pktsize)
 	m->next = NULL;
 
 #ifdef NETSTAT
-	mtcp->nstat.tx_bytes[nif] += pktsize + ETHER_OVR;
+	mtcp->nstat.tx_bytes[ifidx] += pktsize + ETHER_OVR;
 #endif
-	
+
 	/* increment the len_of_mbuf var */
-	dpc->wmbufs[nif].len = len_of_mbuf + 1;
-	
+	dpc->wmbufs[ifidx].len = len_of_mbuf + 1;
+
 	return (uint8_t *)ptr;
 }
 /*----------------------------------------------------------------------------*/
@@ -396,9 +396,10 @@ dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 		dpc->rmbufs[ifidx].len = 0;
 	}
 
-	ret = rte_eth_rx_burst((uint8_t)ifidx, ctxt->cpu,
+	int portid = CONFIG.eths[ifidx].ifindex;
+	ret = rte_eth_rx_burst((uint8_t)portid, ctxt->cpu,
 			       dpc->pkts_burst, MAX_PKT_BURST);
-#ifdef RX_IDLE_ENABLE	
+#ifdef RX_IDLE_ENABLE
 	dpc->rx_idle = (likely(ret != 0)) ? 0 : dpc->rx_idle + 1;
 #endif
 	dpc->rmbufs[ifidx].len = ret;
@@ -413,31 +414,31 @@ ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
 	struct ether_hdr *eth_hdr;
 	struct rte_ip_frag_tbl *tbl;
 	struct rte_ip_frag_death_row *dr;
-	
+
 	/* if packet is IPv4 */
 	if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
 		struct ipv4_hdr *ip_hdr;
-		
+
 		eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 		ip_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
-		
+
 		/* if it is a fragmented packet, then try to reassemble. */
 		if (rte_ipv4_frag_pkt_is_fragmented(ip_hdr)) {
 			struct rte_mbuf *mo;
-			
+
 			tbl = dpc->frag_tbl;
 			dr = &dpc->death_row;
-			
+
 			/* prepare mbuf: setup l2_len/l3_len. */
 			m->l2_len = sizeof(*eth_hdr);
 			m->l3_len = sizeof(*ip_hdr);
-			
+
 			/* process this fragment. */
 			mo = rte_ipv4_frag_reassemble_packet(tbl, dr, m, rte_rdtsc(), ip_hdr);
 			if (mo == NULL)
 				/* no packet to send out. */
 				return NULL;
-			
+
 			/* we have our packet reassembled. */
 			if (mo != m)
 				m = mo;
@@ -456,7 +457,7 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 	struct rte_mbuf *m;
 	uint8_t *pktbuf;
 
-	dpc = (struct dpdk_private_context *) ctxt->io_private_context;	
+	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
 
 	m = dpc->pkts_burst[index];
 #ifdef IP_DEFRAG
@@ -487,7 +488,7 @@ dpdk_select(struct mtcp_thread_context *ctxt)
 {
 #ifdef RX_IDLE_ENABLE
 	struct dpdk_private_context *dpc;
-	
+
 	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
 	if (dpc->rx_idle > RX_IDLE_THRESH) {
 		dpc->rx_idle = 0;
@@ -503,7 +504,7 @@ dpdk_destroy_handle(struct mtcp_thread_context *ctxt)
 	struct dpdk_private_context *dpc;
 	int i;
 
-	dpc = (struct dpdk_private_context *) ctxt->io_private_context;	
+	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
 
 	/* free wmbufs */
 	for (i = 0; i < num_devices_attached; i++)
@@ -587,7 +588,7 @@ dpdk_load_module(void)
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, /* 30 */
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, /* 40 */
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, /* 50 */
-		0x05, 0x05  /* 60 - 8 */		
+		0x05, 0x05  /* 60 - 8 */
 	};
 
 	port_conf.rx_adv_conf.rss_conf.rss_key = (uint8_t *)&key;
@@ -603,7 +604,7 @@ dpdk_load_module(void)
 			int max_flows;
 			max_flows = CONFIG.max_concurrency / CONFIG.num_cores;
 
-			/*                                                       
+			/*
 			 * At any given moment up to <max_flows * (MAX_FRAG_NUM)>
 			 * mbufs could be stored int the fragment table.
 			 * Plus, each TX queue can hold up to <max_flows> packets.
@@ -624,14 +625,18 @@ dpdk_load_module(void)
 				rte_pktmbuf_init, NULL,
 				rte_socket_id(), MEMPOOL_F_SP_PUT |
 				MEMPOOL_F_SC_GET);
-			
+
 			if (pktmbuf_pool[rxlcore_id] == NULL)
 				rte_exit(EXIT_FAILURE, "Cannot init mbuf pool, errno: %d\n",
-					 rte_errno);	
+					 rte_errno);
 		}
-		
+
 		/* Initialise each port */
-		for (portid = 0; portid < num_devices_attached; portid++) {
+		int i;
+		for (i = 0; i < num_devices_attached; ++i) {
+		        /* get portid form the index of attached devices */
+		        portid = devices_attached[i];
+
 			/* init port */
 			printf("Initializing port %u... ", (unsigned) portid);
 			fflush(stdout);
@@ -639,7 +644,7 @@ dpdk_load_module(void)
 			if (ret < 0)
 				rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
 					 ret, (unsigned) portid);
-			
+
 			/* init one RX queue per CPU */
 			fflush(stdout);
 #ifdef DEBUG
@@ -653,44 +658,44 @@ dpdk_load_module(void)
 							     rte_eth_dev_socket_id(portid), &rx_conf,
 							     pktmbuf_pool[rxlcore_id]);
 				if (ret < 0)
-					rte_exit(EXIT_FAILURE, 
+					rte_exit(EXIT_FAILURE,
 						 "rte_eth_rx_queue_setup:err=%d, port=%u, queueid: %d\n",
 						 ret, (unsigned) portid, rxlcore_id);
 			}
-			
+
 			/* init one TX queue on each port per CPU (this is redundant for this app) */
 			fflush(stdout);
 			for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
 				ret = rte_eth_tx_queue_setup(portid, rxlcore_id, nb_txd,
 							     rte_eth_dev_socket_id(portid), &tx_conf);
 				if (ret < 0)
-					rte_exit(EXIT_FAILURE, 
+					rte_exit(EXIT_FAILURE,
 						 "rte_eth_tx_queue_setup:err=%d, port=%u, queueid: %d\n",
 						 ret, (unsigned) portid, rxlcore_id);
 			}
-			
+
 			/* Start device */
 			ret = rte_eth_dev_start(portid);
 			if (ret < 0)
 				rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
 					 ret, (unsigned) portid);
-			
+
 			printf("done: \n");
 			rte_eth_promiscuous_enable(portid);
-			
+
                         /* retrieve current flow control settings per port */
 			memset(&fc_conf, 0, sizeof(fc_conf));
                         ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
 			if (ret != 0)
                                 rte_exit(EXIT_FAILURE, "Failed to get flow control info!\n");
-                        
+
 			/* and just disable the rx/tx flow control */
 			fc_conf.mode = RTE_FC_NONE;
 			ret = rte_eth_dev_flow_ctrl_set(portid, &fc_conf);
-                        if (ret != 0) 
+                        if (ret != 0)
                                 rte_exit(EXIT_FAILURE, "Failed to set flow control info!: errno: %d\n",
                                          ret);
-			
+
 #ifdef DEBUG
 			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
 			       (unsigned) portid,
@@ -732,19 +737,21 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 #endif
 
 	if (cmd == DRV_NAME) {
-		*argpptr = (void *)dev_info->driver_name;
+		*argpptr = (void *)dev_info[nif].driver_name;
 		return 0;
 	}
-	
+
+	int eidx = CONFIG.nif_to_eidx[nif];
+
 	iph = (struct iphdr *)argp;
 	dpc = (struct dpdk_private_context *)ctx->io_private_context;
-	len_of_mbuf = dpc->wmbufs[nif].len;
-	
+	len_of_mbuf = dpc->wmbufs[eidx].len;
+
 	switch (cmd) {
 	case PKT_TX_IP_CSUM:
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
 			goto dev_ioctl_err;
-		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		m->ol_flags = PKT_TX_IP_CKSUM | PKT_TX_IPV4;
 		m->l2_len = sizeof(struct ether_hdr);
 		m->l3_len = (iph->ihl<<2);
@@ -752,7 +759,7 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 	case PKT_TX_TCP_CSUM:
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
 			goto dev_ioctl_err;
-		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		tcph = (struct tcphdr *)((unsigned char *)iph + (iph->ihl<<2));
 		m->ol_flags |= PKT_TX_TCP_CKSUM;
 		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
@@ -789,7 +796,7 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 			goto dev_ioctl_err;
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
 			goto dev_ioctl_err;
-		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct ether_hdr));
 		tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl<<2));
 		m->l2_len = sizeof(struct ether_hdr);
@@ -800,7 +807,7 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		break;
 	case PKT_RX_IP_CSUM:
 		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_IPV4_CKSUM) == 0)
-			goto dev_ioctl_err;		
+			goto dev_ioctl_err;
 		break;
 	case PKT_RX_TCP_CSUM:
 		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_TCP_CKSUM) == 0)
@@ -810,7 +817,7 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
 			goto dev_ioctl_err;
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
-			goto dev_ioctl_err;		
+			goto dev_ioctl_err;
 		break;
 	default:
 		goto dev_ioctl_err;

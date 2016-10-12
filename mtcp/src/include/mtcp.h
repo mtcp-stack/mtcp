@@ -134,6 +134,7 @@ struct mtcp_config
 
 	/* network interface config */
 	struct eth_table *eths;
+	int *nif_to_eidx; // mapping physic port indexes to that of the configured port-list
 	int eths_num;
 
 	/* route config */

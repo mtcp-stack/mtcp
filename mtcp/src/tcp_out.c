@@ -790,14 +790,15 @@ GetSender(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 {
 	if (cur_stream->sndvar->nif_out < 0) {
 		return mtcp->g_sender;
+	}
 
-	} else if (cur_stream->sndvar->nif_out >= CONFIG.eths_num) {
+	int eidx = CONFIG.nif_to_eidx[cur_stream->sndvar->nif_out];
+	if (eidx < 0 || eidx >= CONFIG.eths_num) {
 		TRACE_ERROR("(NEVER HAPPEN) Failed to find appropriate sender.\n");
 		return NULL;
-
-	} else {
-		return mtcp->n_sender[cur_stream->sndvar->nif_out];
 	}
+
+	return mtcp->n_sender[eidx];
 }
 /*----------------------------------------------------------------------------*/
 inline void 

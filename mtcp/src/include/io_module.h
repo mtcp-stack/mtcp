@@ -77,6 +77,10 @@ extern io_module_func *current_iomodule_func;
 #define PKT_TX_IP_CSUM          0x01
 #define PKT_TX_TCP_CSUM         0x02
 #define PKT_RX_TCP_LROSEG	0x03
+#define PKT_TX_TCPIP_CSUM	0x04
+#define PKT_RX_IP_CSUM		0x05
+#define PKT_RX_TCP_CSUM		0x06
+#define PKT_TX_TCPIP_CSUM_PEEK	0x07
 
 /* registered psio context */
 #ifdef DISABLE_PSIO

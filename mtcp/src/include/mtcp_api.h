@@ -119,9 +119,16 @@ mtcp_close(mctx_t mctx, int sockid);
  */
 int
 mtcp_getsockname(mctx_t mctx, int sock, struct sockaddr *addr, socklen_t *addrlen);
+	
+int
+mtcp_getpeername(mctx_t mctx, int sockid, struct sockaddr *addr,
+		 socklen_t *addrlen);
+
+inline ssize_t
+mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len);
 
 ssize_t
-mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len);
+mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags);
 
 /* readv should work in atomic */
 int

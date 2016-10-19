@@ -140,6 +140,11 @@ mTCP can be prepared in two ways.
   - In case `./configure' script prints an error, run the
     following command; and then re-do step-4 (configure again):
     	   # autoreconf -ivf
+  - checksum offloading in the NIC is now ENABLED (by default)!!!
+    	     - this only works for dpdk at the moment
+	     - use 
+	       ./configure --with-dpdk-lib=`echo $PWD`/dpdk --disable-hwcsum
+	       to disable checksum offloading.
   - check libmtcp.a in mtcp/lib
   - check header files in mtcp/include
   - check example binary files in apps/example
@@ -150,25 +155,6 @@ mTCP can be prepared in two ways.
   - you may write your own configuration file for your application
 
 6. Run the applications!
-
-7. #NEW#: mTCP-dpdk now supports multi-process mode. epserver.c in
-   apps/example/ subdirectory illustrates how one can run multiple
-   simultaneous instances of the server in multi-process mode.
-   Please see apps/example/README for details.  
-
-8. #NEW#: mTCP-dpdk's large receive offload (LRO) mode can be
-   enabled by running:
-
-   	   # ./configure --with-dpdk-lib=`echo $PWD`/dpdk --enable-lro
-
-   This mode is currently disabled by default as the patch
-   may be revised in future commits.
-
-
-
-- NETMAP VERSION -
-------------------
-Please see README.netmap for details.
 
 ========================================================================
  TESTED ENVIRONMENTS
@@ -219,7 +205,6 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 1. Intel-82598		ixgbe		(Max-queue-limit: 16)
 2. Intel-82599		ixgbe		(Max-queue-limit: 16)
 3. Intel-I350		igb		(Max-queue-limit: 08)
-4. Mellanox-ConnectX-3	mlx4		(queue-limit:	  2^N)
  
 ========================================================================
  FREQUENTLY ASKED QUESTIONS

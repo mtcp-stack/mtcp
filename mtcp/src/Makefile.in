@@ -6,6 +6,7 @@ PS=@PSIO@
 DPDK=@DPDK@
 NETMAP=@NETMAP@
 LRO=@LRO@
+HWCSUM=@HWCSUM@
 MTCP_LIB_DIR=../lib
 MTCP_LIB=libmtcp.a
 MTCP_HDR_DIR=../include
@@ -30,6 +31,9 @@ ifeq ($(LRO),1)
 GCC_OPT += -DENABLELRO
 endif
 
+ifeq ($(HWCSUM),0)
+GCC_OPT += -DDISABLE_HWCSUM
+endif
 
 ### LIBRARIES AND INCLUDES ###
 INC_DIR=./include

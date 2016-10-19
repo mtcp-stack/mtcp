@@ -1136,7 +1136,7 @@ Handle_TCP_ST_CLOSING (mtcp_manager_t mtcp, uint32_t cur_ts,
 /*----------------------------------------------------------------------------*/
 int
 ProcessTCPPacket(mtcp_manager_t mtcp, 
-		uint32_t cur_ts, const struct iphdr *iph, int ip_len)
+		 uint32_t cur_ts, const int ifidx, const struct iphdr *iph, int ip_len)
 {
 	struct tcphdr* tcph = (struct tcphdr *) ((u_char *)iph + (iph->ihl << 2));
 	uint8_t *payload    = (uint8_t *)tcph + (tcph->doff << 2);
@@ -1148,16 +1148,19 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	uint16_t window = ntohs(tcph->window);
 	uint16_t check;
 	int ret;
+	int rc = -1;
 
 	/* Check ip packet invalidation */	
 	if (ip_len < ((iph->ihl + tcph->doff) << 2))
 		return ERROR;
 
 #if VERIFY_RX_CHECKSUM
-#ifdef ENABLELRO
-	if (tcph->check) 
+#ifndef DISABLE_HWCSUM
+	if (mtcp->iom->dev_ioctl != NULL)
+		rc = mtcp->iom->dev_ioctl(mtcp->ctx, ifidx,
+					  PKT_RX_TCP_CSUM, NULL);
 #endif
-	{
+	if (rc == -1) {
 		check = TCPCalcChecksum((uint16_t *)tcph, 
 					(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr);
 		if (check) {

@@ -763,7 +763,10 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 				uint16_t len;
 				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
-				ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
+				if (pktbuf != NULL)
+					ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
+				else
+					mtcp->nstat.rx_errors[rx_inf]++;
 			}
 		}
 		STAT_COUNT(mtcp->runstat.rounds_rx);
@@ -1394,7 +1397,8 @@ mtcp_init(const char *config_file)
 	int ret;
 
 	if (geteuid()) {
-		TRACE_CONFIG("[CAUTION] Run as root if mlock is necessary.\n");
+		TRACE_CONFIG("[CAUTION] Run the app as root!\n");
+		exit(EXIT_FAILURE);
 	}
 
 	/* getting cpu and NIC */

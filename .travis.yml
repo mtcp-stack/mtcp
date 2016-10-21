@@ -13,6 +13,3 @@ script:
   - `echo $PWD`/dpdk-16.04/x86_64-native-linuxapp-gcc/include/ `echo $PWD`/dpdk/include
   - ./configure --with-dpdk-lib=`echo $PWD`/dpdk
   - make
-
-
-

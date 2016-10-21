@@ -1,0 +1,18 @@
+dist: trusty
+
+install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y linux-headers-$(uname -r)
+  - sudo apt-get install libnuma-dev
+
+script:
+  - cd dpdk-16.04/tools
+  - make install T=x86_64-native-linuxapp-gcc
+  - cd ..
+  - `echo $PWD`/dpdk-16.04/x86_64-native-linuxapp-gcc/lib/ `echo $PWD`/dpdk/lib
+  - `echo $PWD`/dpdk-16.04/x86_64-native-linuxapp-gcc/include/ `echo $PWD`/dpdk/include
+  - ./configure --with-dpdk-lib=`echo $PWD`/dpdk
+  - make
+
+
+

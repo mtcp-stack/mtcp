@@ -4,7 +4,7 @@ install:
   - sudo apt-get -qq update
   - sudo apt-get install -y linux-headers-$(uname -r)
   - sudo apt-get install libnuma-dev
-  - sude apt-get install bash
+  - sudo apt-get install bash
 
 script:
   - bash .buildtest.sh

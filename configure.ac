@@ -51,6 +51,10 @@ AC_SUBST(PSIO, 0)
 AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
 AC_SUBST(HWCSUM, 1)
+# Reset ODP to 0
+AC_SUBST(ODP, 0)
+# Reset ARM to 0
+AC_SUBST(ARM, 0)
 
 # Check dpdk-16.11 path (lib & inc)
 AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-16.11 install root])
@@ -96,9 +100,25 @@ AS_IF([test "x$enable_netmap" = "xyes"], [
 	    AC_SUBST(NETMAP, 1)
 ])
 
-if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "x$enable_netmap" = "xno"
+# Check odp path (lib & inc)
+AC_ARG_WITH(stuff, [  --with-odp-lib      path to the odp install root])
+if test "$with_odp_lib" != ""
 then
-	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
+        AC_SUBST(ODPLIBPATH, $with_odp_lib)
+	AC_SUBST(ODP, 1)
+fi
+
+# Check arm prefix
+AC_ARG_WITH(stuff, [  --with-arm-prefix      arm prefix])
+if test "$with_arm_prefix" != ""
+then
+        AC_SUBST(ARMPREFIX, $with_arm_prefix)
+	AC_SUBST(ARM, 1)
+fi
+
+if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" test "$with_odp_lib" == "" && test "x$enable_netmap" = "xno"
+then
+	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap or odp as your I/O lib.])
 fi
 
 AM_INIT_AUTOMAKE(mtcp, 3)

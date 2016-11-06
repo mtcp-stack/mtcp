@@ -7,22 +7,32 @@ DPDK=@DPDK@
 NETMAP=@NETMAP@
 LRO=@LRO@
 HWCSUM=@HWCSUM@
+ODP=@ODP@
+ARM=@ARM@
 MTCP_LIB_DIR=../lib
 MTCP_LIB=libmtcp.a
 MTCP_HDR_DIR=../include
 MTCP_HDR = mtcp_api.h mtcp_epoll.h
 
-
 ### GCC ###
+ifeq ($(ARM),1)
+GCC=@ARMPREFIX@-gcc
+AR=@ARMPREFIX@-ar
+else
 GCC=@CC@
+AR=ar
+GCC_OPT += -m64
+endif
 
 ### FLAGS ###
+ifeq ($(ARM), 0)
 ifeq ($(shell uname -m),x86_64)
 GCC_OPT = -m64
+endif
 else
 GCC_OPT =
 endif
-GCC_OPT += -Wall -fPIC -fgnu89-inline -Werror
+GCC_OPT += -Wall -fPIC -fgnu89-inline
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE -DTSTAT -DAPP -DEPOLL
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE
 #DBG_OPT += -DPKTDUMP
@@ -76,12 +86,22 @@ else
 	GCC_OPT += -DHUGEPAGE
 endif
 
+# ODP HEADER
+ODP_INC = -I@ODPLIBPATH@/include
+ODP_PLAT_INC = -I@ODPLIBPATH@/platform/linux-hisilicon/include
+ODP_ARCH_INC = -I@ODPLIBPATH@/platform/linux-generic/include -I@ODPLIBPATH@/platform/linux-generic/arch/linux
+ifeq ($(ODP),1)
+INC += $(ODP_INC) $(ODP_PLAT_INC) $(ODP_ARCH_INC) -I/usr/include
+else
+INC += -DDISABLE_ODP
+endif
+
 ### SOURCE CODE ###
 SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 	   tcp_util.c eth_in.c ip_in.c tcp_in.c eth_out.c ip_out.c tcp_out.c \
 	   arp.c timer.c cpu.c rss.c addr_pool.c fhash.c memory_mgt.c logger.c debug.c \
 	   tcp_rb_frag_queue.c tcp_ring_buffer.c tcp_send_buffer.c tcp_sb_queue.c tcp_stream_queue.c \
-	   psio_module.c io_module.c dpdk_module.c netmap_module.c icmp.c
+	   psio_module.c io_module.c dpdk_module.c netmap_module.c odp_module.c icmp.c
 
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 DEPS = $(patsubst %.c,.%.d,$(SRCS))
@@ -99,7 +119,7 @@ all: default
 
 default: $(OBJS) $(MTCP_HDR)
 	mkdir -p $(MTCP_LIB_DIR)
-	ar rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
+	$(AR) rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
 
 $(OBJS): %.o: %.c Makefile
 	$(MSG) "   CC $<"

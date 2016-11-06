@@ -63,35 +63,27 @@ struct ____cacheline_aligned ps_context {
 #define ALIGN(x,a)              __ALIGN_MASK(x,(typeof(x))(a)-1)
 #define __ALIGN_MASK(x,mask)    (((x)+(mask))&~(mask))
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined (__arm64__) || defined (__aarch64__)
 static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 {
-	unsigned int sum;
+    unsigned int sum, tsum;
+    unsigned int *buf, len;
 
-	asm("  movl (%1), %0\n"
-	    "  subl $4, %2\n"
-	    "  jbe 2f\n"
-	    "  addl 4(%1), %0\n"
-	    "  adcl 8(%1), %0\n"
-	    "  adcl 12(%1), %0\n"
-	    "1: adcl 16(%1), %0\n"
-	    "  lea 4(%1), %1\n"
-	    "  decl %2\n"
-	    "  jne      1b\n"
-	    "  adcl $0, %0\n"
-	    "  movl %0, %2\n"
-	    "  shrl $16, %0\n"
-	    "  addw %w2, %w0\n"
-	    "  adcl $0, %0\n"
-	    "  notl %0\n"
-	    "2:"
-	    /* Since the input registers which are loaded with iph and ih
-	       are modified, we must also specify them as outputs, or gcc
-	       will assume they contain their original values. */
-	    : "=r" (sum), "=r" (iph), "=r" (ihl)
-	    : "1" (iph), "2" (ihl)
-	       : "memory");
-	return (__sum16)sum;
+    buf = (unsigned int *)iph;
+    len = ihl;
+
+    sum = *buf;
+    if (((signed int)len-4) <= 0)
+            return (unsigned short)sum;
+    while (--len) {
+            tsum = sum + *(++buf);
+            sum = tsum <= sum ? tsum+1 : tsum;
+    }
+    tsum = sum;
+    sum >>= 16;
+    tsum = (unsigned int)((unsigned short)tsum + (unsigned short)sum);
+    sum = (unsigned short)tsum <= (unsigned short)sum ? tsum+1 : tsum;
+    return (__sum16)(~sum);
 }
 #else
 #define __force
@@ -146,7 +138,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 
 	return csum_fold(csum);
 }
-#endif
+#endif /* defined (__arm64__) || defined (__aarch64__) */
 
 #endif	/* __KERNEL__ */
 

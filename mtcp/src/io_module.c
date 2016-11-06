@@ -68,7 +68,7 @@ SetInterfaceInfo(char* dev_name_list)
 {
 	struct ifreq ifr;
 	int eidx = 0;
-	int i, j;
+	int i, j, ret = 0;
 
 	int set_all_inf = (strncmp(dev_name_list, ALL_STRING, sizeof(ALL_STRING))==0);
 
@@ -370,8 +370,93 @@ SetInterfaceInfo(char* dev_name_list)
 
 		freeifaddrs(ifap);
 #endif /* !DISABLE_NETMAP */
+	} else if (current_iomodule_func == &odp_module_func) {
+#ifndef DISABLE_ODP
+	        int port_id_list[MAX_DEVICES];
+	        num_devices = odp_init_interfaces(dev_name_list, port_id_list);
+
+		/* Create socket */
+		int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+		if (sock == -1) {
+			perror("socket");
+		}
+
+		for (i = 0; i < num_devices; i++) {
+		        sprintf(ifr.ifr_name, "odp%u", port_id_list[i]);
+			
+			/* getting interface information */
+			if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
+				
+				/* Setting informations */
+				eidx = CONFIG.eths_num++;
+				strcpy(CONFIG.eths[eidx].dev_name, ifr.ifr_name);
+				CONFIG.eths[eidx].ifindex = port_id_list[i];
+
+				/* getting ip address */
+				if (ioctl(sock, SIOCGIFADDR, &ifr) == 0 ) {
+					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+					CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
+				}
+
+				/* getting mac address */
+				/* if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0 ) { */
+				/* 	for (j = 0; j < ETH_ALEN; j ++) { */
+				/* 		CONFIG.eths[eidx].haddr[j] = ifr.ifr_addr.sa_data[j]; */
+				/* 	} */
+				/* } */
+
+				/* Net MASK */
+				if (ioctl(sock, SIOCGIFNETMASK, &ifr) == 0) {
+					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+					CONFIG.eths[eidx].netmask = *(uint32_t *)&sin;
+				}
+
+				/* add to attached devices */
+				for (j = 0; j < num_devices_attached; j++) {
+					if (devices_attached[j] == port_id_list[i]) {
+						break;
+					}
+				}
+				devices_attached[num_devices_attached] = port_id_list[i];
+				num_devices_attached++;			       
+			} else {
+				perror("SIOCGIFFLAGS");
+			}
+		}
+
+#if 1
+		uint8_t *addr;
+		for (i = 0; i < CONFIG.eths_num; i ++) {
+		  fprintf(stdout, "name: %s --- ifindex: %d\n",
+			  CONFIG.eths[i].dev_name, CONFIG.eths[i].ifindex);
+		  addr = (uint8_t*)&CONFIG.eths[i].ip_addr;
+		  fprintf(stdout, "ip: %u.%u.%u.%u\n", addr[0], addr[1], addr[2], addr[3]);
+		  addr = (uint8_t*)&CONFIG.eths[i].netmask;
+		  fprintf(stdout, "mask: %u.%u.%u.%u\n", addr[0], addr[1], addr[2], addr[3]);
+		  fprintf(stdout, "mac: ");
+		  for (j = 0; j < ETH_ALEN; j ++) {
+		    fprintf(stdout, "%02x-", CONFIG.eths[i].haddr[j]);
+		  }
+		  fprintf(stdout, "\n");
+		}
+
+		/* exit(EXIT_FAILURE); */
+#endif		
+		num_queues = GetNumQueues();
+		if (num_queues <= 0) {
+			TRACE_CONFIG("Failed to find NIC queues!\n");
+			ret = -1;
+			goto end;
+		}
+		if (num_queues > num_cpus) {
+			TRACE_CONFIG("Too many NIC queues available.\n");
+			ret = -1;
+			goto end;
+		}	  
+#endif /* !DISABLE_ODP */
 	}
 
+end:
 	CONFIG.nif_to_eidx = (int*)calloc(MAX_DEVICES, sizeof(int));
 
 	if (!CONFIG.nif_to_eidx) {
@@ -394,7 +479,7 @@ SetInterfaceInfo(char* dev_name_list)
 		CONFIG.nif_to_eidx[j] = i;
 	}
 
-	return 0;
+	return ret;
 }
 /*----------------------------------------------------------------------------*/
 int

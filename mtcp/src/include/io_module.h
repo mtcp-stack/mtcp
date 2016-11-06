@@ -99,6 +99,10 @@ extern io_module_func dpdk_module_func;
 /* registered netmap context */
 extern io_module_func netmap_module_func;
 
+/* registered odp context */
+extern io_module_func odp_module_func;
+int odp_init_interfaces(char* dev_name_list, int* port_id_list);
+
 /* Macro to assign IO module */
 #define AssignIOModule(m) {						\
 		if (!strcmp(m, "psio"))					\
@@ -107,6 +111,8 @@ extern io_module_func netmap_module_func;
 			current_iomodule_func = &dpdk_module_func;	\
 		else if (!strcmp(m, "netmap"))				\
 			current_iomodule_func = &netmap_module_func;	\
+		else if (!strcmp(m, "odp"))				\
+			current_iomodule_func = &odp_module_func;	\
 		else							\
 			assert(0);					\
 	}

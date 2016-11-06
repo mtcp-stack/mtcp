@@ -113,7 +113,7 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	uint16_t sport_h, dport_h;
 	int rss_core;
 #if 0
-	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
+	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func || current_iomodule_func == &odp_module_func) ?
 		0 : 1;
 #else
 	uint8_t endian_check = FetchEndianType();	
@@ -221,7 +221,7 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 	int rss_core;
 	int ret = -1;
 #if 0
-	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
+	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func || current_iomodule_func == &odp_module_func) ?
 		0 : 1;
 #else
 	uint8_t endian_check = FetchEndianType();	

@@ -1102,7 +1102,9 @@ MTCPRunThread(void *arg)
 
 	/* remember this context pointer for signal processing */
 	g_pctx[cpu] = ctx;
-	mlockall(MCL_CURRENT);
+
+        /* this must be commented for odp running */
+	// mlockall(MCL_CURRENT);
 
 	// attach (nic device, queue)
 	working = AttachDevice(ctx);
@@ -1498,6 +1500,12 @@ mtcp_destroy()
 
 	for (i = 0; i < CONFIG.eths_num; i++)
 		DestroyAddressPool(ap[i]);
+
+	// terminate the odp instance globally
+	if (current_iomodule_func == &odp_module_func) {
+	        TRACE_INFO("[MTCP-ODP]: terminate odp instance.\n");
+	        current_iomodule_func->destroy_handle(NULL);
+	}
 
 	TRACE_INFO("All MTCP threads are joined.\n");
 }

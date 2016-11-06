@@ -3,13 +3,22 @@ CC=@CC@ -g -O3 -Wall -Werror -fgnu89-inline
 DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@
+ODP=@ODP@
+ARM=@ARM@
+
+### GCC ###
+ifeq ($(ARM),1)
+GCC=@ARMPREFIX@-gcc
+else
+GCC=@CC@
+endif
 
 # DPDK LIBRARY and HEADER
 DPDK_INC=@DPDKLIBPATH@/include
 DPDK_LIB=@DPDKLIBPATH@/lib/
 
 # mtcp library and header 
-MTCP_FLD    =../../mtcp/
+MTCP_FLD    =../../mtcp
 MTCP_INC    =-I${MTCP_FLD}/include
 MTCP_LIB    =-L${MTCP_FLD}/lib
 MTCP_TARGET = ${MTCP_LIB}/libmtcp.a
@@ -23,6 +32,7 @@ PS_DIR = ../../io_engine/
 PS_INC = ${PS_DIR}/include
 INC = -I./include/ ${UTIL_INC} ${MTCP_INC} -I${UTIL_FLD}/include
 LIBS = ${MTCP_LIB}
+
 ifeq ($(PS),1)
 INC += -I{PS_INC}
 LIBS += -lmtcp -L${PS_DIR}/lib -lps -lpthread -lnuma -lrt
@@ -39,8 +49,10 @@ DPDK_MACHINE_FLAGS = $(shell cat @DPDKLIBPATH@/include/cflags.txt)
 INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
 endif
 
+ifeq ($(ARM),0)
 ifeq ($(shell uname -m),x86_64)
 LIBS += -m64
+endif
 endif
 
 ifeq ($(DPDK),1)
@@ -60,23 +72,28 @@ else
 	export HIDE=
 endif
 
+ifeq ($(ODP),1)
+INC += -I@ODPLIBPATH@/platform/linux-hisilicon/include
+LIBS = -L/usr/lib -L${MTCP_FLD}/lib -lmtcp -lodp -lssl -lcrypto -g -O3 -pthread -lrt -ldl -march=native -lnuma
+endif
+
 all: epserver epwget
 
 epserver.o: epserver.c
 	$(MSG) "   CC $<"
-	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
+	$(HIDE) ${GCC} -c $< ${CFLAGS} ${INC}
 
 epserver: epserver.o
 	$(MSG) "   LD $<"
-	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	$(HIDE) ${GCC} $< ${LIBS} ${UTIL_OBJ} -o $@
 
 epwget.o: epwget.c
 	$(MSG) "   CC $<"
-	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
+	$(HIDE) ${GCC} -c $< ${CFLAGS} ${INC}
 
 epwget: epwget.o
 	$(MSG) "   LD $<"
-	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	$(HIDE) ${GCC} $< ${LIBS} ${UTIL_OBJ} -o $@
 
 clean:
 	rm -f *~ *.o ${TARGETS} log_*

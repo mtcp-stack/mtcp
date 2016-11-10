@@ -2317,6 +2317,9 @@ static int open_postfile(const char *pfile)
 
 int main(int argc, const char * const argv[])
 {
+#ifdef HAVE_MTCP
+    struct mtcp_conf mcfg;
+#endif
     int r, l;
     char tmp[1024];
     apr_status_t status;
@@ -2386,6 +2389,11 @@ int main(int argc, const char * const argv[])
                 break;
 			case 'N':
 				_num_cpus = atoi(optarg);
+#ifdef HAVE_MTCP
+				mtcp_getconf(&mcfg);
+				mcfg.num_cores = _num_cpus;
+				mtcp_setconf(&mcfg);
+#endif
 				break;
 			case 'l':
 				num_ports = atoi(optarg);

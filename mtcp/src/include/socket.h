@@ -55,6 +55,8 @@ struct tcp_listener
 	
 	pthread_mutex_t accept_lock;
 	pthread_cond_t accept_cond;
+
+	TAILQ_ENTRY(tcp_listener) he_link;	/* hash table entry link */
 };
 /*----------------------------------------------------------------------------*/
 

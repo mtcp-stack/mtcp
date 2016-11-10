@@ -3,6 +3,13 @@
 #include <limits.h>
 #include <unistd.h>
 #include <assert.h>
+#include <string.h>
+
+#ifdef DARWIN
+#include <netinet/tcp.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
+#endif
 
 #include "mtcp.h"
 #include "mtcp_api.h"
@@ -17,32 +24,35 @@
 #include "rss.h"
 #include "config.h"
 #include "debug.h"
+#include "eventpoll.h"
+#include "mos_api.h"
+#include "tcp_rb.h"
 
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
 
 /*----------------------------------------------------------------------------*/
-static inline int 
-mtcp_is_connected(mtcp_manager_t mtcp, tcp_stream *cur_stream)
-{
-	if (!cur_stream) {
-		TRACE_API("Stream does not exist\n");
-		return FALSE;
-	}
-	if (cur_stream->state != TCP_ST_ESTABLISHED) {
-		TRACE_API("Stream %d not ESTABLISHED. state: %s\n", 
-				cur_stream->id, TCPStateToString(cur_stream));
-		return FALSE;
-	}
-
-	return TRUE;
-}
+/** Stop monitoring the socket! (function prototype)
+ * @param [in] mctx: mtcp context
+ * @param [in] sock: monitoring stream socket id
+ * @param [in] side: side of monitoring (client side, server side or both)
+ *
+ * This function is now DEPRECATED and is only used within mOS core...
+ */
+int
+mtcp_cb_stop(mctx_t mctx, int sock, int side);
+/*----------------------------------------------------------------------------*/
+/** Reset the connection (send RST packets to both sides)
+ *  (We need to decide the API for this.)
+ */
+//int
+//mtcp_cb_reset(mctx_t mctx, int sock, int side);
 /*----------------------------------------------------------------------------*/
 inline mtcp_manager_t 
 GetMTCPManager(mctx_t mctx)
 {
 	if (!mctx) {
-		errno = EINVAL;
+		errno = EACCES;
 		return NULL;
 	}
 
@@ -51,7 +61,7 @@ GetMTCPManager(mctx_t mctx)
 		return NULL;
 	}
 
-	if (g_mtcp[mctx->cpu]->ctx->done || g_mtcp[mctx->cpu]->ctx->exit) {
+	if (!g_mtcp[mctx->cpu] || g_mtcp[mctx->cpu]->ctx->done || g_mtcp[mctx->cpu]->ctx->exit) {
 		errno = EPERM;
 		return NULL;
 	}
@@ -70,7 +80,7 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 	}
 
 	cur_stream = socket->stream;
-	if (cur_stream->state == TCP_ST_CLOSED) {
+	if (cur_stream->state == TCP_ST_CLOSED_RSVD) {
 		if (cur_stream->close_reason == TCP_TIMEDOUT || 
 				cur_stream->close_reason == TCP_CONN_FAIL || 
 				cur_stream->close_reason == TCP_CONN_LOST) {
@@ -82,7 +92,7 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 	}
 
 	if (cur_stream->state == TCP_ST_CLOSE_WAIT || 
-			cur_stream->state == TCP_ST_CLOSED) { 
+			cur_stream->state == TCP_ST_CLOSED_RSVD) { 
 		if (cur_stream->close_reason == TCP_RESET) {
 			*(int *)optval = ECONNRESET;
 			*optlen = sizeof(int);
@@ -95,8 +105,9 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 	    errno == EINPROGRESS) {
 		*(int *)optval = errno;
 		*optlen = sizeof(int);
+		
 		return -1;
-	}
+        }
 
 	/*
 	 * `base case`: If socket sees no so_error, then
@@ -105,11 +116,11 @@ GetSocketError(socket_map_t socket, void *optval, socklen_t *optlen)
 	 */
 	if (cur_stream->close_reason == TCP_NOT_CLOSED) {
 		*(int *)optval = 0;
-		*optlen = sizeof(int);		
+		*optlen = sizeof(int);
 		
 		return 0;
 	}
-
+	
 	errno = ENOSYS;
 	return -1;
 }
@@ -126,14 +137,14 @@ mtcp_getsockname(mctx_t mctx, int sockid, struct sockaddr *addr,
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
 	socket = &mtcp->smap[sockid];
-	if (socket->socktype == MTCP_SOCK_UNUSED) {
+	if (socket->socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
@@ -145,8 +156,8 @@ mtcp_getsockname(mctx_t mctx, int sockid, struct sockaddr *addr,
 		return -1;
 	}
 	
-	if (socket->socktype != MTCP_SOCK_LISTENER && 
-	    socket->socktype != MTCP_SOCK_STREAM) {
+	if (socket->socktype != MOS_SOCK_STREAM_LISTEN && 
+	    socket->socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -155,61 +166,6 @@ mtcp_getsockname(mctx_t mctx, int sockid, struct sockaddr *addr,
 	*(struct sockaddr_in *)addr = socket->saddr;
         *addrlen = sizeof(socket->saddr);
 
-	return 0;
-}
-/*----------------------------------------------------------------------------*/
-int
-mtcp_getpeername(mctx_t mctx, int sockid, struct sockaddr *addr,
-		 socklen_t *addrlen)
-{
-	mtcp_manager_t mtcp;
-	socket_map_t socket;
-	struct sockaddr_in *addr_in;
-	tcp_stream *stream;
-
-	mtcp = GetMTCPManager(mctx);
-        if (!mtcp) {
-		return -1;
-	}
-
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
-		TRACE_API("Socket id %d out of range.\n", sockid);
-		errno = EBADF;
-		return -1;
-	}
-
-	socket = &mtcp->smap[sockid];
-        if (socket->socktype == MTCP_SOCK_UNUSED) {
-		TRACE_API("Invalid socket id: %d\n", sockid);
-		errno = EBADF;
-		return -1;
-	}
-	
-	if (*addrlen <= 0) {
-		TRACE_API("Invalid addrlen: %d\n", *addrlen);
-		errno = EINVAL;
-		return -1;
-	}
-	
-	if (socket->socktype != MTCP_SOCK_LISTENER && 
-	    socket->socktype != MTCP_SOCK_STREAM) {
-		TRACE_API("Invalid socket id: %d\n", sockid);
-		errno = ENOTSOCK;
-		return -1;
-	}
-	
-	stream = socket->stream;
-	if (!mtcp_is_connected(mtcp, stream)) {
-		errno = ENOTCONN;
-		return -1;
-	}
-	
-	addr_in = (struct sockaddr_in *)addr;
-        addr_in->sin_family = AF_INET;
-        addr_in->sin_port = stream->dport;
-        addr_in->sin_addr.s_addr = stream->daddr;
-        *addrlen = sizeof(*addr_in);
-	
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -222,37 +178,80 @@ mtcp_getsockopt(mctx_t mctx, int sockid, int level,
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	socket = &mtcp->smap[sockid];
-	if (socket->socktype == MTCP_SOCK_UNUSED) {
-		TRACE_API("Invalid socket id: %d\n", sockid);
-		errno = EBADF;
-		return -1;
-	}
-
-	if (socket->socktype != MTCP_SOCK_LISTENER && 
-			socket->socktype != MTCP_SOCK_STREAM) {
-		TRACE_API("Invalid socket id: %d\n", sockid);
-		errno = ENOTSOCK;
-		return -1;
-	}
-
-	if (level == SOL_SOCKET) {
+	switch (level) {
+	case SOL_SOCKET:
+		socket = &mtcp->smap[sockid];
+		if (socket->socktype == MOS_SOCK_UNUSED) {
+			TRACE_API("Invalid socket id: %d\n", sockid);
+			errno = EBADF;
+			return -1;
+		}
+		
+		if (socket->socktype != MOS_SOCK_STREAM_LISTEN && 
+		    socket->socktype != MOS_SOCK_STREAM) {
+			TRACE_API("Invalid socket id: %d\n", sockid);
+			errno = ENOTSOCK;
+			return -1;
+		}
+		
 		if (optname == SO_ERROR) {
-			if (socket->socktype == MTCP_SOCK_STREAM) {
+			if (socket->socktype == MOS_SOCK_STREAM) {
 				return GetSocketError(socket, optval, optlen);
 			}
 		}
-	}
+		break;
+	case SOL_MONSOCKET:
+		/* check if the calling thread is in MOS context */
+		if (mtcp->ctx->thread != pthread_self()) {
+			errno = EPERM;
+			return -1;
+		}
+		/*
+		 * All options will only work for active 
+		 * monitor stream sockets
+		 */
+		socket = &mtcp->msmap[sockid];
+		if (socket->socktype != MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+			TRACE_API("Invalid socket id: %d\n", sockid);
+			errno = ENOTSOCK;
+			return -1;
+		}
 
+		switch (optname) {
+		case MOS_FRAGINFO_CLIBUF:
+			return GetFragInfo(socket, MOS_SIDE_CLI, optval, optlen);
+		case MOS_FRAGINFO_SVRBUF:
+			return GetFragInfo(socket, MOS_SIDE_SVR, optval, optlen);
+		case MOS_INFO_CLIBUF:
+			return GetBufInfo(socket, MOS_SIDE_CLI, optval, optlen);
+		case MOS_INFO_SVRBUF:
+			return GetBufInfo(socket, MOS_SIDE_SVR, optval, optlen);
+		case MOS_TCP_STATE_CLI:
+			return GetTCPState(socket->monitor_stream->stream, MOS_SIDE_CLI,
+							   optval, optlen);
+		case MOS_TCP_STATE_SVR:
+			return GetTCPState(socket->monitor_stream->stream, MOS_SIDE_SVR,
+							   optval, optlen);
+		case MOS_TIMESTAMP:
+			return GetLastTimestamp(socket->monitor_stream->stream,
+						(uint32_t *)optval, 
+						optlen);
+		default: 
+		  TRACE_API("can't recognize the optname=%d\n", optname);
+		  assert(0);
+		}
+		break;
+	}
 	errno = ENOSYS;
 	return -1;
 }
@@ -263,33 +262,185 @@ mtcp_setsockopt(mctx_t mctx, int sockid, int level,
 {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;
+	tcprb_t *rb;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	socket = &mtcp->smap[sockid];
-	if (socket->socktype == MTCP_SOCK_UNUSED) {
-		TRACE_API("Invalid socket id: %d\n", sockid);
-		errno = EBADF;
-		return -1;
+	switch (level) {
+	case SOL_SOCKET:
+		socket = &mtcp->smap[sockid];
+		if (socket->socktype == MOS_SOCK_UNUSED) {
+			TRACE_API("Invalid socket id: %d\n", sockid);
+			errno = EBADF;
+			return -1;
+		}
+
+		if (socket->socktype != MOS_SOCK_STREAM_LISTEN && 
+		    socket->socktype != MOS_SOCK_STREAM) {
+			TRACE_API("Invalid socket id: %d\n", sockid);
+			errno = ENOTSOCK;
+			return -1;
+		}
+		break;
+	case SOL_MONSOCKET:
+		socket = &mtcp->msmap[sockid];
+		/* 
+		 * checking of calling thread to be in MOS context is
+		 * disabled since both optnames can be called from
+		 * `application' context (on passive sockets)
+		 */
+		/* 
+		 * if (mtcp->ctx->thread != pthread_self())
+		 * return -1;
+		 */
+		
+		switch (optname) {
+		case MOS_CLIBUF:
+#if 0
+			if (socket->socktype != MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				errno = EBADF;
+				return -1;
+			}
+#endif
+#ifdef DISABLE_DYN_RESIZE
+			if (*(int *)optval != 0)
+				return -1;
+			if (socket->socktype == MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				rb = (socket->monitor_stream->stream->side == MOS_SIDE_CLI) ?
+					socket->monitor_stream->stream->rcvvar->rcvbuf :
+					socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+				if (rb) {
+					tcprb_resize_meta(rb, 0);
+					tcprb_resize(rb, 0);
+				}
+			}
+			return DisableBuf(socket, MOS_SIDE_CLI);
+#else
+			rb = (socket->monitor_stream->stream->side == MOS_SIDE_CLI) ?
+				socket->monitor_stream->stream->rcvvar->rcvbuf :
+				socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+			if (tcprb_resize_meta(rb, *(int *)optval) < 0)
+				return -1;
+			return tcprb_resize(rb,
+					(((int)rb->metalen - 1) / UNITBUFSIZE + 1) * UNITBUFSIZE);
+#endif
+		case MOS_SVRBUF:
+#if 0
+			if (socket->socktype != MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				errno = EBADF;
+				return -1;
+			}
+#endif
+#ifdef DISABLE_DYN_RESIZE
+			if (*(int *)optval != 0)
+				return -1;
+			if (socket->socktype == MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				rb = (socket->monitor_stream->stream->side == MOS_SIDE_SVR) ?
+					socket->monitor_stream->stream->rcvvar->rcvbuf :
+					socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+				if (rb) {
+					tcprb_resize_meta(rb, 0);
+					tcprb_resize(rb, 0);
+				}
+			}
+			return DisableBuf(socket, MOS_SIDE_SVR);
+#else
+			rb = (socket->monitor_stream->stream->side == MOS_SIDE_SVR) ?
+				socket->monitor_stream->stream->rcvvar->rcvbuf :
+				socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+			if (tcprb_resize_meta(rb, *(int *)optval) < 0)
+				return -1;
+			return tcprb_resize(rb,
+					(((int)rb->metalen - 1) / UNITBUFSIZE + 1) * UNITBUFSIZE);
+#endif
+		case MOS_FRAG_CLIBUF:
+#if 0
+			if (socket->socktype != MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				errno = EBADF;
+				return -1;
+			}
+#endif
+#ifdef DISABLE_DYN_RESIZE
+			if (*(int *)optval != 0)
+				return -1;
+			if (socket->socktype == MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				rb = (socket->monitor_stream->stream->side == MOS_SIDE_CLI) ?
+					socket->monitor_stream->stream->rcvvar->rcvbuf :
+					socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+				if (rb)
+					tcprb_resize(rb, 0);
+			}
+			return 0;
+#else
+			rb = (socket->monitor_stream->stream->side == MOS_SIDE_CLI) ?
+				socket->monitor_stream->stream->rcvvar->rcvbuf :
+				socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+			if (rb->len == 0)
+				return tcprb_resize_meta(rb, *(int *)optval);
+			else
+				return -1;
+#endif
+		case MOS_FRAG_SVRBUF:
+#if 0
+			if (socket->socktype != MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				errno = EBADF;
+				return -1;
+			}
+#endif
+#ifdef DISABLE_DYN_RESIZE
+			if (*(int *)optval != 0)
+				return -1;
+			if (socket->socktype == MOS_SOCK_MONITOR_STREAM_ACTIVE) {
+				rb = (socket->monitor_stream->stream->side == MOS_SIDE_SVR) ?
+					socket->monitor_stream->stream->rcvvar->rcvbuf :
+					socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+				if (rb)
+					tcprb_resize(rb, 0);
+			}
+			return 0;
+#else
+			rb = (socket->monitor_stream->stream->side == MOS_SIDE_SVR) ?
+				socket->monitor_stream->stream->rcvvar->rcvbuf :
+				socket->monitor_stream->stream->pair_stream->rcvvar->rcvbuf;
+			if (rb->len == 0)
+				return tcprb_resize_meta(rb, *(int *)optval);
+			else
+				return -1;
+#endif
+		case MOS_MONLEVEL:
+#ifdef OLD_API
+			assert(*(int *)optval == MOS_NO_CLIBUF || 
+			       *(int *)optval == MOS_NO_SVRBUF);
+			return DisableBuf(socket, 
+					  (*(int *)optval == MOS_NO_CLIBUF) ? 
+					  MOS_SIDE_CLI : MOS_SIDE_SVR);
+#endif
+		case MOS_SEQ_REMAP:
+			return TcpSeqChange(socket, 
+					    (uint32_t)((seq_remap_info *)optval)->seq_off, 
+					    ((seq_remap_info *)optval)->side,
+					    mtcp->pctx->p.seq);
+		case MOS_STOP_MON:
+			return mtcp_cb_stop(mctx, sockid, *(int *)optval);
+		default: 
+			TRACE_API("invalid optname=%d\n", optname);
+			assert(0);
+		}
+		break;
 	}
 
-	if (socket->socktype != MTCP_SOCK_LISTENER && 
-			socket->socktype != MTCP_SOCK_STREAM) {
-		TRACE_API("Invalid socket id: %d\n", sockid);
-		errno = ENOTSOCK;
-		return -1;
-	}
-
-	return 0;
+	errno = ENOSYS;
+	return -1;
 }
 /*----------------------------------------------------------------------------*/
 int 
@@ -299,16 +450,17 @@ mtcp_setsock_nonblock(mctx_t mctx, int sockid)
 	
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
@@ -320,17 +472,18 @@ mtcp_setsock_nonblock(mctx_t mctx, int sockid)
 }
 /*----------------------------------------------------------------------------*/
 int 
-mtcp_socket_ioctl(mctx_t mctx, int sockid, int request, void *argp)
+mtcp_ioctl(mctx_t mctx, int sockid, int request, void *argp)
 {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;
 	
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
@@ -338,8 +491,9 @@ mtcp_socket_ioctl(mctx_t mctx, int sockid, int request, void *argp)
 
 	/* only support stream socket */
 	socket = &mtcp->smap[sockid];
-	if (socket->socktype != MTCP_SOCK_STREAM &&
-	    socket->socktype != MTCP_SOCK_LISTENER) {
+	
+	if (socket->socktype != MOS_SOCK_STREAM_LISTEN && 
+		socket->socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
@@ -352,28 +506,98 @@ mtcp_socket_ioctl(mctx_t mctx, int sockid, int request, void *argp)
 
 	if (request == FIONREAD) {
 		tcp_stream *cur_stream;
-		struct tcp_ring_buffer *rbuf;
+		tcprb_t *rbuf;
 
 		cur_stream = socket->stream;
 		if (!cur_stream) {
 			errno = EBADF;
 			return -1;
 		}
+		
 		rbuf = cur_stream->rcvvar->rcvbuf;
-		if (rbuf) {
-		        *(int *)argp = rbuf->merged_len;
-		} else {
-			*(int *)argp = 0;
-		}
+		*(int *)argp = (rbuf) ? tcprb_cflen(rbuf) : 0;
 
 	} else if (request == FIONBIO) {
-		int32_t arg = *(int32_t *)argp;
-		if (arg != 0)
-			return mtcp_setsock_nonblock(mctx, sockid);
+		/* 
+		 * sockets can only be set to blocking/non-blocking 
+		 * modes during initialization
+		 */
+		if ((*(int *)argp))
+			mtcp->smap[sockid].opts |= MTCP_NONBLOCK;
+		else
+			mtcp->smap[sockid].opts &= ~MTCP_NONBLOCK;
 	} else {
 		errno = EINVAL;
 		return -1;
 	}
+	
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+static int 
+mtcp_monitor(mctx_t mctx, socket_map_t sock) 
+{
+	mtcp_manager_t mtcp;
+	struct mon_listener *monitor;
+	int sockid = sock->id;
+
+	mtcp = GetMTCPManager(mctx);
+	if (!mtcp) {
+		errno = EACCES;
+		return -1;
+	}
+
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
+		TRACE_API("Socket id %d out of range.\n", sockid);
+		errno = EBADF;
+		return -1;
+	}
+
+	if (mtcp->msmap[sockid].socktype == MOS_SOCK_UNUSED) {
+		TRACE_API("Invalid socket id: %d\n", sockid);
+		errno = EBADF;
+		return -1;
+	}
+
+	if (!(mtcp->msmap[sockid].socktype == MOS_SOCK_MONITOR_STREAM ||
+	      mtcp->msmap[sockid].socktype == MOS_SOCK_MONITOR_RAW)) {
+		TRACE_API("Not a monitor socket. id: %d\n", sockid);
+		errno = ENOTSOCK;
+		return -1;
+	}
+
+	monitor = (struct mon_listener *)calloc(1, sizeof(struct mon_listener));
+	if (!monitor) {
+		/* errno set from the malloc() */
+		errno = ENOMEM;
+		return -1;
+	}
+
+	/* create a monitor-specific event queue */
+	monitor->eq = CreateEventQueue(g_config.mos->max_concurrency);
+	if (!monitor->eq) {
+		TRACE_API("Can't create event queue (concurrency: %d) for "
+			  "monitor read event registrations!\n",
+			  g_config.mos->max_concurrency);
+		free(monitor);
+		errno = ENOMEM;
+		return -1;
+	}
+
+	/* set monitor-related basic parameters */
+#ifndef NEWEV
+	monitor->ude_id = UDE_OFFSET;
+#endif
+	monitor->socket = sock;
+	monitor->client_buf_mgmt = monitor->server_buf_mgmt = BUFMGMT_FULL;
+
+	/* perform both sides monitoring by default */
+	monitor->client_mon = monitor->server_mon = 1;
+
+	/* add monitor socket to the monitor list */
+	TAILQ_INSERT_TAIL(&mtcp->monitors, monitor, link);
+
+	mtcp->msmap[sockid].monitor_listener = monitor;
 
 	return 0;
 }
@@ -386,6 +610,7 @@ mtcp_socket(mctx_t mctx, int domain, int type, int protocol)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
@@ -395,16 +620,39 @@ mtcp_socket(mctx_t mctx, int domain, int type, int protocol)
 	}
 
 	if (type == SOCK_STREAM) {
-		type = MTCP_SOCK_STREAM;
+		type = MOS_SOCK_STREAM;
+	} else if (type == MOS_SOCK_MONITOR_STREAM ||
+		   type == MOS_SOCK_MONITOR_RAW) {
+		/* do nothing for the time being */
 	} else {
+		/* Not supported type */
 		errno = EINVAL;
 		return -1;
 	}
 
-	socket = AllocateSocket(mctx, type, FALSE);
+	socket = AllocateSocket(mctx, type);
 	if (!socket) {
 		errno = ENFILE;
 		return -1;
+	}
+
+	if (type == MOS_SOCK_MONITOR_STREAM || 
+	    type == MOS_SOCK_MONITOR_RAW) {
+		mtcp_manager_t mtcp = GetMTCPManager(mctx);
+		if (!mtcp) {
+			errno = EACCES;
+			return -1;
+		}
+		mtcp_monitor(mctx, socket);
+#ifdef NEWEV
+		socket->monitor_listener->stree_dontcare = NULL;
+		socket->monitor_listener->stree_pre_rcv = NULL;
+		socket->monitor_listener->stree_post_snd = NULL;
+#else
+		InitEvB(mtcp, &socket->monitor_listener->dontcare_evb);
+		InitEvB(mtcp, &socket->monitor_listener->pre_tcp_evb);
+		InitEvB(mtcp, &socket->monitor_listener->post_tcp_evb);
+#endif
 	}
 
 	return socket->id;
@@ -419,23 +667,24 @@ mtcp_bind(mctx_t mctx, int sockid,
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
-	if (mtcp->smap[sockid].socktype != MTCP_SOCK_STREAM && 
-			mtcp->smap[sockid].socktype != MTCP_SOCK_LISTENER) {
+	if (mtcp->smap[sockid].socktype != MOS_SOCK_STREAM && 
+			mtcp->smap[sockid].socktype != MOS_SOCK_STREAM_LISTEN) {
 		TRACE_API("Not a stream socket id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -460,8 +709,11 @@ mtcp_bind(mctx_t mctx, int sockid,
 		return -1;
 	}
 
-	/* TODO: validate whether the address is already being used */
-
+	if (mtcp->listener) {
+		TRACE_API("Address already bound!\n");
+		errno = EINVAL;
+		return -1;
+	}
 	addr_in = (struct sockaddr_in *)addr;
 	mtcp->smap[sockid].saddr = *addr_in;
 	mtcp->smap[sockid].opts |= MTCP_ADDR_BIND;
@@ -477,32 +729,33 @@ mtcp_listen(mctx_t mctx, int sockid, int backlog)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_STREAM) {
-		mtcp->smap[sockid].socktype = MTCP_SOCK_LISTENER;
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_STREAM) {
+		mtcp->smap[sockid].socktype = MOS_SOCK_STREAM_LISTEN;
 	}
 	
-	if (mtcp->smap[sockid].socktype != MTCP_SOCK_LISTENER) {
+	if (mtcp->smap[sockid].socktype != MOS_SOCK_STREAM_LISTEN) {
 		TRACE_API("Not a listening socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
 	}
 
-	if (backlog <= 0 || backlog > CONFIG.max_concurrency) {
+	if (backlog <= 0 || backlog > g_config.mos->max_concurrency) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -510,6 +763,7 @@ mtcp_listen(mctx_t mctx, int sockid, int backlog)
 	listener = (struct tcp_listener *)calloc(1, sizeof(struct tcp_listener));
 	if (!listener) {
 		/* errno set from the malloc() */
+		errno = ENOMEM;
 		return -1;
 	}
 
@@ -519,10 +773,12 @@ mtcp_listen(mctx_t mctx, int sockid, int backlog)
 
 	if (pthread_cond_init(&listener->accept_cond, NULL)) {
 		perror("pthread_cond_init of ctx->accept_cond\n");
+		/* errno set by pthread_cond_init() */
 		return -1;
 	}
 	if (pthread_mutex_init(&listener->accept_lock, NULL)) {
 		perror("pthread_mutex_init of ctx->accept_lock\n");
+		/* errno set by pthread_mutex_init() */
 		return -1;
 	}
 
@@ -548,17 +804,18 @@ mtcp_accept(mctx_t mctx, int sockid, struct sockaddr *addr, socklen_t *addrlen)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
 	/* requires listening socket */
-	if (mtcp->smap[sockid].socktype != MTCP_SOCK_LISTENER) {
+	if (mtcp->smap[sockid].socktype != MOS_SOCK_STREAM_LISTEN) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -593,7 +850,7 @@ mtcp_accept(mctx_t mctx, int sockid, struct sockaddr *addr, socklen_t *addrlen)
 	}
 
 	if (!accepted->socket) {
-		socket = AllocateSocket(mctx, MTCP_SOCK_STREAM, FALSE);
+		socket = AllocateSocket(mctx, MOS_SOCK_STREAM);
 		if (!socket) {
 			TRACE_ERROR("Failed to create new socket!\n");
 			/* TODO: destroy the stream */
@@ -603,17 +860,21 @@ mtcp_accept(mctx_t mctx, int sockid, struct sockaddr *addr, socklen_t *addrlen)
 		socket->stream = accepted;
 		accepted->socket = socket;
 
-		/* set socket parameters */
+		/* set socket addr parameters */
 		socket->saddr.sin_family = AF_INET;
 		socket->saddr.sin_port = accepted->dport;
 		socket->saddr.sin_addr.s_addr = accepted->daddr;
+
+		/* if monitor is enabled, complete the socket assignment */
+		if (socket->stream->pair_stream != NULL)
+			socket->stream->pair_stream->socket = socket;
 	}
 
-	if (!(listener->socket->epoll & MTCP_EPOLLET) &&
+	if (!(listener->socket->epoll & MOS_EPOLLET) &&
 	    !StreamQueueIsEmpty(listener->acceptq))
 		AddEpollEvent(mtcp->ep, 
 			      USR_SHADOW_EVENT_QUEUE,
-			      listener->socket, MTCP_EPOLLIN);
+			      listener->socket, MOS_EPOLLIN);
 
 	TRACE_API("Stream %d accepted.\n", accepted->id);
 
@@ -637,6 +898,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
@@ -646,7 +908,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 		/* for the INADDR_ANY, find the output interface for the destination
 		   and set the saddr_base as the ip address of the output interface */
 		nif_out = GetOutputInterface(daddr);
-		saddr_base = CONFIG.eths[nif_out].ip_addr;
+		saddr_base = g_config.mos->netdev_table->ent[nif_out]->ip_addr;
 	}
 
 	ap = CreateAddressPoolPerCore(mctx->cpu, num_cpus, 
@@ -661,6 +923,35 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+int
+eval_bpf_5tuple(struct sfbpf_program fcode,
+				in_addr_t saddr, in_port_t sport,
+				in_addr_t daddr, in_port_t dport) {
+	uint8_t buf[TOTAL_TCP_HEADER_LEN];
+	struct ethhdr *ethh;
+	struct iphdr *iph;
+	struct tcphdr *tcph;
+
+	ethh = (struct ethhdr *)buf;
+	ethh->h_proto = htons(ETH_P_IP);
+	iph = (struct iphdr *)(ethh + 1);
+	iph->ihl = IP_HEADER_LEN >> 2;
+	iph->version = 4;
+	iph->tos = 0;
+	iph->tot_len = htons(IP_HEADER_LEN + TCP_HEADER_LEN);
+	iph->id = htons(0);
+	iph->protocol = IPPROTO_TCP;
+	iph->saddr = saddr;
+	iph->daddr = daddr;
+	iph->check = 0;
+	tcph = (struct tcphdr *)(iph + 1);
+	tcph->source = sport;
+	tcph->dest = dport;
+	
+	return EVAL_BPFFILTER(fcode, (uint8_t *)iph - sizeof(struct ethhdr),
+						 TOTAL_TCP_HEADER_LEN);
+}
+/*----------------------------------------------------------------------------*/
 int 
 mtcp_connect(mctx_t mctx, int sockid, 
 		const struct sockaddr *addr, socklen_t addrlen)
@@ -673,25 +964,30 @@ mtcp_connect(mctx_t mctx, int sockid,
 	in_port_t dport;
 	int is_dyn_bound = FALSE;
 	int ret;
+	int cnt_match = 0;
+	struct mon_listener *walk;
+	struct sfbpf_program fcode;
 
+	cur_stream = NULL;
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
-	if (mtcp->smap[sockid].socktype != MTCP_SOCK_STREAM) {
+	if (mtcp->smap[sockid].socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Not an end socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -726,16 +1022,14 @@ mtcp_connect(mctx_t mctx, int sockid,
 	dport = addr_in->sin_port;
 
 	/* address binding */
-	if ((socket->opts & MTCP_ADDR_BIND) && 
+	if (socket->opts & MTCP_ADDR_BIND && 
 	    socket->saddr.sin_port != INPORT_ANY &&
 	    socket->saddr.sin_addr.s_addr != INADDR_ANY) {
 		int rss_core;
-		uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
-			0 : 1;
-		
+	
 		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip, 
-					 socket->saddr.sin_port, dport, num_queues, endian_check);
-		
+				socket->saddr.sin_port, dport, num_queues);
+
 		if (rss_core != mctx->cpu) {
 			errno = EINVAL;
 			return -1;
@@ -756,8 +1050,40 @@ mtcp_connect(mctx_t mctx, int sockid,
 		is_dyn_bound = TRUE;
 	}
 
-	cur_stream = CreateTCPStream(mtcp, socket, socket->socktype, 
-			socket->saddr.sin_addr.s_addr, socket->saddr.sin_port, dip, dport);
+	cnt_match = 0;
+	if (mtcp->num_msp > 0) {		
+		TAILQ_FOREACH(walk, &mtcp->monitors, link) {
+			fcode = walk->stream_syn_fcode;
+			if (!(ISSET_BPFFILTER(fcode) &&
+				  eval_bpf_5tuple(fcode, socket->saddr.sin_addr.s_addr,
+								  socket->saddr.sin_port,
+								  dip, dport) == 0)) {
+				walk->is_stream_syn_filter_hit = 1; // set the 'filter hit' flag to 1
+				cnt_match++;
+			}
+		}
+	}
+
+	if (mtcp->num_msp > 0 && cnt_match > 0) {
+		/* 150820 dhkim: XXX: embedded mode is not verified */
+#if 1
+		cur_stream = CreateClientTCPStream(mtcp, socket,
+						 STREAM_TYPE(MOS_SOCK_STREAM) |
+						 STREAM_TYPE(MOS_SOCK_MONITOR_STREAM_ACTIVE),
+						 socket->saddr.sin_addr.s_addr, 
+						 socket->saddr.sin_port, dip, dport, NULL);
+#else
+		cur_stream = CreateDualTCPStream(mtcp, socket,
+						 STREAM_TYPE(MOS_SOCK_STREAM) |
+						 STREAM_TYPE(MOS_SOCK_MONITOR_STREAM_ACTIVE),
+						 socket->saddr.sin_addr.s_addr, 
+						 socket->saddr.sin_port, dip, dport, NULL);
+#endif
+	}
+	else
+		cur_stream = CreateTCPStream(mtcp, socket, STREAM_TYPE(MOS_SOCK_STREAM),
+					     socket->saddr.sin_addr.s_addr,
+					     socket->saddr.sin_port, dip, dport, NULL);
 	if (!cur_stream) {
 		TRACE_ERROR("Socket %d: failed to create tcp_stream!\n", sockid);
 		errno = ENOMEM;
@@ -768,8 +1094,31 @@ mtcp_connect(mctx_t mctx, int sockid,
 		cur_stream->is_bound_addr = TRUE;
 	cur_stream->sndvar->cwnd = 1;
 	cur_stream->sndvar->ssthresh = cur_stream->sndvar->mss * 10;
+	cur_stream->side = MOS_SIDE_CLI;
+	/* if monitor is enabled, update the pair stream side as well */
+	if (cur_stream->pair_stream) {
+		cur_stream->pair_stream->side = MOS_SIDE_SVR;
+		/* 
+		 * if buffer management is off, then disable 
+		 * monitoring tcp ring of server...
+		 * if there is even a single monitor asking for
+		 * buffer management, enable it (that's why the
+		 * need for the loop)
+		 */
+		cur_stream->pair_stream->buffer_mgmt = BUFMGMT_OFF;
+		struct socket_map *walk;
+		SOCKQ_FOREACH_START(walk, &cur_stream->msocks) {
+			uint8_t bm = walk->monitor_stream->monitor_listener->server_buf_mgmt;
+			if (bm > cur_stream->pair_stream->buffer_mgmt) {
+				cur_stream->pair_stream->buffer_mgmt = bm;
+				break;
+			}
+		} SOCKQ_FOREACH_END;
+	}
 
 	cur_stream->state = TCP_ST_SYN_SENT;
+	cur_stream->cb_events |= MOS_ON_TCP_STATE_CHANGE;
+
 	TRACE_STATE("Stream %d: TCP_ST_SYN_SENT\n", cur_stream->id);
 
 	SQ_LOCK(&mtcp->ctx->connect_lock);
@@ -811,7 +1160,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 			usleep(1000);
 		}
 	}
-
+	
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -824,6 +1173,7 @@ CloseStreamSocket(mctx_t mctx, int sockid)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
@@ -843,10 +1193,11 @@ CloseStreamSocket(mctx_t mctx, int sockid)
 		
 	TRACE_API("Stream %d: closing the stream.\n", cur_stream->id);
 
+	/* 141029 dhkim: Check this! */
 	cur_stream->socket = NULL;
 
-	if (cur_stream->state == TCP_ST_CLOSED) {
-		TRACE_API("Stream %d at TCP_ST_CLOSED. destroying the stream.\n", 
+	if (cur_stream->state == TCP_ST_CLOSED_RSVD) {
+		TRACE_API("Stream %d at TCP_ST_CLOSED_RSVD. destroying the stream.\n", 
 				cur_stream->id);
 		SQ_LOCK(&mtcp->ctx->destroyq_lock);
 		StreamEnqueue(mtcp->destroyq, cur_stream);
@@ -894,6 +1245,7 @@ CloseListeningSocket(mctx_t mctx, int sockid)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
@@ -929,16 +1281,17 @@ mtcp_close(mctx_t mctx, int sockid)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
@@ -947,19 +1300,19 @@ mtcp_close(mctx_t mctx, int sockid)
 	TRACE_API("Socket %d: mtcp_close called.\n", sockid);
 
 	switch (mtcp->smap[sockid].socktype) {
-	case MTCP_SOCK_STREAM:
+	case MOS_SOCK_STREAM:
 		ret = CloseStreamSocket(mctx, sockid);
 		break;
 
-	case MTCP_SOCK_LISTENER:
+	case MOS_SOCK_STREAM_LISTEN:
 		ret = CloseListeningSocket(mctx, sockid);
 		break;
 
-	case MTCP_SOCK_EPOLL:
+	case MOS_SOCK_EPOLL:
 		ret = CloseEpollSocket(mctx, sockid);
 		break;
 
-	case MTCP_SOCK_PIPE:
+	case MOS_SOCK_PIPE:
 		ret = PipeClose(mctx, sockid);
 		break;
 
@@ -969,7 +1322,7 @@ mtcp_close(mctx_t mctx, int sockid)
 		break;
 	}
 	
-	FreeSocket(mctx, sockid, FALSE);
+	FreeSocket(mctx, sockid, mtcp->smap[sockid].socktype);
 
 	return ret;
 }
@@ -983,22 +1336,23 @@ mtcp_abort(mctx_t mctx, int sockid)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+	if (mtcp->smap[sockid].socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
-	if (mtcp->smap[sockid].socktype != MTCP_SOCK_STREAM) {
+	if (mtcp->smap[sockid].socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Not an end socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -1013,18 +1367,19 @@ mtcp_abort(mctx_t mctx, int sockid)
 
 	TRACE_API("Socket %d: mtcp_abort()\n", sockid);
 	
-	FreeSocket(mctx, sockid, FALSE);
+	FreeSocket(mctx, sockid, mtcp->smap[sockid].socktype);
 	cur_stream->socket = NULL;
 
-	if (cur_stream->state == TCP_ST_CLOSED) {
+	if (cur_stream->state == TCP_ST_CLOSED_RSVD) {
 		TRACE_API("Stream %d: connection already reset.\n", sockid);
 		return ERROR;
 
 	} else if (cur_stream->state == TCP_ST_SYN_SENT) {
 		/* TODO: this should notify event failure to all 
 		   previous read() or write() calls */
-		cur_stream->state = TCP_ST_CLOSED;
+		cur_stream->state = TCP_ST_CLOSED_RSVD;
 		cur_stream->close_reason = TCP_ACTIVE_CLOSE;
+		cur_stream->cb_events |= MOS_ON_TCP_STATE_CHANGE;
 		SQ_LOCK(&mtcp->ctx->destroyq_lock);
 		StreamEnqueue(mtcp->destroyq, cur_stream);
 		SQ_UNLOCK(&mtcp->ctx->destroyq_lock);
@@ -1034,8 +1389,9 @@ mtcp_abort(mctx_t mctx, int sockid)
 	} else if (cur_stream->state == TCP_ST_CLOSING || 
 			cur_stream->state == TCP_ST_LAST_ACK || 
 			cur_stream->state == TCP_ST_TIME_WAIT) {
-		cur_stream->state = TCP_ST_CLOSED;
+		cur_stream->state = TCP_ST_CLOSED_RSVD;
 		cur_stream->close_reason = TCP_ACTIVE_CLOSE;
+		cur_stream->cb_events |= MOS_ON_TCP_STATE_CHANGE;
 		SQ_LOCK(&mtcp->ctx->destroyq_lock);
 		StreamEnqueue(mtcp->destroyq, cur_stream);
 		SQ_UNLOCK(&mtcp->ctx->destroyq_lock);
@@ -1070,16 +1426,13 @@ PeekForUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 {
 	struct tcp_recv_vars *rcvvar = cur_stream->rcvvar;
 	int copylen;
-	
-	copylen = MIN(rcvvar->rcvbuf->merged_len, len);
-	if (copylen <= 0) {
+	tcprb_t *rb = rcvvar->rcvbuf;
+
+	if ((copylen = tcprb_ppeek(rb, (uint8_t *)buf, len, rb->pile)) <= 0) {
 		errno = EAGAIN;
 		return -1;
 	}
 
-	/* Only copy data to user buffer */
-	memcpy(buf, rcvvar->rcvbuf->head, copylen);
-	
 	return copylen;
 }
 /*----------------------------------------------------------------------------*/
@@ -1087,20 +1440,16 @@ static inline int
 CopyToUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 {
 	struct tcp_recv_vars *rcvvar = cur_stream->rcvvar;
-	uint32_t prev_rcv_wnd;
 	int copylen;
-
-	copylen = MIN(rcvvar->rcvbuf->merged_len, len);
-	if (copylen <= 0) {
+	tcprb_t *rb = rcvvar->rcvbuf;
+	if ((copylen = tcprb_ppeek(rb, (uint8_t *)buf, len, rb->pile)) <= 0) {
 		errno = EAGAIN;
 		return -1;
 	}
+	tcprb_setpile(rb, rb->pile + copylen);
 
-	prev_rcv_wnd = rcvvar->rcv_wnd;
-	/* Copy data to user buffer and remove it from receiving buffer */
-	memcpy(buf, rcvvar->rcvbuf->head, copylen);
-	RBRemove(mtcp->rbm_rcv, rcvvar->rcvbuf, copylen, AT_APP);
-	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - rcvvar->rcvbuf->merged_len;
+	rcvvar->rcv_wnd = rb->len - tcprb_cflen(rb);
+	//printf("rcv_wnd: %d\n", rcvvar->rcv_wnd);
 
 	/* Advertise newly freed receive buffer */
 	if (cur_stream->need_wnd_adv) {
@@ -1116,7 +1465,6 @@ CopyToUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 		}
 	}
 
-	UNUSED(prev_rcv_wnd);
 	return copylen;
 }
 /*----------------------------------------------------------------------------*/
@@ -1127,32 +1475,33 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 	socket_map_t socket;
 	tcp_stream *cur_stream;
 	struct tcp_recv_vars *rcvvar;
-	int event_remaining;
+	int event_remaining, merged_len;
 	int ret;
 	
 	mtcp = GetMTCPManager(mctx);
-        if (!mtcp) {
+	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 	
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
 	socket = &mtcp->smap[sockid];
-        if (socket->socktype == MTCP_SOCK_UNUSED) {
+	if (socket->socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
-	if (socket->socktype == MTCP_SOCK_PIPE) {
+	if (socket->socktype == MOS_SOCK_PIPE) {
 		return PipeRead(mctx, sockid, buf, len);
 	}
 	
-	if (socket->socktype != MTCP_SOCK_STREAM) {
+	if (socket->socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Not an end socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -1160,45 +1509,35 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 	
 	/* stream should be in ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2, CLOSE_WAIT */
 	cur_stream = socket->stream;
-        if (!cur_stream || 
+	if (!cur_stream || !cur_stream->rcvvar || !cur_stream->rcvvar->rcvbuf ||
 	    !(cur_stream->state >= TCP_ST_ESTABLISHED && 
 	      cur_stream->state <= TCP_ST_CLOSE_WAIT)) {
 		errno = ENOTCONN;
 		return -1;
 	}
-
+	
 	rcvvar = cur_stream->rcvvar;
+	
+	merged_len = tcprb_cflen(rcvvar->rcvbuf);
 	
 	/* if CLOSE_WAIT, return 0 if there is no payload */
 	if (cur_stream->state == TCP_ST_CLOSE_WAIT) {
 		if (!rcvvar->rcvbuf)
 			return 0;
 		
-		if (rcvvar->rcvbuf->merged_len == 0)
+		if (merged_len == 0)
 			return 0;
-        }
+	}
 	
 	/* return EAGAIN if no receive buffer */
 	if (socket->opts & MTCP_NONBLOCK) {
-		if (!rcvvar->rcvbuf || rcvvar->rcvbuf->merged_len == 0) {
+		if (!rcvvar->rcvbuf || merged_len == 0) {
 			errno = EAGAIN;
 			return -1;
 		}
 	}
 	
 	SBUF_LOCK(&rcvvar->read_lock);
-#if BLOCKING_SUPPORT
-	if (!(socket->opts & MTCP_NONBLOCK)) {
-		while (rcvvar->rcvbuf->merged_len == 0) {
-			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
-				SBUF_UNLOCK(&rcvvar->read_lock);
-				errno = EINTR;
-				return -1;
-			}
-			pthread_cond_wait(&rcvvar->read_cond, &rcvvar->read_lock);
-		}
-	}
-#endif
 
 	switch (flags) {
 	case 0:
@@ -1214,17 +1553,18 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 		return ret;
 	}
 	
+	merged_len = tcprb_cflen(rcvvar->rcvbuf);
 	event_remaining = FALSE;
-        /* if there are remaining payload, generate EPOLLIN */
+	/* if there are remaining payload, generate EPOLLIN */
 	/* (may due to insufficient user buffer) */
-	if (socket->epoll & MTCP_EPOLLIN) {
-		if (!(socket->epoll & MTCP_EPOLLET) && rcvvar->rcvbuf->merged_len > 0) {
+	if (socket->epoll & MOS_EPOLLIN) {
+		if (!(socket->epoll & MOS_EPOLLET) && merged_len > 0) {
 			event_remaining = TRUE;
 		}
 	}
-        /* if waiting for close, notify it if no remaining data */
+	/* if waiting for close, notify it if no remaining data */
 	if (cur_stream->state == TCP_ST_CLOSE_WAIT && 
-	    rcvvar->rcvbuf->merged_len == 0 && ret > 0) {
+	    merged_len == 0 && ret > 0) {
 		event_remaining = TRUE;
 	}
 	
@@ -1233,21 +1573,12 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 	if (event_remaining) {
 		if (socket->epoll) {
 			AddEpollEvent(mtcp->ep, 
-				      USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLIN);
-#if BLOCKING_SUPPORT
-		} else if (!(socket->opts & MTCP_NONBLOCK)) {
-			if (!cur_stream->on_rcv_br_list) {
-				cur_stream->on_rcv_br_list = TRUE;
-				TAILQ_INSERT_TAIL(&mtcp->rcv_br_list, 
-						  cur_stream, rcvvar->rcv_br_link);
-				mtcp->rcv_br_list_cnt++;
-			}
-#endif
+				      USR_SHADOW_EVENT_QUEUE, socket, MOS_EPOLLIN);
 		}
 	}
 	
 	TRACE_API("Stream %d: mtcp_recv() returning %d\n", cur_stream->id, ret);
-        return ret;
+	return ret;
 }
 /*----------------------------------------------------------------------------*/
 inline ssize_t
@@ -1256,7 +1587,7 @@ mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len)
 	return mtcp_recv(mctx, sockid, buf, len, 0);
 }
 /*----------------------------------------------------------------------------*/
-int
+ssize_t
 mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 {
 	mtcp_manager_t mtcp;
@@ -1264,27 +1595,28 @@ mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 	tcp_stream *cur_stream;
 	struct tcp_recv_vars *rcvvar;
 	int ret, bytes_read, i;
-	int event_remaining;
+	int event_remaining, merged_len;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
 	socket = &mtcp->smap[sockid];
-	if (socket->socktype == MTCP_SOCK_UNUSED) {
+	if (socket->socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 	
-	if (socket->socktype != MTCP_SOCK_STREAM) {
+	if (socket->socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Not an end socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -1301,37 +1633,27 @@ mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 
 	rcvvar = cur_stream->rcvvar;
 
+	merged_len = tcprb_cflen(rcvvar->rcvbuf);
+
 	/* if CLOSE_WAIT, return 0 if there is no payload */
 	if (cur_stream->state == TCP_ST_CLOSE_WAIT) {
 		if (!rcvvar->rcvbuf)
 			return 0;
 		
-		if (rcvvar->rcvbuf->merged_len == 0)
+		if (merged_len == 0)
 			return 0;
 	}
 
 	/* return EAGAIN if no receive buffer */
 	if (socket->opts & MTCP_NONBLOCK) {
-		if (!rcvvar->rcvbuf || rcvvar->rcvbuf->merged_len == 0) {
+		if (!rcvvar->rcvbuf || merged_len == 0) {
 			errno = EAGAIN;
 			return -1;
 		}
 	}
 	
 	SBUF_LOCK(&rcvvar->read_lock);
-#if BLOCKING_SUPPORT
-	if (!(socket->opts & MTCP_NONBLOCK)) {
-		while (rcvvar->rcvbuf->merged_len == 0) {
-			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
-				SBUF_UNLOCK(&rcvvar->read_lock);
-				errno = EINTR;
-				return -1;
-			}
-			pthread_cond_wait(&rcvvar->read_cond, &rcvvar->read_lock);
-		}
-	}
-#endif
-
+	
 	/* read and store the contents to the vectored buffers */ 
 	bytes_read = 0;
 	for (i = 0; i < numIOV; i++) {
@@ -1348,35 +1670,28 @@ mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 			break;
 	}
 
+	merged_len = tcprb_cflen(rcvvar->rcvbuf);
+
 	event_remaining = FALSE;
 	/* if there are remaining payload, generate read event */
 	/* (may due to insufficient user buffer) */
-	if (socket->epoll & MTCP_EPOLLIN) {
-		if (!(socket->epoll & MTCP_EPOLLET) && rcvvar->rcvbuf->merged_len > 0) {
+	if (socket->epoll & MOS_EPOLLIN) {
+		if (!(socket->epoll & MOS_EPOLLET) && merged_len > 0) {
 			event_remaining = TRUE;
 		}
 	}
 	/* if waiting for close, notify it if no remaining data */
 	if (cur_stream->state == TCP_ST_CLOSE_WAIT && 
-			rcvvar->rcvbuf->merged_len == 0 && bytes_read > 0) {
+			merged_len == 0 && bytes_read > 0) {
 		event_remaining = TRUE;
 	}
 
 	SBUF_UNLOCK(&rcvvar->read_lock);
 
 	if(event_remaining) {
-		if (socket->epoll & MTCP_EPOLLIN && !(socket->epoll & MTCP_EPOLLET)) {
+		if (socket->epoll & MOS_EPOLLIN && !(socket->epoll & MOS_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
-					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLIN);
-#if BLOCKING_SUPPORT
-		} else if (!(socket->opts & MTCP_NONBLOCK)) {
-			if (!cur_stream->on_rcv_br_list) {
-				cur_stream->on_rcv_br_list = TRUE;
-				TAILQ_INSERT_TAIL(&mtcp->rcv_br_list, 
-						cur_stream, rcvvar->rcv_br_link);
-				mtcp->rcv_br_list_cnt++;
-			}
-#endif
+				      USR_SHADOW_EVENT_QUEUE, socket, MOS_EPOLLIN);
 		}
 	}
 
@@ -1438,27 +1753,28 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
 	socket = &mtcp->smap[sockid];
-	if (socket->socktype == MTCP_SOCK_UNUSED) {
+	if (socket->socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (socket->socktype == MTCP_SOCK_PIPE) {
+	if (socket->socktype == MOS_SOCK_PIPE) {
 		return PipeWrite(mctx, sockid, buf, len);
 	}
 
-	if (socket->socktype != MTCP_SOCK_STREAM) {
+	if (socket->socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Not an end socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -1484,22 +1800,6 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 	sndvar = cur_stream->sndvar;
 
 	SBUF_LOCK(&sndvar->write_lock);
-#if BLOCKING_SUPPORT
-	if (!(socket->opts & MTCP_NONBLOCK)) {
-		while (sndvar->snd_wnd <= 0) {
-			TRACE_SNDBUF("Waiting for available sending window...\n");
-			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
-				SBUF_UNLOCK(&sndvar->write_lock);
-				errno = EINTR;
-				return -1;
-			}
-			pthread_cond_wait(&sndvar->write_cond, &sndvar->write_lock);
-			TRACE_SNDBUF("Sending buffer became ready! snd_wnd: %u\n", 
-					sndvar->snd_wnd);
-		}
-	}
-#endif
-
 	ret = CopyFromUser(mtcp, cur_stream, buf, len);
 
 	SBUF_UNLOCK(&sndvar->write_lock);
@@ -1519,18 +1819,9 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 
 	/* if there are remaining sending buffer, generate write event */
 	if (sndvar->snd_wnd > 0) {
-		if (socket->epoll & MTCP_EPOLLOUT && !(socket->epoll & MTCP_EPOLLET)) {
+		if (socket->epoll & MOS_EPOLLOUT && !(socket->epoll & MOS_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
-					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);
-#if BLOCKING_SUPPORT
-		} else if (!(socket->opts & MTCP_NONBLOCK)) {
-			if (!cur_stream->on_snd_br_list) {
-				cur_stream->on_snd_br_list = TRUE;
-				TAILQ_INSERT_TAIL(&mtcp->snd_br_list, 
-						cur_stream, sndvar->snd_br_link);
-				mtcp->snd_br_list_cnt++;
-			}
-#endif
+				      USR_SHADOW_EVENT_QUEUE, socket, MOS_EPOLLOUT);
 		}
 	}
 
@@ -1538,7 +1829,7 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
-int
+ssize_t
 mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 {
 	mtcp_manager_t mtcp;
@@ -1549,23 +1840,24 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
-	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+	if (sockid < 0 || sockid >= g_config.mos->max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
 	socket = &mtcp->smap[sockid];
-	if (socket->socktype == MTCP_SOCK_UNUSED) {
+	if (socket->socktype == MOS_SOCK_UNUSED) {
 		TRACE_API("Invalid socket id: %d\n", sockid);
 		errno = EBADF;
 		return -1;
 	}
 
-	if (socket->socktype != MTCP_SOCK_STREAM) {
+	if (socket->socktype != MOS_SOCK_STREAM) {
 		TRACE_API("Not an end socket. id: %d\n", sockid);
 		errno = ENOTSOCK;
 		return -1;
@@ -1581,21 +1873,6 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 
 	sndvar = cur_stream->sndvar;
 	SBUF_LOCK(&sndvar->write_lock);
-#if BLOCKING_SUPPORT
-	if (!(socket->opts & MTCP_NONBLOCK)) {
-		while (sndvar->snd_wnd <= 0) {
-			TRACE_SNDBUF("Waiting for available sending window...\n");
-			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
-				SBUF_UNLOCK(&sndvar->write_lock);
-				errno = EINTR;
-				return -1;
-			}
-			pthread_cond_wait(&sndvar->write_cond, &sndvar->write_lock);
-			TRACE_SNDBUF("Sending buffer became ready! snd_wnd: %u\n", 
-					sndvar->snd_wnd);
-		}
-	}
-#endif
 
 	/* write from the vectored buffers */ 
 	to_write = 0;
@@ -1629,23 +1906,30 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 
 	/* if there are remaining sending buffer, generate write event */
 	if (sndvar->snd_wnd > 0) {
-		if (socket->epoll & MTCP_EPOLLOUT && !(socket->epoll & MTCP_EPOLLET)) {
+		if (socket->epoll & MOS_EPOLLOUT && !(socket->epoll & MOS_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
-					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);
-#if BLOCKING_SUPPORT
-		} else if (!(socket->opts & MTCP_NONBLOCK)) {
-			if (!cur_stream->on_snd_br_list) {
-				cur_stream->on_snd_br_list = TRUE;
-				TAILQ_INSERT_TAIL(&mtcp->snd_br_list, 
-						cur_stream, sndvar->snd_br_link);
-				mtcp->snd_br_list_cnt++;
-			}
-#endif
+				      USR_SHADOW_EVENT_QUEUE, socket, MOS_EPOLLOUT);
 		}
 	}
 
 	TRACE_API("Stream %d: mtcp_writev() returning %d\n", 
 			cur_stream->id, to_write);
 	return to_write;
+}
+/*----------------------------------------------------------------------------*/
+uint32_t
+mtcp_get_connection_cnt(mctx_t mctx)
+{
+	mtcp_manager_t mtcp;
+	mtcp = GetMTCPManager(mctx);
+	if (!mtcp) {
+		errno = EACCES;
+		return -1;
+	}
+	
+	if (mtcp->num_msp > 0)
+		return mtcp->flow_cnt / 2;
+	else
+		return mtcp->flow_cnt;
 }
 /*----------------------------------------------------------------------------*/

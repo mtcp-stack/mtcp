@@ -38,12 +38,17 @@ of failure,
 is set appropriately.
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .SH ERRORS
-.TP 10
+
+.TP 15
+.B "EADDRINUSE"
+Another socket is already listening on the same port.
+
+.TP 15
 .B "EBADF"
 .I "sockid"
 is not a valid socket descriptor.
 
-.TP 10
+.TP 15
 .B "EINVAL"
 The
 .I "backlog"
@@ -52,13 +57,13 @@ limit as set by the mTCP startup configuration file (see
 .BR mtcp_init()
 for details).
 
-.TP 10
+.TP 15
 .B "ENOMEM"
 There is not enough available memory to create the listening
 .I "backlog"
 queue.
 
-.TP 10
+.TP 15
 .B "ENOTSOCK"
 The socket referred to by
 .I "sockid"

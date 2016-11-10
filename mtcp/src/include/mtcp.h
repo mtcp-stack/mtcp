@@ -204,7 +204,7 @@ struct mtcp_manager
 	struct mtcp_epoll *ep;
 	uint32_t ts_last_event;
 
-	struct tcp_listener *listener;
+	struct hashtable *listeners;
 
 	stream_queue_t connectq;				/* streams need to connect */
 	stream_queue_t sendq;				/* streams need to send data */

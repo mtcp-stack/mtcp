@@ -4,10 +4,6 @@
 #include "addr_pool.h"
 #include "rss.h"
 #include "debug.h"
-#include "config.h"
-
-#define MIN_PORT (1025)
-#define MAX_PORT (65535 + 1)
 
 /*----------------------------------------------------------------------------*/
 struct addr_entry
@@ -116,6 +112,8 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	uint32_t saddr_h, daddr_h;
 	uint16_t sport_h, dport_h;
 	int rss_core;
+	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
+		0 : 1;
 
 	ap = (addr_pool_t)calloc(1, sizeof(struct addr_pool));
 	if (!ap)
@@ -163,7 +161,7 @@ CreateAddressPoolPerCore(int core, int num_queues,
 				break;
 
 			sport_h = j;
-			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues);
+			rss_core = GetRSSCPUCore(daddr_h, saddr_h, dport_h, sport_h, num_queues, endian_check);
 			if (rss_core != core)
 				continue;
 
@@ -179,10 +177,10 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	ap->num_free = cnt;
 	ap->num_used = 0;
 	//fprintf(stderr, "CPU %d: Created %d address entries.\n", core, cnt);
-	if (ap->num_entry < g_config.mos->max_concurrency) {
+	if (ap->num_entry < CONFIG.max_concurrency) {
 		fprintf(stderr, "[WARINING] Available # addresses (%d) is smaller than"
 				" the max concurrency (%d).\n", 
-				ap->num_entry, g_config.mos->max_concurrency);
+				ap->num_entry, CONFIG.max_concurrency);
 	}
 	
 	pthread_mutex_unlock(&ap->lock);
@@ -218,6 +216,8 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 	struct addr_entry *walk, *next;
 	int rss_core;
 	int ret = -1;
+	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
+		0 : 1;
 
 	if (!ap || !daddr || !saddr)
 		return -1;
@@ -241,8 +241,8 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 		}
 
 		rss_core = GetRSSCPUCore(ntohl(walk->addr.sin_addr.s_addr), 
-				ntohl(daddr->sin_addr.s_addr), ntohs(walk->addr.sin_port), 
-				ntohs(daddr->sin_port), num_queues);
+					 ntohl(daddr->sin_addr.s_addr), ntohs(walk->addr.sin_port), 
+					 ntohs(daddr->sin_port), num_queues, endian_check);
 
 		if (core == rss_core)
 			break;

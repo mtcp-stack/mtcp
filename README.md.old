@@ -15,7 +15,7 @@ We require the following libraries to run mTCP.
  - ``libpthread``
  - ``librt``
  Compling PSIO/DPDK driver requires kernel headers.
- - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
+  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
 We have modified the dpdk-16.04 package to export net_device stat data 
 to the OS. To achieve this, the dpdk-16.04/lib/librte_eal/linuxapp/igb_uio/
@@ -105,10 +105,10 @@ mTCP can be prepared in two ways.
    used the following steps in the setup.sh script for our setup:
    
      - Press [14] to compile the package
-     - Press [17] to install the driver
-     - Press [20] to setup 1024 2MB hugepages
-     - Press [23] to register the Ethernet ports
-     - Press [34] to quit the tool
+      - Press [17] to install the driver
+      - Press [20] to setup 1024 2MB hugepages
+      - Press [23] to register the Ethernet ports
+      - Press [34] to quit the tool
 
    - check that DPDK package creates a new directory of compiled
   libraries. For x86_64 machines, the new subdirectory should be
@@ -130,21 +130,21 @@ mTCP can be prepared in two ways.
 3. Create soft links for ``include/`` and ``lib/`` directories inside
    empty ``dpdk/`` directory:
    ```bash
-      # cd dpdk/
-         # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/lib lib
-	    # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/include include
+	   # cd dpdk/
+	      # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/lib lib
+	         # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/include include
    ```
 4. Setup mtcp library:
    ```bash
          # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
 	      ## And not dpdk-16.04!
 	           ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
-   		       # make
+   		        # make
     ```
-   - In case `./configure' script prints an error, run the
+      - In case `./configure' script prints an error, run the
     following command; and then re-do step-4 (configure again):
     
-       ```# autoreconf -ivf```
+	   ```# autoreconf -ivf```
    - checksum offloading in the NIC is now ENABLED (by default)!!!
    - this only works for dpdk at the moment
    - use ```./configure --with-dpdk-lib=`echo $PWD`/dpdk --disable-hwcsum``` to disable checksum offloading.
@@ -199,9 +199,9 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 
 5. mTCP has been tested with the following Ethernet adapters:
 
-   1. Intel-82598	     ixgbe	      	        (Max-queue-limit: 16)
-   2. Intel-82599								    ixgbe		(Max-queue-limit: 16)
-   3. Intel-I350								    					          igb   (Max-queue-limit: 08)
+   1. Intel-82598	     ixgbe	   	    (Max-queue-limit: 16)
+   2. Intel-82599	     			    ixgbe		(Max-queue-limit: 16)
+   3. Intel-I350				    			igb			(Max-queue-limit: 08)
  
 ***FREQUENTLY ASKED QUESTIONS***
 
@@ -230,5 +230,5 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 
                    Contact: mtcp-user at list.ndsl.kaist.edu
                              April 2, 2015. 
-                    EunYoung Jeong <notav at ndsl.kaist.edu>
-		    	                M. Asim Jamshed <ajamshed at ndsl.kaist.edu>
+                 EunYoung Jeong <notav at ndsl.kaist.edu>
+		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

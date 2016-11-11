@@ -55,6 +55,7 @@ config: sample mTCP configuration files (may not be necessary)
 mTCP can be prepared in two ways.
 
 ***PSIO VERSION***
+
 1. make in io_engine/driver:
 
       ```# make```
@@ -218,6 +219,7 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
     config/route.conf and config/arp.conf for static configuration.
 
 ***CAUTION***
+
 1. Do not remove I/O driver (```ps_ixgbe/igb_uio```) while running mTCP 
    applications. The application will panic!
 

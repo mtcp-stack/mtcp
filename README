@@ -50,8 +50,7 @@ dpdk/lib - the libraries that need to be linked
 apps - mTCP applications
 apps/example - example applications (see README)
 apps/lighttpd-1.4.32 - mTCP-ported lighttpd (see INSTALL)
-apps/apache_benchmark - mTCP-ported apache benchmark (ab) (see README-mtcp) [DEPRECATED]
-		       (May be revived based on users' feedback).
+apps/apache_benchmark - mTCP-ported apache benchmark (ab) (see README-mtcp)
 
 util - useful source code for applications
 
@@ -193,18 +192,16 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
    O(1). To easily congest the server side, this function should be 
    called at the application startup.
 
-3. mTCP currently supports only 1 listening socket per an mTCP thread.
-
-4. The supported socket options are limited for right now. Please refer 
+3. The supported socket options are limited for right now. Please refer 
    to the mtcp/src/api.c for more detail.
 
-5. The counterpart of mTCP should enable TCP timestamp.
+4. The counterpart of mTCP should enable TCP timestamp.
 
-6. mTCP has been tested with the following Ethernet adapters:
+5. mTCP has been tested with the following Ethernet adapters:
 
-1. Intel-82598		ixgbe		(Max-queue-limit: 16)
-2. Intel-82599		ixgbe		(Max-queue-limit: 16)
-3. Intel-I350		igb		(Max-queue-limit: 08)
+   1. Intel-82598		ixgbe		(Max-queue-limit: 16)
+   2. Intel-82599		ixgbe		(Max-queue-limit: 16)
+   3. Intel-I350		igb		(Max-queue-limit: 08)
  
 ========================================================================
  FREQUENTLY ASKED QUESTIONS

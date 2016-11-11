@@ -75,7 +75,7 @@ mTCP can be prepared in two ways.
    
    ```bash
    # ./configure --with-psio-lib=<$path_to_ioengine>
-   ## e.g. ./configure --with-psio-lib=\`echo $PWD\`/io_engine``
+   ## e.g. ./configure --with-psio-lib=`echo $PWD`/io_engine
    # make
    ```
    - In case `./configure' script prints an error, run the
@@ -131,15 +131,15 @@ mTCP can be prepared in two ways.
    empty ``dpdk/`` directory:
    ```bash
       # cd dpdk/
-         # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/lib lib
-	    # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/include include
+      # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/lib lib
+      # ln -s <path_to_dpdk_16_04_directory>/x86_64-native-linuxapp-gcc/include include
    ```
 4. Setup mtcp library:
    ```bash
          # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
-	      ## And not dpdk-16.04!
-	           ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
-   		       # make
+	 ## And not dpdk-16.04!
+	 ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
+   	 # make
     ```
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-4 (configure again):
@@ -231,4 +231,4 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
                    Contact: mtcp-user at list.ndsl.kaist.edu
                              April 2, 2015. 
                     EunYoung Jeong <notav at ndsl.kaist.edu>
-		    	                M. Asim Jamshed <ajamshed at ndsl.kaist.edu>
+                    M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

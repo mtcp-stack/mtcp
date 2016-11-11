@@ -1,10 +1,12 @@
- # README #
+# README #
+
 mTCP is a highly scalable user-level TCP stack for multicore systems. 
 mTCP source code is distributed under the Modified BSD License. For 
 more detail, please refer to the LICENSE. The license term of io_engine 
 driver and ported applications may differ from the mTCP’s.
---------------------
+
 ### PREREQUISITE ###
+
 We require the following libraries to run mTCP.
  - ``libps`` (PacketShader I/O engine library) OR libdpdk (Intel's DPDK package*)
  - ``libnuma``
@@ -16,8 +18,9 @@ We require the following libraries to run mTCP.
 We have modified the dpdk-16.04 package to export net_device stat data 
 to the OS. To achieve this, the dpdk-16.04/lib/librte_eal/linuxapp/igb_uio/
 directory was updated. We recommend using our package for DPDK installation. 
---------------------
+
 ### INCLUDED DIRECTORIES ###
+
 mtcp: mtcp source code directory
 - mtcp/src: source code
 - mtcp/src/include: mTCP’s internal header files
@@ -46,8 +49,9 @@ util: useful source code for applications
 
 config: sample mTCP configuration files (may not be necessary)
 
---------------------
+
 ### INSTALL GUIDES ###
+
 mTCP can be prepared in two ways.
 
 ***PSIO VERSION***

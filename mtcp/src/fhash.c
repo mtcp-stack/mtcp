@@ -10,6 +10,8 @@
 #include "debug.h"
 #include "fhash.h"
 
+#define IS_FLOW_TABLE(x)	(x == HashFlow)
+#define IS_LISTEN_TABLE(x)	(x == HashListener)
 /*----------------------------------------------------------------------------*/
 struct hashtable * 
 CreateHashtable(unsigned int (*hashfn) (const void *), // key function
@@ -28,24 +30,39 @@ CreateHashtable(unsigned int (*hashfn) (const void *), // key function
 	ht->bins = bins;
 
 	/* creating bins */
-	ht->ht_table = calloc(bins, sizeof(hash_bucket_head));
-	if (!ht->ht_table) {
-		TRACE_ERROR("calloc: CreateHashtable bins!\n");
-		free(ht);
-		return 0;
+	if (IS_FLOW_TABLE(hashfn)) {
+		ht->ht_table = calloc(bins, sizeof(hash_bucket_head));
+		if (!ht->ht_table) {
+			TRACE_ERROR("calloc: CreateHashtable bins!\n");
+			free(ht);
+			return 0;
+		}
+		/* init the tables */
+		for (i = 0; i < bins; i++)
+			TAILQ_INIT(&ht->ht_table[i]);
+	} else if (IS_LISTEN_TABLE(hashfn)) {
+		ht->lt_table = calloc(bins, sizeof(list_bucket_head));
+		if (!ht->lt_table) {
+			TRACE_ERROR("calloc: CreateHashtable bins!\n");
+			free(ht);
+			return 0;
+		}
+		/* init the tables */
+		for (i = 0; i < bins; i++)
+			TAILQ_INIT(&ht->lt_table[i]);
 	}
 
-	/* init the tables */
-	for (i = 0; i < bins; i++)
-		TAILQ_INIT(&ht->ht_table[i]);
 	return ht;
 }
 /*----------------------------------------------------------------------------*/
 void
 DestroyHashtable(struct hashtable *ht)
 {
-	free(ht->ht_table);
-	free(ht);	
+	if (IS_FLOW_TABLE(ht->hashfn))
+		free(ht->ht_table);
+	else /* IS_LISTEN_TABLE(ht->hashfn) */
+		free(ht->lt_table);
+	free(ht);
 }
 /*----------------------------------------------------------------------------*/
 int 
@@ -62,6 +79,7 @@ StreamHTInsert(struct hashtable *ht, void *it)
 	assert(idx >=0 && idx < NUM_BINS_FLOWS);
 
 	TAILQ_INSERT_TAIL(&ht->ht_table[idx], item, rcvvar->he_link);
+
 	item->ht_idx = TCP_AR_CNT;
 	ht->ht_count++;
 	
@@ -132,7 +150,7 @@ ListenerHTInsert(struct hashtable *ht, void *it)
 	idx = ht->hashfn(item);
 	assert(idx >=0 && idx < NUM_BINS_LISTENERS);
 
-	TAILQ_INSERT_TAIL(&ht->ht_table[idx], item, he_link);
+	TAILQ_INSERT_TAIL(&ht->lt_table[idx], item, he_link);
 	ht->ht_count++;
 	
 	return 0;
@@ -141,11 +159,11 @@ ListenerHTInsert(struct hashtable *ht, void *it)
 void * 
 ListenerHTRemove(struct hashtable *ht, void *it)
 {
-	hash_bucket_head *head;
+	list_bucket_head *head;
 	struct tcp_listener *item = (struct tcp_listener *)it;
 	int idx = ht->hashfn(item);
 
-	head = &ht->ht_table[idx];
+	head = &ht->lt_table[idx];
 	TAILQ_REMOVE(head, item, he_link);	
 
 	ht->ht_count--;
@@ -159,7 +177,7 @@ ListenerHTSearch(struct hashtable *ht, const void *it)
 	struct tcp_listener item;
 	uint16_t port = *((uint16_t *)it);
 	struct tcp_listener *walk;
-	hash_bucket_head *head;
+	list_bucket_head *head;
 	struct socket_map s;
 
 	s.saddr.sin_port = port;
@@ -167,7 +185,7 @@ ListenerHTSearch(struct hashtable *ht, const void *it)
 
 	idx = ht->hashfn(&item);
 
-	head = &ht->ht_table[idx];
+	head = &ht->lt_table[idx];
 	TAILQ_FOREACH(walk, head, he_link) {
 		if (ht->eqfn(walk, &item)) 
 			return walk;

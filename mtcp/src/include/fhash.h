@@ -9,16 +9,24 @@
 #define TCP_AR_CNT 		(3)
 
 typedef struct hash_bucket_head {
-	void *tqh_first;
-	void **tqh_last;
+	tcp_stream *tqh_first;
+	tcp_stream **tqh_last;
 } hash_bucket_head;
+
+typedef struct list_bucket_head {
+	struct tcp_listener *tqh_first;
+	struct tcp_listener **tqh_last;
+} list_bucket_head;
 
 /* hashtable structure */
 struct hashtable {
 	uint8_t ht_count ;                    // count for # entry
 	uint32_t bins;
 
-	hash_bucket_head *ht_table;
+	union {
+		hash_bucket_head *ht_table;
+		list_bucket_head *lt_table;
+	};
 
 	// functions
 	unsigned int (*hashfn) (const void *);

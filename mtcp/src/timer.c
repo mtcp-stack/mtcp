@@ -82,6 +82,8 @@ AddtoTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 
 	cur_stream->rcvvar->ts_tw_expire = cur_ts + CONFIG.tcp_timewait;
 
+	pthread_mutex_lock(&mtcp->timewait_list_lock);
+
 	if (cur_stream->on_timewait_list) {
 		// Update list in sorted way by ts_tw_expire
 		TAILQ_REMOVE(&mtcp->timewait_list, cur_stream, sndvar->timer_link);
@@ -101,12 +103,17 @@ AddtoTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 		TAILQ_INSERT_TAIL(&mtcp->timewait_list, cur_stream, sndvar->timer_link);
 		mtcp->timewait_list_cnt++;
 	}
+
+	pthread_mutex_unlock(&mtcp->timewait_list_lock);
 }
 /*----------------------------------------------------------------------------*/
 inline void 
 RemoveFromTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 {
+	pthread_mutex_lock(&mtcp->timewait_list_lock);
+
 	if (!cur_stream->on_timewait_list) {
+		pthread_mutex_unlock(&mtcp->timewait_list_lock);
 		assert(0);
 		return;
 	}
@@ -114,12 +121,16 @@ RemoveFromTimewaitList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 	TAILQ_REMOVE(&mtcp->timewait_list, cur_stream, sndvar->timer_link);
 	cur_stream->on_timewait_list = FALSE;
 	mtcp->timewait_list_cnt--;
+	pthread_mutex_unlock(&mtcp->timewait_list_lock);
 }
 /*----------------------------------------------------------------------------*/
 inline void 
 AddtoTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 {
+	pthread_mutex_lock(&mtcp->timeout_list_lock);
+
 	if (cur_stream->on_timeout_list) {
+		pthread_mutex_unlock(&mtcp->timeout_list_lock);
 		assert(0);
 		return;
 	}
@@ -127,25 +138,34 @@ AddtoTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 	cur_stream->on_timeout_list = TRUE;
 	TAILQ_INSERT_TAIL(&mtcp->timeout_list, cur_stream, sndvar->timeout_link);
 	mtcp->timeout_list_cnt++;
+	pthread_mutex_unlock(&mtcp->timeout_list_lock);
 }
 /*----------------------------------------------------------------------------*/
 inline void 
 RemoveFromTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 {
+	pthread_mutex_lock(&mtcp->timeout_list_lock);
+
 	if (cur_stream->on_timeout_list) {
 		cur_stream->on_timeout_list = FALSE;
 		TAILQ_REMOVE(&mtcp->timeout_list, cur_stream, sndvar->timeout_link);
 		mtcp->timeout_list_cnt--;
 	}
+
+	pthread_mutex_unlock(&mtcp->timeout_list_lock);
 }
 /*----------------------------------------------------------------------------*/
 inline void 
 UpdateTimeoutList(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 {
+	pthread_mutex_lock(&mtcp->timeout_list_lock);
+
 	if (cur_stream->on_timeout_list) {
 		TAILQ_REMOVE(&mtcp->timeout_list, cur_stream, sndvar->timeout_link);
 		TAILQ_INSERT_TAIL(&mtcp->timeout_list, cur_stream, sndvar->timeout_link);
 	}
+
+	pthread_mutex_unlock(&mtcp->timeout_list_lock);
 }
 /*----------------------------------------------------------------------------*/
 inline void
@@ -432,6 +452,8 @@ CheckTimewaitExpire(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh)
 
 	cnt = 0;
 
+	pthread_mutex_lock(&mtcp->timewait_list_lock);
+
 	for (walk = TAILQ_FIRST(&mtcp->timewait_list); 
 				walk != NULL; walk = next) {
 		if (++cnt > thresh)
@@ -465,6 +487,8 @@ CheckTimewaitExpire(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh)
 		}
 	}
 
+	pthread_mutex_unlock(&mtcp->timewait_list_lock);
+
 	TRACE_ROUND("Checking timewait timeout. cnt: %d\n", cnt);
 }
 /*----------------------------------------------------------------------------*/
@@ -477,6 +501,9 @@ CheckConnectionTimeout(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh)
 	STAT_COUNT(mtcp->runstat.rounds_tocheck);
 
 	cnt = 0;
+
+	pthread_mutex_lock(&mtcp->timeout_list_lock);
+
 	for (walk = TAILQ_FIRST(&mtcp->timeout_list);
 			walk != NULL; walk = next) {
 		if (++cnt > thresh)
@@ -501,5 +528,7 @@ CheckConnectionTimeout(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh)
 		}
 
 	}
+
+	pthread_mutex_unlock(&mtcp->timeout_list_lock);
 }
 /*----------------------------------------------------------------------------*/

@@ -224,6 +224,8 @@ struct mtcp_manager
 	struct rto_hashstore* rto_store;
 	TAILQ_HEAD (timewait_head, tcp_stream) timewait_list;
 	TAILQ_HEAD (timeout_head, tcp_stream) timeout_list;
+	pthread_mutex_t timewait_list_lock;
+	pthread_mutex_t timeout_list_lock;
 
 	int rto_list_cnt;
 	int timewait_list_cnt;

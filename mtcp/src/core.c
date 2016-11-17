@@ -1035,6 +1035,8 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 	mtcp->rto_store = InitRTOHashstore();
 	TAILQ_INIT(&mtcp->timewait_list);
 	TAILQ_INIT(&mtcp->timeout_list);
+	pthread_mutex_init(&mtcp->timewait_list_lock, NULL);
+	pthread_mutex_init(&mtcp->timeout_list_lock, NULL);
 
 #if BLOCKING_SUPPORT
 	TAILQ_INIT(&mtcp->rcv_br_list);

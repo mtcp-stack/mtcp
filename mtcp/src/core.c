@@ -96,7 +96,8 @@ HandleSignal(int signal)
 				}
 			} else {
 				for (i = 0; i < num_cpus; i++) {
-					g_pctx[i]->interrupt = TRUE;
+					if (running[i])
+						g_pctx[i]->interrupt = TRUE;
 				}
 				if (!app_signal_handler) {
 					for (i = 0; i < num_cpus; i++) {
@@ -692,7 +693,7 @@ DestroyRemainingFlows(mtcp_manager_t mtcp)
 #endif
 	for (i = 0; i < NUM_BINS; i++) {
 		TAILQ_FOREACH(walk, &ht->ht_table[i], rcvvar->he_link) {
-#if 0
+#ifdef DUMP_STREAM
 			thread_printf(mtcp, mtcp->log_fp, 
 					"CPU %d: Destroying stream %d\n", mtcp->ctx->cpu, walk->id);
 			DumpStream(mtcp, walk);
@@ -709,6 +710,9 @@ DestroyRemainingFlows(mtcp_manager_t mtcp)
 static void 
 InterruptApplication(mtcp_manager_t mtcp)
 {
+	int i;
+	struct tcp_listener *listener = NULL;
+
 	/* interrupt if the mtcp_epoll_wait() is waiting */
 	if (mtcp->ep) {
 		pthread_mutex_lock(&mtcp->ep->epoll_lock);
@@ -717,14 +721,17 @@ InterruptApplication(mtcp_manager_t mtcp)
 		}
 		pthread_mutex_unlock(&mtcp->ep->epoll_lock);
 	}
+
 	/* interrupt if the accept() is waiting */
-	if (mtcp->listener) {
-		if (mtcp->listener->socket) {
-			pthread_mutex_lock(&mtcp->listener->accept_lock);
-			if (!(mtcp->listener->socket->opts & MTCP_NONBLOCK)) {
-				pthread_cond_signal(&mtcp->listener->accept_cond);
+	/* this may be a looong loop but this is called only on exit */
+	for (i = 0; i < MAX_PORT; i++) {
+		listener = ListenerHTSearch(mtcp->listeners, &i);
+		if (listener != NULL) {
+			pthread_mutex_lock(&listener->accept_lock);
+			if (!(listener->socket->opts & MTCP_NONBLOCK)) {
+				pthread_cond_signal(&listener->accept_cond);
 			}
-			pthread_mutex_unlock(&mtcp->listener->accept_lock);
+			pthread_mutex_unlock(&listener->accept_lock);			
 		}
 	}
 }
@@ -762,7 +769,10 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 				uint16_t len;
 				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
-				ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
+				if (pktbuf != NULL)
+					ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
+				else
+					mtcp->nstat.rx_errors[rx_inf]++;
 			}
 		}
 		STAT_COUNT(mtcp->runstat.rounds_rx);
@@ -886,9 +896,15 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 	}
 	g_mtcp[ctx->cpu] = mtcp;
 
-	mtcp->tcp_flow_table = CreateHashtable(HashFlow, EqualFlow);
+	mtcp->tcp_flow_table = CreateHashtable(HashFlow, EqualFlow, NUM_BINS_FLOWS);
 	if (!mtcp->tcp_flow_table) {
 		CTRACE_ERROR("Falied to allocate tcp flow table.\n");
+		return NULL;
+	}
+
+	mtcp->listeners = CreateHashtable(HashListener, EqualListener, NUM_BINS_LISTENERS);
+	if (!mtcp->listeners) {
+		CTRACE_ERROR("Failed to allocate listener table.\n");
 		return NULL;
 	}
 
@@ -1103,6 +1119,10 @@ MTCPRunThread(void *arg)
 
 	/* start the main loop */
 	RunMainLoop(ctx);
+
+	/* destroy hash tables */
+	DestroyHashtable(g_mtcp[cpu]->tcp_flow_table);
+	DestroyHashtable(g_mtcp[cpu]->listeners);
 	
 	TRACE_DBG("MTCP thread %d finished.\n", ctx->cpu);
 	
@@ -1219,7 +1239,9 @@ mtcp_destroy_context(mctx_t mctx)
 			if (mtcp->smap[i].socktype == MTCP_SOCK_STREAM) {
 				TRACE_DBG("Closing remaining socket %d (%s)\n", 
 						i, TCPStateToString(mtcp->smap[i].stream));
+#ifdef DUMP_STREAM
 				DumpStream(mtcp, mtcp->smap[i].stream);
+#endif
 				mtcp_close(mctx, i);
 			}
 		}
@@ -1385,13 +1407,14 @@ mtcp_setconf(const struct mtcp_conf *conf)
 }
 /*----------------------------------------------------------------------------*/
 int 
-mtcp_init(char *config_file)
+mtcp_init(const char *config_file)
 {
 	int i;
 	int ret;
 
 	if (geteuid()) {
-		TRACE_CONFIG("[CAUTION] Run as root if mlock is necessary.\n");
+		TRACE_CONFIG("[CAUTION] Run the app as root!\n");
+		exit(EXIT_FAILURE);
 	}
 
 	/* getting cpu and NIC */
@@ -1421,11 +1444,13 @@ mtcp_init(char *config_file)
 	}
 	PrintConfiguration();
 
-	/* TODO: this should be fixed */
-	ap = CreateAddressPool(CONFIG.eths[0].ip_addr, 1);
-	if (!ap) {
-		TRACE_CONFIG("Error occured while creating address pool.\n");
-		return -1;
+	for (i = 0; i < CONFIG.eths_num; i++) {
+		ap[i] = CreateAddressPool(CONFIG.eths[i].ip_addr, 1);
+		if (!ap[i]) {
+			TRACE_CONFIG("Error occured while create address pool[%d]\n",
+				     i);
+			return -1;
+		}
 	}
 	
 	PrintInterfaceInfo();
@@ -1468,7 +1493,8 @@ mtcp_destroy()
 		}
 	}
 
-	DestroyAddressPool(ap);
+	for (i = 0; i < CONFIG.eths_num; i++)
+		DestroyAddressPool(ap[i]);
 
 	TRACE_INFO("All MTCP threads are joined.\n");
 }

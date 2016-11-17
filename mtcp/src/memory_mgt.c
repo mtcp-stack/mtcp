@@ -10,7 +10,6 @@
 #endif
 #include "debug.h"
 #include "memory_mgt.h"
-
 /*----------------------------------------------------------------------------*/
 typedef struct tag_mem_chunk
 {
@@ -37,7 +36,6 @@ typedef struct mem_pool
 mem_pool * 
 MPCreate(int chunk_size, size_t total_size, int is_hugepage)
 {
-	int res;
 	mem_pool_t mp;
 
 	if (chunk_size < sizeof(mem_chunk)) {
@@ -62,7 +60,6 @@ MPCreate(int chunk_size, size_t total_size, int is_hugepage)
 	mp->mp_total_chunks = mp->mp_free_chunks;
 	total_size = chunk_size * ((size_t)mp->mp_free_chunks);
 
-
 	/* allocate the big memory chunk */
 #ifdef HUGETABLE
 	if (is_hugepage == MEM_HUGEPAGE) {
@@ -75,7 +72,7 @@ MPCreate(int chunk_size, size_t total_size, int is_hugepage)
 		}
 	} else {
 #endif
-		res = posix_memalign((void **)&mp->mp_startptr, getpagesize(), total_size);
+		int res = posix_memalign((void **)&mp->mp_startptr, getpagesize(), total_size);
 		if (res != 0) {
 			TRACE_ERROR("posix_memalign failed, size=%ld\n", total_size);
 			assert(0);

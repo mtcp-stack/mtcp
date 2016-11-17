@@ -1,0 +1,120 @@
+.TH mtcp_recv 2 2016-05-02 "Linux" "mTCP Programmer's Manual"
+.SH NAME
+mtcp_recv \- receive a message from a socket
+.SH SYNOPSIS
+.B #include <mtcp_api.h>
+.sp
+.BI "ssize_t mtcp_recv(mctx_t " mctx ", int " sockid ", char *" buf ", size_t " len ", int " flags );
+
+.SH DESCRIPTION
+.BR mtcp_recv () 
+call is normally used only on a
+.I connected
+socket (see
+.BR mtcp_connect() )
+and is identical to
+.BR mtcp_read()
+with
+.I flags
+value set to 0. The function can be used to read up to
+.I "len"
+number of bytes from mTCP socket via socket descriptor
+.I "sockid"
+into the buffer starting at
+.I "buf." 
+It is the responsibility of the user to allocate memory for
+.I "buf"
+array.
+
+For cases when the total number of buffered unread bytes
+in the socket are less than
+.I "len,"
+.BR "mtcp_recv()"
+copies entire data to
+.I "buf"
+and returns the actual number of bytes that can be used
+by the application.
+
+An 
+.BR mtcp_recv ()
+call takes an additional argument named 
+.I "mctx"
+that represents the per-core mTCP context in an application
+(see
+.BR mtcp_create_context()
+for details).
+
+The
+.I "flags"
+argument to a
+.BR "mtcp_recv()"
+call currently accepts only one non-zero value:
+
+.TP 10
+.B "MSG_PEEK"
+This flag causes the receive operation to return data
+from the beginning of the receive queue without removing
+that data from the queue. Thus, a subsequent receive call
+will return the same data.
+
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH RETURN VALUE
+On success, the number of bytes read is returned. It is not
+an error if this number is smaller than the number of bytes
+requested; this may happen when the socket has fewer number of
+bytes buffered at that moment. On all errors, -1 is returned and
+.I "errno"
+is set appropriately.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH ERRORS
+.TP 10
+.B "EBADF"
+The socket descriptor
+.I "sockid"
+is invalid.
+
+.TP 10
+.B "EINVAL"
+Invalid argument passed.
+
+.TP 10
+.B "ENOTSOCK"
+The socket referred to by
+.I "sockid"
+has invalid
+.I "type"
+
+.TP 10
+.B "ENOTCONN"
+Th socket referred to by
+.I "sockid"
+is in a TCP state that disallows read operations.
+
+.TP 10
+.B "EAGAIN"
+The socket referred to by
+.I "sockid"
+does not have any available bytes in its buffer
+for reading.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.\""""".SH CONFORMING TO
+.\"""""POSIX.1-2001.
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH AUTHORS
+mTCP development team <mtcp-user@list.ndsl.kaist.edu>
+.\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH SEE ALSO
+.BR mtcp_bind (),
+.BR mtcp_read (),
+.BR mtcp_accept (),
+.BR mtcp_connect (),
+.BR mtcp_socket (),
+.BR mtcp_write ()
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""
+.SH COLOPHON
+This page is part of mTCP release 3.0
+.I "docs"
+section. A description of the project, and information
+about reporting bugs, can be found at
+\%http://shader.kaist.edu/mtcp/.
+.\""""""""""""""""""""""""""""""""""""""""""""""""""""""

@@ -40,6 +40,15 @@ EthernetOutput(struct mtcp_manager *mtcp, uint16_t h_proto,
 	struct ethhdr *ethh;
 	int i;
 
+	/* 
+ 	 * -sanity check- 
+	 * return early if no interface is set (if routing entry does not exist)
+	 */
+	if (nif < 0) {
+		TRACE_INFO("No interface set!\n");
+		return NULL;
+	}
+
 	buf = mtcp->iom->get_wptr(mtcp->ctx, nif, iplen + ETHERNET_HEADER_LEN);
 	if (!buf) {
 		//TRACE_DBG("Failed to get available write buffer\n");

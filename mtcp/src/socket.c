@@ -65,6 +65,7 @@ FreeSocket(mctx_t mctx, int sockid, int need_lock)
 	
 	socket->socktype = MTCP_SOCK_UNUSED;
 	socket->epoll = MTCP_EPOLLNONE;
+	socket->events = 0;
 
 	if (need_lock)
 		pthread_mutex_lock(&mtcp->ctx->smap_lock);

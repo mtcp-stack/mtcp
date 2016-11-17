@@ -6,6 +6,7 @@ PS=@PSIO@
 DPDK=@DPDK@
 NETMAP=@NETMAP@
 LRO=@LRO@
+HWCSUM=@HWCSUM@
 MTCP_LIB_DIR=../lib
 MTCP_LIB=libmtcp.a
 MTCP_HDR_DIR=../include
@@ -16,7 +17,7 @@ MTCP_HDR = mtcp_api.h mtcp_epoll.h
 GCC=@CC@
 
 ### FLAGS ###
-GCC_OPT = -m64 -Wall -fPIC -fgnu89-inline
+GCC_OPT = -m64 -Wall -fPIC -fgnu89-inline -Werror
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE -DTSTAT -DAPP -DEPOLL
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE
 #DBG_OPT += -DPKTDUMP
@@ -30,6 +31,9 @@ ifeq ($(LRO),1)
 GCC_OPT += -DENABLELRO
 endif
 
+ifeq ($(HWCSUM),0)
+GCC_OPT += -DDISABLE_HWCSUM
+endif
 
 ### LIBRARIES AND INCLUDES ###
 INC_DIR=./include

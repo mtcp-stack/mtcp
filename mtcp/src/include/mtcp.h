@@ -204,7 +204,7 @@ struct mtcp_manager
 	struct mtcp_epoll *ep;
 	uint32_t ts_last_event;
 
-	struct tcp_listener *listener;
+	struct hashtable *listeners;
 
 	stream_queue_t connectq;				/* streams need to connect */
 	stream_queue_t sendq;				/* streams need to send data */
@@ -298,9 +298,9 @@ struct mtcp_thread_context
 /*----------------------------------------------------------------------------*/
 typedef struct mtcp_thread_context* mtcp_thread_context_t;
 /*----------------------------------------------------------------------------*/
-struct mtcp_manager *g_mtcp[MAX_CPUS];
-struct mtcp_config CONFIG;
-addr_pool_t ap;
+extern struct mtcp_manager *g_mtcp[MAX_CPUS];
+extern struct mtcp_config CONFIG;
+extern addr_pool_t ap[ETH_NUM];
 /*----------------------------------------------------------------------------*/
 
 #endif /* __MTCP_H_ */

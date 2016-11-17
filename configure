@@ -267,10 +267,10 @@ fi
     $as_echo "$0: be upgraded to zsh 4.3.4 or later."
   else
     $as_echo "$0: Please tell bug-autoconf@gnu.org and
-$0: mtcp-user@list.ndsl.kaist.edu about your system, including
-$0: any error possibly output before this message. Then
-$0: install a modern shell, or manually run the script
-$0: under such a shell if you do have one."
+$0: mtcp-user@list.ndsl.kaist.edu about your system,
+$0: including any error possibly output before this
+$0: message. Then install a modern shell, or manually run
+$0: the script under such a shell if you do have one."
   fi
   exit 1
 fi
@@ -666,6 +666,7 @@ INSTALL_SCRIPT
 INSTALL_PROGRAM
 PSLIBPATH
 DPDKLIBPATH
+HWCSUM
 NETMAP
 PSIO
 LRO
@@ -724,6 +725,7 @@ ac_user_opts='
 enable_option_checking
 with_stuff
 enable_lro
+enable_hwcsum
 enable_netmap
 enable_dependency_tracking
 enable_silent_rules
@@ -1352,6 +1354,8 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-lro            Enable dpdk lro (for relevant NICs)
+  --disable-hwcsum        Disable h/w-based checksum offloading (for relevant
+                          NICs)
   --enable-netmap         Enable netmap module
   --enable-dependency-tracking
                           do not reject slow dependency extractors
@@ -1601,9 +1605,9 @@ $as_echo "$as_me: WARNING: $2: see the Autoconf documentation" >&2;}
 $as_echo "$as_me: WARNING: $2:     section \"Present But Cannot Be Compiled\"" >&2;}
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: proceeding with the compiler's result" >&5
 $as_echo "$as_me: WARNING: $2: proceeding with the compiler's result" >&2;}
-( $as_echo "## --------------------------------------- ##
+( $as_echo "## -------------------------------------------- ##
 ## Report this to mtcp-user@list.ndsl.kaist.edu ##
-## --------------------------------------- ##"
+## -------------------------------------------- ##"
      ) | sed "s/^/$as_me: WARNING:     /" >&2
     ;;
 esac
@@ -4101,6 +4105,9 @@ PSIO=0
 # Reset NETMAP to 0
 NETMAP=0
 
+# Reset HWCSUM to 1
+HWCSUM=1
+
 
 # Check dpdk-16.04 path (lib & inc)
 
@@ -4129,6 +4136,18 @@ then
 		LRO=1
 
 	fi
+fi
+
+# Check whether --enable-hwcsum was given.
+if test "${enable_hwcsum+set}" = set; then :
+  enableval=$enable_hwcsum;
+fi
+
+
+if test "x$enable_hwcsum" = "xno"
+then
+	HWCSUM=0
+
 fi
 
 # Check psio path (lib & inc)

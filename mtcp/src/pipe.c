@@ -230,7 +230,7 @@ PipeRead(mctx_t mctx, int pipeid, char *buf, int len)
 }
 /*---------------------------------------------------------------------------*/
 int 
-PipeWrite(mctx_t mctx, int pipeid, char *buf, int len)
+PipeWrite(mctx_t mctx, int pipeid, const char *buf, int len)
 {
 	mtcp_manager_t mtcp;
 	socket_map_t socket;

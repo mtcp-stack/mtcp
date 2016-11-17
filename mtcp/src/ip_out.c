@@ -74,13 +74,17 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 	iph->saddr = saddr;
 	iph->daddr = daddr;
 	iph->check = 0;
-	
-	/* offload IP checkum if possible */
+
+#ifndef DISABLE_HWCSUM	
         if (mtcp->iom->dev_ioctl != NULL)
-                rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_IP_CSUM, iph);
+		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
 	/* otherwise calculate IP checksum in S/W */
 	if (rc == -1)
 		iph->check = ip_fast_csum(iph, iph->ihl);
+#else
+	UNUSED(rc);
+	iph->check = ip_fast_csum(iph, iph->ihl);
+#endif
 
 	return (uint8_t *)(iph + 1);
 }
@@ -132,12 +136,16 @@ IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 	iph->daddr = stream->daddr;
 	iph->check = 0;
 
+#ifndef DISABLE_HWCSUM
 	/* offload IP checkum if possible */
         if (mtcp->iom->dev_ioctl != NULL)
-		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_IP_CSUM, iph);
+		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
 	/* otherwise calculate IP checksum in S/W */
 	if (rc == -1)
 		iph->check = ip_fast_csum(iph, iph->ihl);
-
+#else
+	UNUSED(rc);
+	iph->check = ip_fast_csum(iph, iph->ihl);
+#endif
 	return (uint8_t *)(iph + 1);
 }

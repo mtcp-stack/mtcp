@@ -1,0 +1,40 @@
+sudo: required
+dist: trusty
+language: c
+
+notifications:
+  email:
+    on_success: change
+    on_failure: change
+
+matrix:
+  include:
+    - env: COMPILER=gcc VERSION=5
+    - env: COMPILER=gcc VERSION=4.8
+
+before_install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+  - |
+      if [ "$VERSION" = "5" ]; then
+        sudo apt-get install -qq -y gcc-5
+      elif [ "$VERSION" = "4.8" ]; then
+        sudo apt-get install -qq -y gcc-4.8
+      fi
+
+before_script:
+  - |
+      if [ "$VERSION" = "5" ]; then
+        export CC=gcc-5
+      elif [ "$VERSION" = "4.8" ]; then
+        export CC=gcc-4.8
+      fi
+
+install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y linux-headers-$(uname -r)
+  - sudo apt-get install libnuma-dev
+  - sudo apt-get install bash
+
+script:
+  - bash .buildtest.sh

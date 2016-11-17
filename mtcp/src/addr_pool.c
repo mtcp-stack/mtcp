@@ -5,9 +5,6 @@
 #include "rss.h"
 #include "debug.h"
 
-#define MIN_PORT (1025)
-#define MAX_PORT (65535 + 1)
-
 /*----------------------------------------------------------------------------*/
 struct addr_entry
 {

@@ -53,8 +53,9 @@ InitializeTCPStreamManager()
 }
 /*---------------------------------------------------------------------------*/
 unsigned int
-HashFlow(const tcp_stream *flow)
+HashFlow(const void *f)
 {
+	tcp_stream *flow = (tcp_stream *)f;
 #if 0
 	unsigned long hash = 5381;
 	int c;
@@ -70,7 +71,7 @@ HashFlow(const tcp_stream *flow)
 		hash = ((hash << 5) + hash) + c;
 	}
 
-	return hash & (NUM_BINS - 1);
+	return hash & (NUM_BINS_FLOWS - 1);
 #else
 	unsigned int hash, i;
 	char *key = (char *)&flow->saddr;
@@ -84,13 +85,16 @@ HashFlow(const tcp_stream *flow)
 	hash ^= (hash >> 11);
 	hash += (hash << 15);
 
-	return hash & (NUM_BINS - 1);
+	return hash & (NUM_BINS_FLOWS - 1);
 #endif
 }
 /*---------------------------------------------------------------------------*/
 int
-EqualFlow(const tcp_stream *flow1, const tcp_stream *flow2)
+EqualFlow(const void *f1, const void *f2)
 {
+	tcp_stream *flow1 = (tcp_stream *)f1;
+	tcp_stream *flow2 = (tcp_stream *)f2;
+
 	return (flow1->saddr == flow2->saddr && 
 			flow1->sport == flow2->sport &&
 			flow1->daddr == flow2->daddr &&
@@ -240,7 +244,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->daddr = daddr;
 	stream->dport = dport;
 
-	ret = HTInsert(mtcp->tcp_flow_table, stream);
+	ret = StreamHTInsert(mtcp->tcp_flow_table, stream);
 	if (ret < 0) {
 		TRACE_ERROR("Stream %d: "
 				"Failed to insert the stream into hash table.\n", stream->id);
@@ -482,7 +486,7 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 	pthread_mutex_lock(&mtcp->ctx->flow_pool_lock);
 
 	/* remove from flow hash table */
-	HTRemove(mtcp->tcp_flow_table, stream);
+	StreamHTRemove(mtcp->tcp_flow_table, stream);
 	stream->on_hash_table = FALSE;
 	
 	mtcp->flow_cnt--;
@@ -496,7 +500,9 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 		if (mtcp->ap) {
 			ret = FreeAddress(mtcp->ap, &addr);
 		} else {
-			ret = FreeAddress(ap, &addr);
+			int nif;
+			nif = GetOutputInterface(addr.sin_addr.s_addr);
+			ret = FreeAddress(ap[nif], &addr);
 		}
 		if (ret < 0) {
 			TRACE_ERROR("(NEVER HAPPEN) Failed to free address.\n");

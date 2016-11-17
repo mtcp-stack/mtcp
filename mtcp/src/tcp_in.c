@@ -21,16 +21,16 @@ static inline int
 FilterSYNPacket(mtcp_manager_t mtcp, uint32_t ip, uint16_t port)
 {
 	struct sockaddr_in *addr;
+	struct tcp_listener *listener;
 
 	/* TODO: This listening logic should be revised */
 
-	/* if not listening, drop */
-	if (!mtcp->listener) {
-		return FALSE;
-	}
-
 	/* if not the address we want, drop */
-	addr = &mtcp->listener->socket->saddr;
+	listener = (struct tcp_listener *)ListenerHTSearch(mtcp->listeners, &port);
+	if (listener == NULL)	return FALSE;
+
+	addr = &listener->socket->saddr;
+
 	if (addr->sin_port == port) {
 		if (addr->sin_addr.s_addr != INADDR_ANY) {
 			if (ip == addr->sin_addr.s_addr) {
@@ -205,7 +205,7 @@ ProcessRST(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t ack_seq)
 	}
 
 	if (cur_stream->state == TCP_ST_SYN_RCVD) {
-		if (ack_seq == cur_stream->rcv_nxt) {
+		if (ack_seq == cur_stream->snd_nxt) {
 			cur_stream->state = TCP_ST_CLOSED;
 			cur_stream->close_reason = TCP_RESET;
 			DestroyTCPStream(mtcp, cur_stream);
@@ -806,7 +806,8 @@ Handle_TCP_ST_SYN_RCVD (mtcp_manager_t mtcp, uint32_t cur_ts,
 		TRACE_STATE("Stream %d: TCP_ST_ESTABLISHED\n", cur_stream->id);
 
 		/* update listening socket */
-		listener = mtcp->listener;
+		listener = (struct tcp_listener *)ListenerHTSearch(mtcp->listeners, &tcph->dest);
+
 		ret = StreamEnqueue(listener->acceptq, cur_stream);
 		if (ret < 0) {
 			TRACE_ERROR("Stream %d: Failed to enqueue to "
@@ -1136,7 +1137,7 @@ Handle_TCP_ST_CLOSING (mtcp_manager_t mtcp, uint32_t cur_ts,
 /*----------------------------------------------------------------------------*/
 int
 ProcessTCPPacket(mtcp_manager_t mtcp, 
-		uint32_t cur_ts, const struct iphdr *iph, int ip_len)
+		 uint32_t cur_ts, const int ifidx, const struct iphdr *iph, int ip_len)
 {
 	struct tcphdr* tcph = (struct tcphdr *) ((u_char *)iph + (iph->ihl << 2));
 	uint8_t *payload    = (uint8_t *)tcph + (tcph->doff << 2);
@@ -1148,16 +1149,19 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	uint16_t window = ntohs(tcph->window);
 	uint16_t check;
 	int ret;
+	int rc = -1;
 
 	/* Check ip packet invalidation */	
 	if (ip_len < ((iph->ihl + tcph->doff) << 2))
 		return ERROR;
 
 #if VERIFY_RX_CHECKSUM
-#ifdef ENABLELRO
-	if (tcph->check) 
+#ifndef DISABLE_HWCSUM
+	if (mtcp->iom->dev_ioctl != NULL)
+		rc = mtcp->iom->dev_ioctl(mtcp->ctx, ifidx,
+					  PKT_RX_TCP_CSUM, NULL);
 #endif
-	{
+	if (rc == -1) {
 		check = TCPCalcChecksum((uint16_t *)tcph, 
 					(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr);
 		if (check) {
@@ -1179,7 +1183,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	s_stream.daddr = iph->saddr;
 	s_stream.dport = tcph->source;
 
-	if (!(cur_stream = HTSearch(mtcp->tcp_flow_table, &s_stream))) {
+	if (!(cur_stream = StreamHTSearch(mtcp->tcp_flow_table, &s_stream))) {
 		/* not found in flow table */
 		cur_stream = CreateNewFlowHTEntry(mtcp, cur_ts, iph, ip_len, tcph, 
 				seq, ack_seq, payloadlen, window);
@@ -1197,7 +1201,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 #ifdef DBGMSG
 			DumpIPPacket(mtcp, iph, ip_len);
 #endif
-#if DUMP_STREAM
+#ifdef DUMP_STREAM
 			DumpStream(mtcp, cur_stream);
 #endif
 			return TRUE;

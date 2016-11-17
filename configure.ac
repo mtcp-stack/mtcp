@@ -49,6 +49,8 @@ AC_SUBST(LRO, 0)
 AC_SUBST(PSIO, 0)
 # Reset NETMAP to 0
 AC_SUBST(NETMAP, 0)
+# Reset HWCSUM to 1
+AC_SUBST(HWCSUM, 1)
 
 # Check dpdk-16.04 path (lib & inc)
 AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-16.04 install root])
@@ -67,6 +69,15 @@ then
 	then
 		AC_SUBST(LRO, 1)
 	fi
+fi
+
+dnl Example of default-enabled feature
+AC_ARG_ENABLE([hwcsum],
+	AS_HELP_STRING([--disable-hwcsum], [Disable h/w-based checksum offloading (for relevant NICs)]))
+
+if test "x$enable_hwcsum" = "xno"
+then
+	AC_SUBST(HWCSUM, 0)
 fi
 
 # Check psio path (lib & inc)

@@ -7,7 +7,7 @@ int
 PipeRead(mctx_t mctx, int pipeid, char *buf, int len);
 
 int 
-PipeWrite(mctx_t mctx, int pipeid, char *buf, int len);
+PipeWrite(mctx_t mctx, int pipeid, const char *buf, int len);
 
 int 
 RaisePendingPipeEvents(mctx_t mctx, int epid, int pipeid);

@@ -39,6 +39,9 @@
 #endif /* !ENABLELRO */
 #define NB_MBUF				8192
 #define MEMPOOL_CACHE_SIZE		256
+//#define RX_IDLE_ENABLE			1
+#define RX_IDLE_TIMEOUT			1	/* in micro-seconds */
+#define RX_IDLE_THRESH			64
 
 /*
  * RX and TX Prefetch, Host, and Write-back threshold values should be
@@ -79,6 +82,8 @@ static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
 static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 #endif
 
+static struct rte_eth_dev_info dev_info[RTE_MAX_ETHPORTS];
+
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
 		.mq_mode	= 	ETH_MQ_RX_RSS,
@@ -102,15 +107,6 @@ static struct rte_eth_conf port_conf = {
 	.txmode = {
 		.mq_mode = 		ETH_MQ_TX_NONE,
 	},
-#if 0
-	.fdir_conf = {
-                .mode = RTE_FDIR_MODE_PERFECT,
-                .pballoc = RTE_FDIR_PBALLOC_256K,
-                .status = RTE_FDIR_REPORT_STATUS_ALWAYS,
-                //.flexbytes_offset = 0x6,
-                .drop_queue = 127,
-        },
-#endif
 };
 
 static const struct rte_eth_rxconf rx_conf = {
@@ -147,6 +143,9 @@ struct dpdk_private_context {
 	struct mbuf_table wmbufs[RTE_MAX_ETHPORTS];
 	struct rte_mempool *pktmbuf_pool;
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
+#ifdef RX_IDLE_ENABLE
+	uint8_t rx_idle;
+#endif
 #ifdef ENABLELRO
 	struct rte_mbuf *cur_rx_m;
 #endif
@@ -351,7 +350,9 @@ dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 
 	ret = rte_eth_rx_burst((uint8_t)ifidx, ctxt->cpu,
 			       dpc->pkts_burst, MAX_PKT_BURST);
-
+#ifdef RX_IDLE_ENABLE	
+	dpc->rx_idle = (likely(ret != 0)) ? 0 : dpc->rx_idle + 1;
+#endif
 	dpc->rmbufs[ifidx].len = ret;
 
 	return ret;
@@ -374,6 +375,13 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 	/* enqueue the pkt ptr in mbuf */
 	dpc->rmbufs[ifidx].m_table[index] = m;
 
+	/* verify checksum values from ol_flags */
+	if ((m->ol_flags & (PKT_RX_L4_CKSUM_BAD | PKT_RX_IP_CKSUM_BAD)) != 0) {
+		TRACE_ERROR("%s(%p, %d, %d): mbuf with invalid checksum: "
+			    "%p(%lu);\n",
+			    __func__, ctxt, ifidx, index, m, m->ol_flags);
+		pktbuf = NULL;
+	}
 #ifdef ENABLELRO
 	dpc->cur_rx_m = m;
 #endif /* ENABLELRO */
@@ -384,8 +392,15 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 int32_t
 dpdk_select(struct mtcp_thread_context *ctxt)
 {
-	/* this is empty as dpdk is non-blocking */
-
+#ifdef RX_IDLE_ENABLE
+	struct dpdk_private_context *dpc;
+	
+	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
+	if (dpc->rx_idle > RX_IDLE_THRESH) {
+		dpc->rx_idle = 0;
+		usleep(RX_IDLE_TIMEOUT);
+	}
+#endif
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -466,53 +481,6 @@ check_all_ports_link_status(uint8_t port_num, uint32_t port_mask)
 	}
 }
 /*----------------------------------------------------------------------------*/
-#if 0
-static void
-dpdk_enable_fdir(int portid, uint8_t is_master)
-{
-	struct rte_fdir_masks fdir_masks;
-	struct rte_fdir_filter fdir_filter;
-	int ret;
-	
-	memset(&fdir_filter, 0, sizeof(struct rte_fdir_filter));
-	fdir_filter.iptype = RTE_FDIR_IPTYPE_IPV4;
-	fdir_filter.l4type = RTE_FDIR_L4TYPE_TCP;
-	fdir_filter.ip_dst.ipv4_addr = CONFIG.eths[portid].ip_addr;
-	
-	if (is_master) {
-		memset(&fdir_masks, 0, sizeof(struct rte_fdir_masks));
-		fdir_masks.src_ipv4_mask = 0x0;
-		fdir_masks.dst_ipv4_mask = 0xFFFFFFFF;
-		fdir_masks.src_port_mask = 0x0;
-		fdir_masks.dst_port_mask = 0x0;
-		
-		/*
-		 * enable the following if the filter is IP-only
-		 * (non-TCP, non-UDP)
-		 */
-		/* fdir_masks.only_ip_flow = 1; */
-		rte_eth_dev_fdir_set_masks(portid, &fdir_masks);
-		ret = rte_eth_dev_fdir_add_perfect_filter(portid,
-							  &fdir_filter,
-							  0,
-							  CONFIG.multi_process_curr_core,
-							  0);
-	} else {
-		ret = rte_eth_dev_fdir_update_perfect_filter(portid,
-							     &fdir_filter,
-							     0,
-							     CONFIG.multi_process_curr_core,
-							     0);
-	}
-	if (ret < 0) {
-		rte_exit(EXIT_FAILURE,
-			 "fdir_add_perfect_filter_t call failed!: %d\n",
-			 ret);
-	}
-	fprintf(stderr, "Filter for device ifidx: %d added\n", portid);
-}
-#endif
-/*----------------------------------------------------------------------------*/
 void
 dpdk_load_module(void)
 {
@@ -562,6 +530,9 @@ dpdk_load_module(void)
 #ifdef DEBUG
 			rte_eth_macaddr_get(portid, &ports_eth_addr[portid]);
 #endif
+			/* check port capabilities */
+			rte_eth_dev_info_get(portid, &dev_info[portid]);
+
 			for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
 				ret = rte_eth_rx_queue_setup(portid, rxlcore_id, nb_rxd,
 							     rte_eth_dev_socket_id(portid), &rx_conf,
@@ -615,11 +586,6 @@ dpdk_load_module(void)
 			       ports_eth_addr[portid].addr_bytes[4],
 			       ports_eth_addr[portid].addr_bytes[5]);
 #endif
-#if 0
-			/* if multi-process support is enabled, then turn on FDIR */
-			if (CONFIG.multi_process)
-				dpdk_enable_fdir(portid, CONFIG.multi_process_is_master);
-#endif
 		}
 	} else { /* CONFIG.multi_process && !CONFIG.multi_process_is_master */
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
@@ -631,10 +597,6 @@ dpdk_load_module(void)
                         if (pktmbuf_pool[rxlcore_id] == NULL)
                                 rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
                 }
-#if 0
-                for (portid = 0; portid < num_devices_attached; portid++)
-			dpdk_enable_fdir(portid, CONFIG.multi_process_is_master);
-#endif
 	}
 	
 	check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
@@ -658,12 +620,16 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 	
 	switch (cmd) {
 	case PKT_TX_IP_CSUM:
+		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
+			goto dev_ioctl_err;
 		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
 		m->ol_flags = PKT_TX_IP_CKSUM | PKT_TX_IPV4;
 		m->l2_len = sizeof(struct ether_hdr);
 		m->l3_len = (iph->ihl<<2);
 		break;
 	case PKT_TX_TCP_CSUM:
+		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
+			goto dev_ioctl_err;
 		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
 		tcph = (struct tcphdr *)((unsigned char *)iph + (iph->ihl<<2));
 		m->ol_flags |= PKT_TX_TCP_CKSUM;
@@ -696,6 +662,34 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		}
 		break;
 #endif
+	case PKT_TX_TCPIP_CSUM:
+		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
+			goto dev_ioctl_err;
+		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
+			goto dev_ioctl_err;
+		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct ether_hdr));
+		tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl<<2));
+		m->l2_len = sizeof(struct ether_hdr);
+		m->l3_len = (iph->ihl<<2);
+		m->l4_len = (tcph->doff<<2);
+		m->ol_flags = PKT_TX_TCP_CKSUM | PKT_TX_IP_CKSUM | PKT_TX_IPV4;
+		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
+		break;
+	case PKT_RX_IP_CSUM:
+		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_IPV4_CKSUM) == 0)
+			goto dev_ioctl_err;		
+		break;
+	case PKT_RX_TCP_CSUM:
+		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_TCP_CKSUM) == 0)
+			goto dev_ioctl_err;
+		break;
+	case PKT_TX_TCPIP_CSUM_PEEK:
+		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
+			goto dev_ioctl_err;
+		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
+			goto dev_ioctl_err;		
+		break;
 	default:
 		goto dev_ioctl_err;
 	}

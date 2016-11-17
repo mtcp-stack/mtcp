@@ -534,7 +534,7 @@ RunWgetMain(void *arg)
 	int i;
 
 	struct timeval cur_tv, prev_tv;
-	uint64_t cur_ts, prev_ts;
+	//uint64_t cur_ts, prev_ts;
 
 	mtcp_core_affinitize(core);
 
@@ -587,12 +587,12 @@ RunWgetMain(void *arg)
 	ctx->errors = ctx->incompletes = 0;
 
 	gettimeofday(&cur_tv, NULL);
-	prev_ts = TIMEVAL_TO_USEC(cur_tv);
+	//prev_ts = TIMEVAL_TO_USEC(cur_tv);
 	prev_tv = cur_tv;
 
 	while (!done[core]) {
 		gettimeofday(&cur_tv, NULL);
-		cur_ts = TIMEVAL_TO_USEC(cur_tv);
+		//cur_ts = TIMEVAL_TO_USEC(cur_tv);
 
 		/* print statistics every second */
 		if (core == 0 && cur_tv.tv_sec > prev_tv.tv_sec) {

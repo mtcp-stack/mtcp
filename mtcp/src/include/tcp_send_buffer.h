@@ -35,7 +35,7 @@ void
 SBFree(sb_manager_t sbm, struct tcp_send_buffer *buf);
 /*----------------------------------------------------------------------------*/
 size_t 
-SBPut(sb_manager_t sbm, struct tcp_send_buffer *buf, void *data, size_t len);
+SBPut(sb_manager_t sbm, struct tcp_send_buffer *buf, const void *data, size_t len);
 /*----------------------------------------------------------------------------*/
 size_t 
 SBRemove(sb_manager_t sbm, struct tcp_send_buffer *buf, size_t len);

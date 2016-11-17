@@ -41,8 +41,10 @@ thread_printf(mtcp_manager_t mtcp, FILE* f_idx, const char* _Format, ...)
 	}
 
 	if (!wbuf) {
-		wbuf = DequeueFreeBuffer(mtcp->logger);
-		assert(wbuf);
+		do { // out of free buffers!!
+			wbuf = DequeueFreeBuffer(mtcp->logger);
+			assert(wbuf);
+		} while (!wbuf);
 		wbuf->buff_len = 0;
 		wbuf->tid = mtcp->ctx->cpu;
 		wbuf->fid = f_idx;

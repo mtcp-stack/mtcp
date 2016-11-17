@@ -25,7 +25,9 @@
 
 static const char *route_file = "config/route.conf";
 static const char *arp_file = "config/arp.conf";
-
+struct mtcp_manager *g_mtcp[MAX_CPUS] = {NULL};
+struct mtcp_config CONFIG = {0};
+addr_pool_t ap[ETH_NUM] = {NULL};
 /*----------------------------------------------------------------------------*/
 static int 
 GetIntValue(char* value)
@@ -548,7 +550,7 @@ ParseConfiguration(char *line)
 }
 /*----------------------------------------------------------------------------*/
 int 
-LoadConfiguration(char *fname)
+LoadConfiguration(const char *fname)
 {
 	FILE *fp;
 	char optstr[MAX_OPTLINE_LEN];

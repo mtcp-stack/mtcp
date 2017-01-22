@@ -1367,7 +1367,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-dpdk-lib      path to the dpdk-16.04 install root
+  --with-dpdk-lib      path to the dpdk-16.11 install root
   --with-psio-lib      path to the ioengine install root
 
 Some influential environment variables:
@@ -4109,7 +4109,7 @@ NETMAP=0
 HWCSUM=1
 
 
-# Check dpdk-16.04 path (lib & inc)
+# Check dpdk-16.11 path (lib & inc)
 
 # Check whether --with-stuff was given.
 if test "${with_stuff+set}" = set; then :

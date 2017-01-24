@@ -39,6 +39,14 @@ DPDK_MACHINE_FLAGS = $(shell cat @DPDKLIBPATH@/include/cflags.txt)
 INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
 endif
 
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
+
 ifeq ($(DPDK),1)
 DPDK_LIB_FLAGS = $(shell cat @DPDKLIBPATH@/lib/ldflags.txt)
 #LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
@@ -51,16 +59,20 @@ endif
 all: epserver epwget
 
 epserver.o: epserver.c
-	${CC} -c $< ${CFLAGS} ${INC}
+	$(MSG) "   CC $<"
+	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
 
 epserver: epserver.o
-	${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	$(MSG) "   LD $<"
+	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
 
 epwget.o: epwget.c
-	${CC} -c $< ${CFLAGS} ${INC}
+	$(MSG) "   CC $<"
+	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
 
 epwget: epwget.o
-	${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	$(MSG) "   LD $<"
+	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
 
 clean:
 	rm -f *~ *.o ${TARGETS} log_*

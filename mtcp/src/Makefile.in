@@ -71,6 +71,13 @@ else
 	GCC_OPT += -DHUGEPAGE
 endif
 
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
 
 ### SOURCE CODE ###
 SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
@@ -91,9 +98,10 @@ default: $(OBJS) $(MTCP_HDR)
 	ar rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
 
 $(OBJS): %.o: %.c Makefile
-	$(GCC) $(GCC_OPT) $(INC) -c $< -o $@
+	$(MSG) "   CC $<"
+	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -c $< -o $@
 $(DEPS): .%.d: %.c Makefile
-	$(GCC) $(GCC_OPT) $(INC) -MM $(CFLAGS) $< > $@
+	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -MM $(CFLAGS) $< > $@
 
 -include $(DEPS)
 

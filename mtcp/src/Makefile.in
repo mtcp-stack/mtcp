@@ -71,14 +71,6 @@ else
 	GCC_OPT += -DHUGEPAGE
 endif
 
-ifeq ($V,) # no echo
-	export MSG=@echo
-	export HIDE=@
-else
-	export MSG=@\#
-	export HIDE=
-endif
-
 ### SOURCE CODE ###
 SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 	   tcp_util.c eth_in.c ip_in.c tcp_in.c eth_out.c ip_out.c tcp_out.c \
@@ -89,6 +81,13 @@ SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 DEPS = $(patsubst %.c,.%.d,$(SRCS))
 
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
 
 ### GOALS ###
 all: default

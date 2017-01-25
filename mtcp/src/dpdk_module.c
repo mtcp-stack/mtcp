@@ -27,16 +27,22 @@
 #endif /* !ENABLE_STATS_IOCTL */
 /* for ip pseudo-chksum */
 #include <rte_ip.h>
+//#define IP_DEFRAG			1
+#ifdef IP_DEFRAG
+/* for ip defragging */
+#include <rte_ip_frag.h>
+#endif
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
 #define MAX_TX_QUEUE_PER_PORT		MAX_CPUS
 
 #ifdef ENABLELRO
-#define MBUF_SIZE 			(16384 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
+#define BUF_SIZE			16384
 #else
-#define MBUF_SIZE 			(2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
+#define BUF_SIZE			2048
 #endif /* !ENABLELRO */
+#define MBUF_SIZE 			(BUF_SIZE + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
 #define NB_MBUF				8192
 #define MEMPOOL_CACHE_SIZE		256
 //#define RX_IDLE_ENABLE			1
@@ -146,6 +152,10 @@ struct dpdk_private_context {
 #ifdef RX_IDLE_ENABLE
 	uint8_t rx_idle;
 #endif
+#ifdef IP_DEFRAG
+	struct rte_ip_frag_tbl *frag_tbl;
+	struct rte_ip_frag_death_row death_row;
+#endif
 #ifdef ENABLELRO
 	struct rte_mbuf *cur_rx_m;
 #endif
@@ -155,6 +165,7 @@ struct dpdk_private_context {
 } __rte_cache_aligned;
 
 #ifdef ENABLE_STATS_IOCTL
+#define DEV_NAME				"/dev/dpdk-iface"
 /**
  * stats struct passed on from user space to the driver
  */
@@ -167,13 +178,20 @@ struct stats_struct {
 	uint8_t dev;
 };
 #endif /* !ENABLE_STATS_IOCTL */
+
+#ifdef IP_DEFRAG
+/* Should be power of two. */
+#define IP_FRAG_TBL_BUCKET_ENTRIES		16
+#define RTE_LOGTYPE_IP_RSMBL 			RTE_LOGTYPE_USER1
+#define MAX_FRAG_NUM				RTE_LIBRTE_IP_FRAG_MAX_FRAG
+#endif /* !IP_DEFRAG */
 /*----------------------------------------------------------------------------*/
 void
 dpdk_init_handle(struct mtcp_thread_context *ctxt)
 {
 	struct dpdk_private_context *dpc;
 	int i, j;
-	char mempool_name[20];
+	char mempool_name[RTE_MEMPOOL_NAMESIZE];
 
 	/* create and initialize private I/O module context */
 	ctxt->io_private_context = calloc(1, sizeof(struct dpdk_private_context));
@@ -202,10 +220,32 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 		dpc->wmbufs[j].len = 0;
 	}
 
+#ifdef IP_DEFRAG
+	int max_flows;
+	int socket;
+	uint64_t frag_cycles;
+	
+	max_flows = CONFIG.max_concurrency / CONFIG.num_cores;
+	frag_cycles = (rte_get_tsc_hz() + MS_PER_S - 1)
+		/ MS_PER_S * max_flows;
+	socket = rte_lcore_to_socket_id(ctxt->cpu);
+	
+	if ((dpc->frag_tbl = rte_ip_frag_table_create(max_flows,
+						      IP_FRAG_TBL_BUCKET_ENTRIES,
+						      max_flows,
+						      frag_cycles,
+						      socket)) == NULL) {
+		RTE_LOG(ERR, IP_RSMBL, "ip_frag_tbl_create(%u) on "
+			"lcore: %u for queue: %u failed\n",
+			max_flows, ctxt->cpu, ctxt->cpu);
+		exit(EXIT_FAILURE);
+	}
+#endif	/* !IP_DEFRAG */
+
 #ifdef ENABLE_STATS_IOCTL
-	dpc->fd = open("/dev/dpdk-iface", O_RDWR);
+	dpc->fd = open(DEV_NAME, O_RDWR);
 	if (dpc->fd == -1) {
-		TRACE_ERROR("Can't open /dev/dpdk-iface for context->cpu: %d! "
+		TRACE_ERROR("Can't open " DEV_NAME " for context->cpu: %d! "
 			    "Are you using mlx4/mlx5 driver?\n",
 			    ctxt->cpu);
 	}
@@ -358,6 +398,55 @@ dpdk_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef IP_DEFRAG
+struct rte_mbuf *
+ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
+{
+	struct ether_hdr *eth_hdr;
+	struct rte_ip_frag_tbl *tbl;
+	struct rte_ip_frag_death_row *dr;
+	
+	eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
+	
+	/* if packet is IPv4 */
+	if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
+		struct ipv4_hdr *ip_hdr;
+		
+		ip_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
+		
+		/* if it is a fragmented packet, then try to reassemble. */
+		if (rte_ipv4_frag_pkt_is_fragmented(ip_hdr)) {
+			struct rte_mbuf *mo;
+			
+			tbl = dpc->frag_tbl;
+			dr = &dpc->death_row;
+			
+			/* prepare mbuf: setup l2_len/l3_len. */
+			m->l2_len = sizeof(*eth_hdr);
+			m->l3_len = sizeof(*ip_hdr);
+			
+			/* process this fragment. */
+			mo = rte_ipv4_frag_reassemble_packet(tbl, dr, m, rte_rdtsc(), ip_hdr);
+			if (mo == NULL)
+				/* no packet to send out. */
+				return NULL;
+			
+			/* we have our packet reassembled. */
+			if (mo != m) {
+				m = mo;
+				eth_hdr = rte_pktmbuf_mtod(m,
+							   struct ether_hdr *);
+				ip_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
+			}
+		}
+	} 
+
+	/* if packet isn't IPv4, just accept it! */
+	
+	return m;
+}
+#endif
+/*----------------------------------------------------------------------------*/
 uint8_t *
 dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *len)
 {
@@ -368,6 +457,9 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 	dpc = (struct dpdk_private_context *) ctxt->io_private_context;	
 
 	m = dpc->pkts_burst[index];
+#ifdef IP_DEFRAG
+	m = ip_reassemble(dpc, m);
+#endif
 	//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 	*len = m->pkt_len;
 	pktbuf = rte_pktmbuf_mtod(m, uint8_t *);
@@ -500,16 +592,36 @@ dpdk_load_module(void)
 
 	if (!CONFIG.multi_process || (CONFIG.multi_process && CONFIG.multi_process_is_master)) {
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
-			char name[20];
+			char name[RTE_MEMPOOL_NAMESIZE];
+			uint32_t nb_mbuf;
 			sprintf(name, "mbuf_pool-%d", rxlcore_id);
+			nb_mbuf = NB_MBUF;
+#ifdef IP_DEFRAG
+			int max_flows;
+			max_flows = CONFIG.max_concurrency / CONFIG.num_cores;
+
+			/*                                                       
+			 * At any given moment up to <max_flows * (MAX_FRAG_NUM)>
+			 * mbufs could be stored int the fragment table.
+			 * Plus, each TX queue can hold up to <max_flows> packets.
+			 */
+
+			nb_mbuf = RTE_MAX(max_flows, 2UL * MAX_PKT_BURST) * MAX_FRAG_NUM;
+			nb_mbuf *= (port_conf.rxmode.max_rx_pkt_len + BUF_SIZE - 1) / BUF_SIZE;
+			nb_mbuf += RTE_TEST_RX_DESC_DEFAULT + RTE_TEST_TX_DESC_DEFAULT;
+
+			nb_mbuf = RTE_MAX(nb_mbuf, (uint32_t)NB_MBUF);
+#endif
 			/* create the mbuf pools */
 			pktmbuf_pool[rxlcore_id] =
-				rte_mempool_create(name, NB_MBUF,
-						   MBUF_SIZE, MEMPOOL_CACHE_SIZE,
-						   sizeof(struct rte_pktmbuf_pool_private),
-						   rte_pktmbuf_pool_init, NULL,
-						   rte_pktmbuf_init, NULL,
-						   rte_socket_id(), 0);
+				rte_mempool_create(name, nb_mbuf,
+				MBUF_SIZE, MEMPOOL_CACHE_SIZE,
+				sizeof(struct rte_pktmbuf_pool_private),
+				rte_pktmbuf_pool_init, NULL,
+				rte_pktmbuf_init, NULL,
+				rte_socket_id(), MEMPOOL_F_SP_PUT |
+				MEMPOOL_F_SC_GET);
+			
 			if (pktmbuf_pool[rxlcore_id] == NULL)
 				rte_exit(EXIT_FAILURE, "Cannot init mbuf pool, errno: %d\n",
 					 rte_errno);	

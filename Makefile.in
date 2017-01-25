@@ -289,6 +289,15 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = mtcp/src util io_engine/lib apps/example
+
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
+
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 

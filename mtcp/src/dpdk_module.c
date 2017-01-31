@@ -76,8 +76,16 @@
 #define RTE_TEST_RX_DESC_DEFAULT	128
 #define RTE_TEST_TX_DESC_DEFAULT	128
 
-static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
-static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
+/*
+ * Ethernet frame overhead
+ */
+
+#define ETHER_IFG			12
+#define	ETHER_PREAMBLE			8
+#define ETHER_OVR			(ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
+
+static uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
+static uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
 /*----------------------------------------------------------------------------*/
 /* packet memory pools for storing packet bufs */
 static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
@@ -354,7 +362,7 @@ dpdk_get_wptr(struct mtcp_thread_context *ctxt, int nif, uint16_t pktsize)
 	m->next = NULL;
 
 #ifdef NETSTAT
-	mtcp->nstat.tx_bytes[nif] += pktsize + 24;
+	mtcp->nstat.tx_bytes[nif] += pktsize + ETHER_OVR;
 #endif
 	
 	/* increment the len_of_mbuf var */
@@ -406,12 +414,11 @@ ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
 	struct rte_ip_frag_tbl *tbl;
 	struct rte_ip_frag_death_row *dr;
 	
-	eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
-	
 	/* if packet is IPv4 */
 	if (RTE_ETH_IS_IPV4_HDR(m->packet_type)) {
 		struct ipv4_hdr *ip_hdr;
 		
+		eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 		ip_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
 		
 		/* if it is a fragmented packet, then try to reassemble. */
@@ -432,17 +439,12 @@ ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
 				return NULL;
 			
 			/* we have our packet reassembled. */
-			if (mo != m) {
+			if (mo != m)
 				m = mo;
-				eth_hdr = rte_pktmbuf_mtod(m,
-							   struct ether_hdr *);
-				ip_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
-			}
 		}
-	} 
+	}
 
 	/* if packet isn't IPv4, just accept it! */
-	
 	return m;
 }
 #endif
@@ -460,7 +462,6 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 #ifdef IP_DEFRAG
 	m = ip_reassemble(dpc, m);
 #endif
-	//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 	*len = m->pkt_len;
 	pktbuf = rte_pktmbuf_mtod(m, uint8_t *);
 
@@ -699,6 +700,8 @@ dpdk_load_module(void)
 			       ports_eth_addr[portid].addr_bytes[5]);
 #endif
 		}
+		/* only check for link status if the thread is master */
+		check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
 	} else { /* CONFIG.multi_process && !CONFIG.multi_process_is_master */
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
                         char name[20];
@@ -710,8 +713,6 @@ dpdk_load_module(void)
                                 rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
                 }
 	}
-	
-	check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
 }
 /*----------------------------------------------------------------------------*/
 int32_t

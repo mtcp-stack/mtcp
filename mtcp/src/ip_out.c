@@ -76,8 +76,16 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 	iph->check = 0;
 
 #ifndef DISABLE_HWCSUM	
-        if (mtcp->iom->dev_ioctl != NULL)
-		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+        if (mtcp->iom->dev_ioctl != NULL) {
+		switch(iph->protocol) {
+		case IPPROTO_TCP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+			break;
+		case IPPROTO_ICMP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_IP_CSUM, iph);
+			break;
+		}
+	}
 	/* otherwise calculate IP checksum in S/W */
 	if (rc == -1)
 		iph->check = ip_fast_csum(iph, iph->ihl);
@@ -138,8 +146,16 @@ IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 
 #ifndef DISABLE_HWCSUM
 	/* offload IP checkum if possible */
-        if (mtcp->iom->dev_ioctl != NULL)
-		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+        if (mtcp->iom->dev_ioctl != NULL) {
+		switch (iph->protocol) {
+		case IPPROTO_TCP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+			break;
+		case IPPROTO_ICMP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_IP_CSUM, iph);
+			break;
+		}
+	}
 	/* otherwise calculate IP checksum in S/W */
 	if (rc == -1)
 		iph->check = ip_fast_csum(iph, iph->ihl);

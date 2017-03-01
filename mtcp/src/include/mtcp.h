@@ -83,6 +83,14 @@
 #define SBUF_LOCK(lock)			pthread_mutex_lock(lock)
 #define SBUF_UNLOCK(lock)		pthread_mutex_unlock(lock)
 #endif /* USE_SPIN_LOCK */
+
+/* add macro if it is not defined in /usr/include/sys/queue.h */
+#ifndef TAILQ_FOREACH_SAFE
+#define TAILQ_FOREACH_SAFE(var, head, field, tvar)                      \
+	for ((var) = TAILQ_FIRST((head));                               \
+	     (var) && ((tvar) = TAILQ_NEXT((var), field), 1);		\
+	     (var) = (tvar))
+#endif
 /*----------------------------------------------------------------------------*/
 struct eth_table
 {

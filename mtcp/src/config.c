@@ -66,6 +66,7 @@ EnrollRouteTableEntry(char *optstr)
 	int i;
 	char * saveptr;
 
+	saveptr = NULL;
 	daddr_s = strtok_r(optstr, "/", &saveptr);
 	prefix = strtok_r(NULL, " ", &saveptr);
 	dev = strtok_r(NULL, "\n", &saveptr);
@@ -200,6 +201,7 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str)
 	unsigned int temp;
 	char *saveptr = NULL;
 
+	saveptr = NULL;
 	str = strtok_r(haddr_str, ":", &saveptr);
 	i = 0;
 	while (str != NULL) {
@@ -315,7 +317,8 @@ EnrollARPTableEntry(char *optstr)
 	int idx;
 
 	char *saveptr;
-
+	
+	saveptr = NULL;
 	dip_s = strtok_r(optstr, "/", &saveptr);
 	prefix_s = strtok_r(NULL, " ", &saveptr);
 	daddr_s = strtok_r(NULL, "\n", &saveptr);
@@ -438,6 +441,7 @@ SetMultiProcessSupport(char *multiprocess_details)
 
 	TRACE_CONFIG("Loading multi-process configuration\n");
 
+	saveptr = NULL;
 	sample = strtok_r(multiprocess_details, token, &saveptr);
 	if (sample == NULL) {
 		TRACE_CONFIG("No option for multi-process support given!\n");
@@ -461,6 +465,7 @@ ParseConfiguration(char *line)
 	char *saveptr;
 
 	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
+	saveptr = NULL;
 
 	p = strtok_r(optstr, " \t=", &saveptr);
 	if (p == NULL) {
@@ -597,8 +602,10 @@ LoadConfiguration(const char *fname)
 		if (*p == 0) /* nothing more to process? */
 			continue;
 
-		if (ParseConfiguration(p) < 0)
+		if (ParseConfiguration(p) < 0) {
+			fclose(fp);
 			return -1;
+		}
 	}
 
 	fclose(fp);

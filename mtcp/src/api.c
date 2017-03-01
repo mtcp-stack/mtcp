@@ -535,6 +535,7 @@ mtcp_listen(mctx_t mctx, int sockid, int backlog)
 
 	listener->acceptq = CreateStreamQueue(backlog);
 	if (!listener->acceptq) {
+		free(listener);
 		errno = ENOMEM;
 		return -1;
 	}
@@ -679,7 +680,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 	in_addr_t dip;
 	in_port_t dport;
 	int is_dyn_bound = FALSE;
-	int ret;
+	int ret, nif;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -752,7 +753,12 @@ mtcp_connect(mctx_t mctx, int sockid,
 			ret = FetchAddress(mtcp->ap, 
 					mctx->cpu, num_queues, addr_in, &socket->saddr);
 		} else {
-			ret = FetchAddress(ap[GetOutputInterface(dip)], 
+			nif = GetOutputInterface(dip);
+			if (nif < 0) {
+				errno = EINVAL;
+				return -1;
+			}
+			ret = FetchAddress(ap[nif], 
 					   mctx->cpu, num_queues, addr_in, &socket->saddr);
 		}
 		if (ret < 0) {

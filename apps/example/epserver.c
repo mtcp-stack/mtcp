@@ -35,6 +35,9 @@
 #define MAX_CPUS 16
 #define MAX_FILES 30
 
+#define NAME_LIMIT 128
+#define FULLNAME_LIMIT 256
+
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
 
@@ -55,8 +58,8 @@
 /*----------------------------------------------------------------------------*/
 struct file_cache
 {
-	char name[128];
-	char fullname[256];
+	char name[NAME_LIMIT];
+	char fullname[FULLNAME_LIMIT];
 	uint64_t size;
 	char *file;
 };
@@ -72,7 +75,7 @@ struct server_vars
 	uint8_t keep_alive;
 
 	int fidx;						// file cache index
-	char fname[128];				// file name
+	char fname[NAME_LIMIT];				// file name
 	long int fsize;					// file size
 };
 /*----------------------------------------------------------------------------*/
@@ -338,6 +341,8 @@ InitializeServerThread(int core)
 	/* create epoll descriptor */
 	ctx->ep = mtcp_epoll_create(ctx->mctx, MAX_EVENTS);
 	if (ctx->ep < 0) {
+		mtcp_destroy_context(ctx->mctx);
+		free(ctx);
 		TRACE_ERROR("Failed to create epoll descriptor!\n");
 		return NULL;
 	}
@@ -621,8 +626,9 @@ main(int argc, char **argv)
 		else if (strcmp(ent->d_name, "..") == 0)
 			continue;
 
-		strcpy(fcache[nfiles].name, ent->d_name);
-		sprintf(fcache[nfiles].fullname, "%s/%s", www_main, ent->d_name);
+		snprintf(fcache[nfiles].name, NAME_LIMIT, "%s", ent->d_name);
+		snprintf(fcache[nfiles].fullname, FULLNAME_LIMIT, "%s/%s",
+			 www_main, ent->d_name);
 		fd = open(fcache[nfiles].fullname, O_RDONLY);
 		if (fd < 0) {
 			perror("open");

@@ -294,11 +294,11 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 void 
 ARPTimer(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
-	struct arp_queue_entry *ent;
+	struct arp_queue_entry *ent, *ent_tmp;
 
 	/* if the arp requet is timed out, retransmit */
 	pthread_mutex_lock(&g_arpm.lock);
-	TAILQ_FOREACH(ent, &g_arpm.list, arp_link) {
+	TAILQ_FOREACH_SAFE(ent, &g_arpm.list, arp_link, ent_tmp) {
 		if (TCP_SEQ_GT(cur_ts, ent->ts_out + SEC_TO_TS(ARP_TIMEOUT_SEC))) {
 			TRACE_INFO("[CPU%2d] ARP request timed out.\n", 
 					mtcp->ctx->cpu);

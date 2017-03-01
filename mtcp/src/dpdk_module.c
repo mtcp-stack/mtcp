@@ -27,6 +27,7 @@
 #endif /* !ENABLE_STATS_IOCTL */
 /* for ip pseudo-chksum */
 #include <rte_ip.h>
+/* TODO - FIX. Do not enable IP_DEFRAG macro, it is currently unstable! */
 //#define IP_DEFRAG			1
 #ifdef IP_DEFRAG
 /* for ip defragging */

@@ -162,7 +162,6 @@ CloseEpollSocket(mctx_t mctx, int epid)
 	DestroyEventQueue(ep->usr_queue);
 	DestroyEventQueue(ep->usr_shadow_queue);
 	DestroyEventQueue(ep->mtcp_queue);
-	free(ep);
 
 	pthread_mutex_lock(&ep->epoll_lock);
 	mtcp->ep = NULL;
@@ -172,6 +171,7 @@ CloseEpollSocket(mctx_t mctx, int epid)
 
 	pthread_cond_destroy(&ep->epoll_cond);
 	pthread_mutex_destroy(&ep->epoll_lock);
+	free(ep);
 
 	return 0;
 }

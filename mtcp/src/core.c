@@ -1174,8 +1174,9 @@ mtcp_create_context(int cpu)
 	g_logctx[cpu] = (struct log_thread_context *)
 			calloc(1, sizeof(struct log_thread_context));
 	if (!g_logctx[cpu]) {
-		perror("malloc");
+		perror("calloc");
 		TRACE_ERROR("Failed to allocate memory for log thread context.\n");
+		free(mctx);
 		return NULL;
 	}
 	InitLogThreadContext(g_logctx[cpu], cpu);
@@ -1183,6 +1184,8 @@ mtcp_create_context(int cpu)
 				NULL, ThreadLogMain, (void *)g_logctx[cpu])) {
 		perror("pthread_create");
 		TRACE_ERROR("Failed to create log thread\n");
+		free(g_logctx[cpu]);
+		free(mctx);
 		return NULL;
 	}
 

@@ -66,8 +66,8 @@ static int core_limit;
 static int fio = FALSE;
 static char outfile[MAX_FILE_LEN + 1];
 /*----------------------------------------------------------------------------*/
-static char host[MAX_IP_STR_LEN + 1];
-static char url[MAX_URL_LEN + 1];
+static char host[MAX_IP_STR_LEN + 1] = {'\0'};
+static char url[MAX_URL_LEN + 1] = {'\0'};
 static in_addr_t daddr;
 static in_port_t dport;
 static in_addr_t saddr;
@@ -151,6 +151,7 @@ CreateContext(int core)
 	ctx->mctx = mtcp_create_context(core);
 	if (!ctx->mctx) {
 		TRACE_ERROR("Failed to create mtcp context.\n");
+		free(ctx);
 		return NULL;
 	}
 	g_mctx[core] = ctx->mctx;

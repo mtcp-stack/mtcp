@@ -76,8 +76,10 @@ SetInterfaceInfo(char* dev_name_list)
 			
 	CONFIG.eths = (struct eth_table *)
 			calloc(MAX_DEVICES, sizeof(struct eth_table));
-	if (!CONFIG.eths) 
+	if (!CONFIG.eths) {
+		TRACE_ERROR("Can't allocate space for CONFIG.eths\n");
 		exit(EXIT_FAILURE);
+	}
 
 	if (current_iomodule_func == &ps_module_func) {
 		/* calculate num_devices now! */
@@ -90,7 +92,8 @@ SetInterfaceInfo(char* dev_name_list)
 		/* Create socket */
 		int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 		if (sock == -1) {
-			perror("socket");
+			TRACE_ERROR("socket");
+			exit(EXIT_FAILURE);
 		}
 		
 		/* To Do: Parse dev_name_list rather than use strstr */
@@ -138,6 +141,7 @@ SetInterfaceInfo(char* dev_name_list)
 			} else { 
 				perror("SIOCGIFFLAGS");
 			}
+			close(sock);
 		}
 		num_queues = GetNumQueues();
 		if (num_queues <= 0) {

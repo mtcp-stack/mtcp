@@ -525,11 +525,15 @@ mtcp_listen(mctx_t mctx, int sockid, int backlog)
 	listener->socket = &mtcp->smap[sockid];
 
 	if (pthread_cond_init(&listener->accept_cond, NULL)) {
+		/* errno set internally */
 		perror("pthread_cond_init of ctx->accept_cond\n");
+		free(listener);
 		return -1;
 	}
 	if (pthread_mutex_init(&listener->accept_lock, NULL)) {
+		/* errno set internally */
 		perror("pthread_mutex_init of ctx->accept_lock\n");
+		free(listener);
 		return -1;
 	}
 

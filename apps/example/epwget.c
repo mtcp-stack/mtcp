@@ -712,7 +712,7 @@ main(int argc, char **argv)
 		strncpy(url, strchr(argv[1], '/'), MAX_URL_LEN);
 	} else {
 		strncpy(host, argv[1], MAX_IP_STR_LEN);
-		strncpy(url, "/", 1);
+		strncpy(url, "/", 2);
 	}
 
 	daddr = inet_addr(host);

@@ -141,7 +141,6 @@ SetInterfaceInfo(char* dev_name_list)
 			} else { 
 				perror("SIOCGIFFLAGS");
 			}
-			close(sock);
 		}
 		num_queues = GetNumQueues();
 		if (num_queues <= 0) {
@@ -152,6 +151,7 @@ SetInterfaceInfo(char* dev_name_list)
 			TRACE_CONFIG("Too many NIC queues available.\n");
 			return -1;
 		}
+		close(sock);
 	} else if (current_iomodule_func == &dpdk_module_func) {
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;

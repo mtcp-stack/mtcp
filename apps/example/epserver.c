@@ -335,6 +335,7 @@ InitializeServerThread(int core)
 	ctx->mctx = mtcp_create_context(core);
 	if (!ctx->mctx) {
 		TRACE_ERROR("Failed to create mtcp context!\n");
+		free(ctx);
 		return NULL;
 	}
 
@@ -351,6 +352,9 @@ InitializeServerThread(int core)
 	ctx->svars = (struct server_vars *)
 			calloc(MAX_FLOW_NUM, sizeof(struct server_vars));
 	if (!ctx->svars) {
+		mtcp_close(ctx->mctx, ctx->ep);
+		mtcp_destroy_context(ctx->mctx);
+		free(ctx);
 		TRACE_ERROR("Failed to create server_vars struct!\n");
 		return NULL;
 	}

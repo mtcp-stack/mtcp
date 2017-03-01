@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/eunyoung14/mtcp.svg?branch=master)](https://travis-ci.org/eunyoung14/mtcp)
+[![Build Status](https://scan.coverity.com/projects/11896/badge.svg)](https://scan.coverity.com/projects/eunyoung14-mtcp)
 
 # README #
 

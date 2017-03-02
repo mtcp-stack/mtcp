@@ -649,6 +649,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
@@ -658,6 +659,11 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 		/* for the INADDR_ANY, find the output interface for the destination
 		   and set the saddr_base as the ip address of the output interface */
 		nif_out = GetOutputInterface(daddr);
+		if (nif_out < 0) {
+			errno = EINVAL;
+			TRACE_DBG("Could not determine nif idx!\n");
+			return -1;
+		}
 		saddr_base = CONFIG.eths[nif_out].ip_addr;
 	}
 

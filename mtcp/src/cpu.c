@@ -66,7 +66,13 @@ mtcp_core_affinitize(int cpu)
 		errno = EFAULT;
 		return -1;
 	}
-	unused = fscanf(fp, "%d", &phy_id);
+	ret = fscanf(fp, "%d", &phy_id);
+	if (ret != 1) {
+		fclose(fp);
+		perror("Fail to read core id");
+		errno = EFAULT;
+		return -1;
+	}
 
 	numa_bitmask_setbit(bmask, phy_id);
 	numa_set_membind(bmask);

@@ -111,19 +111,26 @@ mtcp_epoll_create(mctx_t mctx, int size)
 
 	/* create event queues */
 	ep->usr_queue = CreateEventQueue(size);
-	if (!ep->usr_queue)
+	if (!ep->usr_queue) {
+		FreeSocket(mctx, epsocket->id, FALSE);
+		free(ep);
 		return -1;
+	}
 
 	ep->usr_shadow_queue = CreateEventQueue(size);
 	if (!ep->usr_shadow_queue) {
 		DestroyEventQueue(ep->usr_queue);
+		FreeSocket(mctx, epsocket->id, FALSE);
+		free(ep);
 		return -1;
 	}
 
 	ep->mtcp_queue = CreateEventQueue(size);
 	if (!ep->mtcp_queue) {
-		DestroyEventQueue(ep->usr_queue);
 		DestroyEventQueue(ep->usr_shadow_queue);
+		DestroyEventQueue(ep->usr_queue);
+		FreeSocket(mctx, epsocket->id, FALSE);
+		free(ep);
 		return -1;
 	}
 
@@ -133,9 +140,19 @@ mtcp_epoll_create(mctx_t mctx, int size)
 	epsocket->ep = ep;
 
 	if (pthread_mutex_init(&ep->epoll_lock, NULL)) {
+		DestroyEventQueue(ep->mtcp_queue);
+		DestroyEventQueue(ep->usr_shadow_queue);
+		DestroyEventQueue(ep->usr_queue);
+		FreeSocket(mctx, epsocket->id, FALSE);
+		free(ep);
 		return -1;
 	}
 	if (pthread_cond_init(&ep->epoll_cond, NULL)) {
+		DestroyEventQueue(ep->mtcp_queue);
+		DestroyEventQueue(ep->usr_shadow_queue);
+		DestroyEventQueue(ep->usr_queue);
+		FreeSocket(mctx, epsocket->id, FALSE);
+		free(ep);
 		return -1;
 	}
 

@@ -145,10 +145,12 @@ SetInterfaceInfo(char* dev_name_list)
 		num_queues = GetNumQueues();
 		if (num_queues <= 0) {
 			TRACE_CONFIG("Failed to find NIC queues!\n");
+			close(sock);
 			return -1;
 		}
 		if (num_queues > num_cpus) {
 			TRACE_CONFIG("Too many NIC queues available.\n");
+			close(sock);
 			return -1;
 		}
 		close(sock);

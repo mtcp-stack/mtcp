@@ -16,7 +16,7 @@ MTCP_TARGET = ${MTCP_LIB}/libmtcp.a
 
 UTIL_FLD = ../../util
 UTIL_INC = -I${UTIL_FLD}/include
-UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o
+UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o ${UTIL_FLD}/netlib.o
 
 
 PS_DIR = ../../io_engine/

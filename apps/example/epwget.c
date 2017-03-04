@@ -15,12 +15,14 @@
 #include <arpa/inet.h>
 #include <sys/queue.h>
 #include <assert.h>
+#include <limits.h>
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
 #include "cpu.h"
 #include "rss.h"
 #include "http_parsing.h"
+#include "netlib.h"
 #include "debug.h"
 
 #define MAX_CPUS 16
@@ -39,9 +41,6 @@
 #define TIMEVAL_TO_MSEC(t)		((t.tv_sec * 1000) + (t.tv_usec / 1000))
 #define TIMEVAL_TO_USEC(t)		((t.tv_sec * 1000000) + (t.tv_usec))
 #define TS_GT(a,b)				((int64_t)((a)-(b)) > 0)
-
-#define MAX(a, b) ((a)>(b)?(a):(b))
-#define MIN(a, b) ((a)<(b)?(a):(b))
 
 #ifndef TRUE
 #define TRUE (1)
@@ -719,7 +718,7 @@ main(int argc, char **argv)
 	dport = htons(80);
 	saddr = INADDR_ANY;
 
-	total_flows = atoi(argv[2]);
+	total_flows = mystrtol(argv[2], 10);
 	if (total_flows <= 0) {
 		TRACE_CONFIG("Number of flows should be large than 0.\n");
 		return FALSE;
@@ -730,7 +729,7 @@ main(int argc, char **argv)
 	concurrency = 100;
 	for (i = 3; i < argc - 1; i++) {
 		if (strcmp(argv[i], "-N") == 0) {
-			core_limit = atoi(argv[i + 1]);
+			core_limit = mystrtol(argv[i + 1], 10);
 			if (core_limit > num_cores) {
 				TRACE_CONFIG("CPU limit should be smaller than the "
 						"number of CPUS: %d\n", num_cores);
@@ -745,7 +744,7 @@ main(int argc, char **argv)
 			mcfg.num_cores = core_limit;
 			mtcp_setconf(&mcfg);
 		} else if (strcmp(argv[i], "-c") == 0) {
-			total_concurrency = atoi(argv[i + 1]);
+			total_concurrency = mystrtol(argv[i + 1], 10);
 
 		} else if (strcmp(argv[i], "-o") == 0) {
 			if (strlen(argv[i + 1]) > MAX_FILE_LEN) {

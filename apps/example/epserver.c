@@ -14,12 +14,14 @@
 #include <time.h>
 #include <pthread.h>
 #include <signal.h>
+#include <limits.h>
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
 
 #include "cpu.h"
 #include "http_parsing.h"
+#include "netlib.h"
 #include "debug.h"
 
 #define MAX_FLOW_NUM  (10000)
@@ -37,9 +39,6 @@
 
 #define NAME_LIMIT 128
 #define FULLNAME_LIMIT 256
-
-#define MAX(a, b) ((a)>(b)?(a):(b))
-#define MIN(a, b) ((a)<(b)?(a):(b))
 
 #ifndef TRUE
 #define TRUE (1)
@@ -587,7 +586,7 @@ main(int argc, char **argv)
 			}
 			break;
 		case 'N':
-			core_limit = atoi(optarg);
+			core_limit = mystrtol(optarg, 10);
 			if (core_limit > num_cores) {
 				TRACE_CONFIG("CPU limit should be smaller than the "
 					     "number of CPUs: %d\n", num_cores);
@@ -606,7 +605,7 @@ main(int argc, char **argv)
 			conf_file = optarg;
 			break;
 		case 'c':
-			process_cpu = atoi(optarg);
+			process_cpu = mystrtol(optarg, 10);
 			if (process_cpu > core_limit) {
 				TRACE_CONFIG("Starting CPU is way off limits!\n");
 				return FALSE;

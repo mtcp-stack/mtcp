@@ -891,7 +891,7 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 	mtcp = (mtcp_manager_t)calloc(1, sizeof(struct mtcp_manager));
 	if (!mtcp) {
 		perror("malloc");
-		CTRACE_ERROR("Failed to allocate mtcp_manager.\n");
+		fprintf(stderr, "Failed to allocate mtcp_manager.\n");
 		return NULL;
 	}
 	g_mtcp[ctx->cpu] = mtcp;

@@ -241,6 +241,7 @@ SetInterfaceInfo(char* dev_name_list)
 				int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 				if (sock == -1) {
 					perror("socket");
+					exit(EXIT_FAILURE);
 				}			
 				
 				/* getting address */
@@ -317,6 +318,7 @@ SetInterfaceInfo(char* dev_name_list)
 				int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 				if (sock == -1) {
 					perror("socket");
+					exit(EXIT_FAILURE);
 				}			
 				
 				/* getting address */

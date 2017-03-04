@@ -232,7 +232,10 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str)
 			TRACE_CONFIG("MAC address length exceeds %d!\n", ETH_ALEN);
 			exit(4);
 		}
-		sscanf(str, "%x", &temp);
+		if (sscanf(str, "%x", &temp) < 1) {
+			TRACE_CONFIG("sscanf failed!\n");
+			exit(4);
+		}
 		haddr[i++] = temp;
 		str = strtok_r(NULL, ":", &saveptr);
 	}

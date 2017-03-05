@@ -395,7 +395,7 @@ mtcp_socket(mctx_t mctx, int domain, int type, int protocol)
 	}
 
 	if (type == SOCK_STREAM) {
-		type = MTCP_SOCK_STREAM;
+		type = (int)MTCP_SOCK_STREAM;
 	} else {
 		errno = EINVAL;
 		return -1;

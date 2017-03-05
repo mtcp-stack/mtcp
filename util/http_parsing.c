@@ -106,12 +106,10 @@ http_header_str_val(const char* buf, const char *key, const int keylen,
 	}
 
 	/* copy value data */
-	if (temp) {
-		while (*temp && !CR_OR_NEWLINE(*temp) && i < value_len-1)
-			value[i++] = *temp++;
-		value[i] = 0;
-	}
-
+	while (*temp && !CR_OR_NEWLINE(*temp) && i < value_len-1)
+		value[i++] = *temp++;
+	value[i] = 0;
+	
 	if (i == 0) {
 		*value = 0;
 		return NULL;

@@ -734,6 +734,9 @@ main(int argc, char **argv)
 				TRACE_CONFIG("CPU limit should be smaller than the "
 						"number of CPUS: %d\n", num_cores);
 				return FALSE;
+			} else if (core_limit < 1) {
+				TRACE_CONFIG("CPU limit should be greater than 0\n");
+				return FALSE;
 			}
 			/** 
 			 * it is important that core limit is set 

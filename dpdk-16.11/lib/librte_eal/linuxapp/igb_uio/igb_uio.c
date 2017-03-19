@@ -570,7 +570,7 @@ igbuio_config_intr_mode(char *intr_str)
 }
 
 static int
-update_stats(struct stats_struct __user *stats)
+update_stats(struct stats_struct *stats)
 {
 	uint8_t qid = stats->qid;
 	uint8_t device = stats->dev;
@@ -617,10 +617,15 @@ igb_net_ioctl(struct file *filp,
 	 unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
+	struct stats_struct ss;
+
+	copy_from_user(&ss,
+		       (struct stats_struct __user *)arg,
+		       sizeof(struct stats_struct));
 
 	switch (cmd) {
 	case SEND_STATS:
-		ret = update_stats((struct stats_struct __user *) arg);
+		ret = update_stats(&ss);
 		break;
 	default:
 		ret = -ENOTTY;

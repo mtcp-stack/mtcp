@@ -32,8 +32,13 @@
 #include <linux/rtnetlink.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+
 #include "../kni/ethtool/ixgbe/ixgbe_type.h"
 #include "../kni/ethtool/igb/e1000_hw.h"
+#include <linux/hashtable.h>
+#include "i40e/i40e_type.h"
+#include "i40e/i40e_prototype.h"
+#include "i40e/i40e.h"
 #ifdef CONFIG_XEN_DOM0
 #include <xen/xen.h>
 #endif
@@ -44,7 +49,7 @@
  * struct to hold adapter-specific parameters 
  * it currently supports Intel 1/10 Gbps adapters
  */
-enum dev_type {IXGBE, IGB};
+enum dev_type {IXGBE, IGB, I40E};
 /*----------------------------------------------------------------------------*/
 /* list of 1 Gbps controllers */
 static struct pci_device_id e1000_pci_tbl[] = {
@@ -178,6 +183,26 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	/* required last entry */
 	{0, }
 };
+
+/* list of 40 Gbps controllers */
+static struct pci_device_id i40e_pci_tbl[] = {
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T4)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2_A)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_25G_B)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_25G_SFP28)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_B)},
+        {PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_C)},
+        {PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU)},
+        {PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710)},
+	/* required last entry */
+	{0, }
+};
+#define I40E_MAX_CSR_SPACE		(4 * 1024 * 1024 - 64 * 1024)
 /*----------------------------------------------------------------------------*/
 /**
  * net adapter private struct 
@@ -189,6 +214,7 @@ struct net_adapter {
 	union {
 		struct ixgbe_hw _ixgbe_hw;
 		struct e1000_hw _e1000_hw;
+		struct i40e_hw _i40e_hw;
 	} hw;
 	u16 bd_number;
 	bool netdev_registered;
@@ -459,6 +485,7 @@ retrieve_dev_addr(struct net_device *netdev, struct net_adapter *adapter)
 {
 	struct ixgbe_hw *hw_i;
 	struct e1000_hw *hw_e;
+	struct i40e_hw *hw_i4;
 	u32 rar_high;
 	u32 rar_low;
 	u16 i;
@@ -486,6 +513,22 @@ retrieve_dev_addr(struct net_device *netdev, struct net_adapter *adapter)
 		for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
 			netdev->dev_addr[i+4] = (u8)(rar_high >> (i*8));
 		break;
+	case I40E:
+		hw_i4 = &adapter->hw._i40e_hw;
+		(void) hw_i4;
+#if 0
+		rar_high = E1000_READ_REG(hw_e, E1000_RAH(0));
+		rar_low = E1000_READ_REG(hw_e, E1000_RAL(0));
+		
+		for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+			netdev->dev_addr[i] = (u8)(rar_low >> (i*8));
+
+		for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+			netdev->dev_addr[i+4] = (u8)(rar_high >> (i*8));
+#else
+		memcpy(netdev->dev_addr, hw_i4->mac.addr, ETH_ALEN);
+#endif
+		break;		
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -517,6 +560,15 @@ retrieve_dev_specs(const struct pci_device_id *id)
 		}
 			
 	}
+
+	no_of_elements = sizeof(i40e_pci_tbl)/sizeof(struct pci_device_id);
+	for (i = 0; i < no_of_elements; i++) {
+		if (i40e_pci_tbl[i].vendor == id->vendor &&
+		    i40e_pci_tbl[i].device == id->device) {
+			return I40E;
+		}
+			
+	}	
 
 	return res;
 }

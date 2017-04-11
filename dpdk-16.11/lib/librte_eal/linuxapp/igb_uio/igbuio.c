@@ -545,7 +545,7 @@ igbuio_pci_remove(struct pci_dev *dev)
 		iounmap(udev->adapter->hw._e1000_hw.hw_addr);
 		break;
 	case I40E:
-		iounmap(udev->adapter->hw._i40e_hw.hw_addr);
+		/* do nothing */
 		break;
 	}
 	free_netdev(netdev);	

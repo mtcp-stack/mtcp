@@ -374,3 +374,20 @@ SetInterfaceInfo(char* dev_name_list)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+int
+FetchEndianType()
+{
+#ifndef DISABLE_DPDK
+	char *argv;
+	char **argp = &argv;
+	/* dpdk_module_func logic down below */
+	dpdk_module_func.dev_ioctl(NULL, 0, DRV_NAME, (void *)argp);
+	if (!strcmp(*argp, "net_i40e"))
+		return 1;
+	
+	return 0;
+#else
+	return 1;
+#endif
+}
+/*----------------------------------------------------------------------------*/

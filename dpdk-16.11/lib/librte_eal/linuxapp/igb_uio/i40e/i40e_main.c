@@ -5765,7 +5765,7 @@ int i40e_open(struct net_device *netdev)
 
 #ifdef HAVE_VXLAN_RX_OFFLOAD
 #if IS_ENABLED(CONFIG_VXLAN)
-	vxlan_get_rx_port(netdev);
+	//vxlan_get_rx_port(netdev);
 #endif
 #endif /* HAVE_VXLAN_RX_OFFLOAD */
 #ifdef HAVE_GENEVE_RX_OFFLOAD
@@ -12292,6 +12292,10 @@ err_adminq_setup:
 err_pf_reset:
 	i40e_dbg_pf_init(pf);
 	set_bit(__I40E_DEBUG_MODE, &pf->state);
+	pci_release_selected_regions(pdev,
+				     pci_select_bars(pdev, IORESOURCE_MEM));	
+	//destroy_workqueue(i40e_wq);
+	//i40e_dbg_exit();	
 	return 0;
 err_ioremap:
 	kfree(pf);

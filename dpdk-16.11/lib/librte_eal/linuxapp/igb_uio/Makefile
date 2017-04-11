@@ -37,17 +37,43 @@ include $(RTE_SDK)/mk/rte.vars.mk
 MODULE = igb_uio
 MODULE_PATH = drivers/net/igb_uio
 
+include $(RTE_SDK)/lib/librte_eal/linuxapp/igb_uio/i40e/common.mk
+
 #
 # CFLAGS
 #
-MODULE_CFLAGS += -I$(SRCDIR) --param max-inline-insns-single=100
+MODULE_CFLAGS += -I$(SRCDIR) -I$(SRCDIR)/i40e
 MODULE_CFLAGS += -I$(RTE_OUTPUT)/include
-MODULE_CFLAGS += -Winline -Wall -Werror
+MODULE_CFLAGS += -Wall -Werror
 MODULE_CFLAGS += -include $(RTE_OUTPUT)/include/rte_config.h
+
+ifeq ($(shell lsb_release -si 2>/dev/null),Ubuntu)
+MODULE_CFLAGS += -DUBUNTU_RELEASE_CODE=$(shell lsb_release -sr | tr -d .)
+UBUNTU_KERNEL_CODE := $(shell echo `grep UTS_RELEASE $(RTE_KERNELDIR)/include/generated/utsrelease.h \
+	 | cut -d '"' -f2 | cut -d- -f1,2 | tr .- ,`,1)
+MODULE_CFLAGS += -D"UBUNTU_KERNEL_CODE=UBUNTU_KERNEL_VERSION($(UBUNTU_KERNEL_CODE))"
+endif
 
 #
 # all source are stored in SRCS-y
 #
-SRCS-y := igb_uio.c
+SRCS-y := igbuio.c
+SRCS-y += i40e/i40e_main.c
+SRCS-y += i40e/i40e_adminq.c
+SRCS-y += i40e/i40e_dcb.c
+SRCS-y += i40e/i40e_diag.c
+SRCS-y += i40e/i40e_hmc.c
+SRCS-y += i40e/i40e_nvm.c
+SRCS-y += i40e/i40e_virtchnl_pf.c
+SRCS-y += i40e/i40e_client.c
+SRCS-y += i40e/i40e_dcb_nl.c
+SRCS-y += i40e/i40e_ethtool.c
+SRCS-y += i40e/i40e_lan_hmc.c
+SRCS-y += i40e/i40e_ptp.c
+SRCS-y += i40e/kcompat.c
+SRCS-y += i40e/i40e_common.c
+SRCS-y += i40e/i40e_debugfs.c
+SRCS-y += i40e/i40e_fcoe.c
+SRCS-y += i40e/i40e_txrx.c
 
 include $(RTE_SDK)/mk/rte.module.mk

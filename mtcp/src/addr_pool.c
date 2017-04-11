@@ -112,8 +112,12 @@ CreateAddressPoolPerCore(int core, int num_queues,
 	uint32_t saddr_h, daddr_h;
 	uint16_t sport_h, dport_h;
 	int rss_core;
+#if 0
 	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
 		0 : 1;
+#else
+	uint8_t endian_check = FetchEndianType();	
+#endif
 
 	ap = (addr_pool_t)calloc(1, sizeof(struct addr_pool));
 	if (!ap)
@@ -216,8 +220,12 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 	struct addr_entry *walk, *next;
 	int rss_core;
 	int ret = -1;
+#if 0
 	uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
 		0 : 1;
+#else
+	uint8_t endian_check = FetchEndianType();	
+#endif
 
 	if (!ap || !daddr || !saddr)
 		return -1;

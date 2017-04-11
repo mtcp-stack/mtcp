@@ -69,6 +69,9 @@ typedef struct io_module_func {
 /*----------------------------------------------------------------------------*/
 /* set I/O module context */
 int SetInterfaceInfo(char *);
+
+/* retrive device-specific endian type */
+int FetchEndianType();
 /*----------------------------------------------------------------------------*/
 /* ptr to the `running' I/O module context */
 extern io_module_func *current_iomodule_func;
@@ -81,6 +84,7 @@ extern io_module_func *current_iomodule_func;
 #define PKT_RX_IP_CSUM		0x05
 #define PKT_RX_TCP_CSUM		0x06
 #define PKT_TX_TCPIP_CSUM_PEEK	0x07
+#define DRV_NAME		0x08
 
 /* registered psio context */
 #ifdef DISABLE_PSIO

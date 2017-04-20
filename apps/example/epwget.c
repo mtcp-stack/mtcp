@@ -352,9 +352,9 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 						wv->file_len, wv->file_len / 1024 / 1024);
 				wv->headerset = TRUE;
 				wv->recv += (rd - (wv->resp_len - wv->header_len));
-				rd = (wv->resp_len - wv->header_len);
 				
 				pbuf += (rd - (wv->resp_len - wv->header_len));
+				rd = (wv->resp_len - wv->header_len);
 				//printf("Successfully parse header.\n");
 				//fflush(stdout);
 

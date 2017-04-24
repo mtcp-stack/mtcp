@@ -137,12 +137,14 @@ mTCP can be prepared in two ways.
       # ln -s <path_to_dpdk_16_11_directory>/x86_64-native-linuxapp-gcc/include include
    ```
 4. Setup mtcp library:
+   
    ```bash
-         # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
-	 ## And not dpdk-16.11!
-	 ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
-   	 # make
-    ```
+   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
+   ## And not dpdk-16.11!
+   ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
+   # make
+   ```
+
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-4 (configure again):
     

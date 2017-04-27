@@ -1,0 +1,40 @@
+###############################################################################
+#
+# 文 件 名 : Makefile
+# 版 本 号 : 初稿
+# 作    者 ：huwei 64632
+# 最近修改 :
+# 功能描述 : 控制example/ipsec目录下文件的编译
+#
+# 修改历史 :
+# 1.日    期   : 2015年3月24日
+#   作    者   : huwei 64632
+#   修改内容   : 创建文件
+#
+#
+###############################################################################
+
+ODP_EXAMPLE_IPSEC_PATH := $(EXAMPLE_DIR)/ipsec
+ODP_OPENSSL_INC_PATH := $(EXAMPLE_DIR)/../build
+ODP_EXAMPLE_IPSEC_INC += -I$(ODP_EXAMPLE_IPSEC_PATH) -I$(ODP_OPENSSL_INC_PATH)
+
+ODP_EXAMPLE_IPSEC_CFLAGS := $(ODP_EXAMPLE_CFLAGS)
+ODP_EXAMPLE_IPSEC_CFLAGS += $(ODP_EXAMPLE_IPSEC_INC)
+
+ODP_EXAMPLE_IPSEC_CFLAGS += -lodp -L$(OUTPUT_LIB_DIR) 
+ODP_EXAMPLE_IPSEC_CFLAGS += $(EXTRA_LIB) 
+
+ODP_EXAMPLE_IPSEC_C_FILE   := $(shell find $(ODP_EXAMPLE_IPSEC_PATH) -name "*.c")
+ODP_EXAMPLE_IPSEC_C_OBJS   := $(patsubst %.c,%.o,$(ODP_EXAMPLE_IPSEC_C_FILE))
+
+# 编译example/ipsec
+odp_example_ipsec : $(OUTPUT_EXAMPLE_DIR)/odp_ipsec	
+$(OUTPUT_EXAMPLE_DIR)/odp_ipsec : $(ODP_EXAMPLE_IPSEC_C_FILE) $(EXTRA_LIB)
+	-$(RM) $(OUTPUT_EXAMPLE_DIR)/odp_ipsec
+	$(CC) $(ODP_EXAMPLE_IPSEC_CFLAGS) $^ -o $@
+	$(OBJDUMP) -D $(OUTPUT_EXAMPLE_DIR)/odp_ipsec > $(OUTPUT_EXAMPLE_DIR)/odp_ipsec.s	
+
+odp_example_ipsec_clean :
+	-$(RM) $(ODP_EXAMPLE_IPSEC_PATH)/*.o
+	-$(RM) $(OUTPUT_EXAMPLE_DIR)/odp_ipsec
+	-$(RM) $(OUTPUT_EXAMPLE_DIR)/odp_ipsec.s

@@ -1,0 +1,45 @@
+# ODP resource management
+msc {
+
+  a,b,c;
+
+  a->a [ label = "odp_init_global()"];
+  a->b [ label = "odp_thread_start()"];
+  a->c [ label = "odp_thread_start()"];
+  a->a [ label = "odp_init_local()"],
+  b->b [ label = "odp_init_local()"],
+  c->c [ label = "odp_init_local()"];
+  ---;
+  b->b [ label = "pool = odp_pool_create()", textcolour="#7f7fff"];
+
+  a->a [ label = "barrier()"],
+  b->b [ label = "barrier()"],
+  c->c [ label = "barrier()"];
+
+  a->a [ label = " buf = alloc(pool)", textcolour="#ffb000"],
+  b->b [ label = " buf = alloc(pool)", textcolour="#ffb000"],
+  c->c [ label = " buf = alloc(pool)", textcolour="#ffb000"];
+
+  a->a [ label = " free(buf)", textcolour="#ffb000"],
+  b->b [ label = " free(buf)", textcolour="#ffb000"],
+  c->c [ label = " free(buf)", textcolour="#ffb000"];
+
+  a->a [ label = "barrier()"],
+  b->b [ label = "barrier()"],
+  c->c [ label = "barrier()"];
+
+  a->a [ label = "pool = odp_pool_destroy(pool)", textcolour="#7f7fff"];
+  ---;
+  a->a [ label = "barrier()"],
+  b->b [ label = "barrier()"],
+  c->c [ label = "barrier()"];
+
+  ---  [ label = "do work", ID="*" ];
+
+  a->a [ label = "odp_term_local()"],
+  b->b [ label = "odp_term_local()"],
+  c->c [ label = "odp_term_local()"];
+  b->a [ label = "odp_thread_term()"];
+  c->a [ label = "odp_thread_term()"];
+  a->a [ label = "odp_term_global()"];
+}

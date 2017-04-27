@@ -1,0 +1,443 @@
+:doctitle: OpenDataPlane (ODP) Implementers-Guide
+:description: This document is intended to guide a new OpenDataPlane +
+implementation developer.
+:toc:
+
+:numbered!:
+[abstract]
+Abstract
+--------
+This document is intended to guide a new ODP implementation developer.
+Further details about ODP may be found at http://opendataplane.org[ODP homepage]
+
+
+:numbered:
+== The include structure ==
+
+The implementers view of the include source tree allows the common API
+definitions and documentation to be reused by all the platforms defined in the
+tree, but leave the actual definitions to be defined by the specific platform.
+
+.Implementers include structure
+----
+./
+├── include/
+│   ├── odp/
+│   │   └── api/ <1>
+│   │       └── The Public API and the documentation.
+│   │
+│   └── odp.h <4>  This file should be the only file included by the application.
+│
+├── platform/
+│   ├── <implementation name>/
+│   │   ├── include/
+│   │   │   ├── odp/ <2>
+│   │   │   │   ├── In-line function definitions of the public API for this
+│   │   │   │   │   platform seen by the application.
+│   │   │   │   │
+│   │   │   │   └── plat/ <3>
+│   │   │   │       └── Platform specific types, enums etc as seen by the
+│   │   │   │           application but require overriding by the
+│   │   │   │           implementation.
+│   │   │   │  
+│   │   │   └── Internal header files seen only by the implementation.
+----
+
+<1> The doxygen description of the API definition is held in the public api file
+'include/odp/api'.
+<2> The public file is included by a counterpart in
+'platform/<implementation name>/include/odp'.
+The include of the public API is AFTER the platform specific definitions to
+allow the platform to provide definitions that match the underlying hardware.
+<3> The implementation code includes 'platform/<implementation name>/include/plat'
+and this then provides the source files with a complete definition the ODP API
+to be implemented.
+<4> Applications in turn include the include/odp.h file which includes the
+'platform/<implementation name>/include/plat' files to provide a complete
+definition of the API.
+
+== The validation Suite ==
+
+ODP provides a comprehensive set of API validation tests that are intended to be
+used by implementers during development and by application developers to verify
+that a particular implementation meets their requirements.
+
+The list of these tests is expected to grow as ODP grows.
+
+The list of test executables is run by the automake test harness, when running
+"make check".
+Therefore, as required by this harness, each executable should return 0 on
+success (tests passed), 77 on inconclusive, or any other values on failure.
+The automake functionality shows a status line (PASSED/FAIL...) for each of the
+ran test executables.
+
+It is expected that ODP developers will need to run tests as early as possible
+in the development cycle, before all APIs have been implemented.
+Besides, although there are no APIs that are formally listed as optional, it is
+also expected that there may be cases where a subset of APIs remain
+unimplemented on a particular platform.
+Moreover, some platforms may require specific initialization/termination code
+prior/after running the standard tests.
+
+To accommodate with these platform disparities, the ODP validation has been
+divided in two distinct areas:
+
+* The platform agnostic area,
+* A platform dependent area (one per platform).
+
+=== Platform agnostic ===
+
+This grouping defines tests that are expected to be executable and succeed on
+any platform, though possibly with very different performances, depending on the
+underlying platform.
+They are written in plain C code, and may only use functions defined in the
+standard libC (C99) library (besides the ODP functions being tested, of course).
+A free C99 specification can be found at
+http://www.open-std.org/JTC1/sc22/wg14/www/docs/n1256.pdf.
+No other languages (like scripting) are allowed as their usage would make
+assumptions on the platform capability.
+
+This area is located at: 'test/validation/'
+
+The ODP API itself is ordered by module, where each module groups the set of ODP
+API functions related to the same "topic".
+Examples of modules includes "classification" (API functions dealing with ingress
+packets classification), time (functions dealing with time, excluding timers
+which have their own module), timer,...
+The complete module list can be seen at:
+http://docs.opendataplane.org/master/linux-generic-doxygen-html/modules.html[ODP Modules] +
+Within the platform agnostic area, the tests are also grouped by modules,
+matching the ODP API modules: 'test/validation/' mainly contains a list of
+directories matching each module name (as defined by the doxygen "@defgroup" or
+"@ingroup" statement present in each API ".h" file).
+
+Within each of these directories, a library (called "libtest<module>.la") and
+its associated ".h" file (called "<module>.h") defines all the test functions
+for this module as well as few other functions to initialize, terminate, and
+group the tests.
+An executable called "<module>_main*", is also built. It is permissible to
+generate more than one executable to cover the functionality in the test library
+for the module.
+These executable(s) shall call all the tests for this module. +
+See <<anchor-1, Module test and naming convention>> for more details.
+
+It is important to be aware that the tests defined for a given module
+(defined in 'test/validation/<module>') are focused to test the ODP functions
+belonging to this module, but are not limited to use this module's ODP functions
+only: many modules needs some interaction with some other module to be tested.
+The obvious illustration of this is for module "init" whose functions are
+required by all tests of all other modules (as ODP needs to be initialized to
+test anything else). +
+
+There is a "Makefile.am" located at the top of the platform agnostic area. Its
+role is limited to the construction of the different test libraries and the
+"<module>_main*" executables. No tests are run from this area when "make check"
+is performed.
+
+==== CUnit ====
+
+Within a given test executable CUnit is used to run the different tests. The
+usage of CUnit implies the following structure:
+
+* Tests are simple C functions.
+* Tests are grouped in arrays called test suites. Each test suite can be
+associated with a suite initialization/termination function(s), called by CUnit
+before and after the whole suite is run.
+* An array of test suites (and associated init/term functions) defines the test
+registry run by the test executable.
+
+Moreover, two extra functions can be used to initialize/terminate the test
+executable (these are not part of CUnit). +
+A test executable return success (0) if every test of each suite succeed.
+
+More details about
+http://cunit.sourceforge.net/doc/index.html[CUnit users guide]
+
+[[anchor-1]]
+==== Module test and naming convention ====
+
+
+* Tests, i.e. C functions which are used in CUnit test suites are named:
+   *<Module>_test_+++*+++* +
+   where the suffix identifies the test.
+
+* Test arrays, i.e. arrays of odp_testinfo_t, listing the test functions
+  belonging to a suite, are called:
+   *<Module>_suite+++[_*]+++* +
+   where the possible suffix can be used if many suites are declared.
+
+* CUnit suite init and termination functions are called:
+   *<Module>+++_suite[_*]_init()+++* and *<Module>+++_suite[_*]_term()+++* respectively. +
+   where the possible extra middle pattern can be used if many suites are
+   declared.
+
+* Suite arrays, i.e. arrays of odp_suiteinfo_t used in executables
+  (CUnit registry) are called:
+   *<Module>+++_suites[_*]+++* +
+   where the possible suffix identifies the executable using it, if many.
+
+* Main executable function(s), are called:
+   *<Module>+++_main[_*]+++* +
+   where the possible suffix identifies the executable, if many, using it.
+
+* Init/term functions for the whole executable are called:
+   *<Module>_init*
+   *<Module>_term*
+
+All the above symbols are part of the generated libtest<Module>.la libraries.
+The generated main executable(s) (named <module>_+++main[_*]+++, where the
+optional suffix is used to distinguish the executables belonging to the same
+module, if many) simply call(s) the related <Module>_main+++[_*]+++ from the
+library.
+
+=== Platform specific ===
+
+These tests are located under 'platform/<platform>/test'. There is one such area
+for each platform implementing ODP.
+This location will be referred as <PLATFORM_SPECIFIC> in the rest of this
+document.
+
+==== The normal case ====
+
+If the considered platform needs no platform specific tests, this directory
+simply needs to contain a single Makefile.am listing each of the executables
+(named <module>_main) built from the platform agnostic area. The executables are
+listed in the automake TEST variable and will therefore be run on "make check".
+
+For the linux-generic platform, most tested modules fall into this category:
+currently, the 'platform/linux-generic/test/Makefile.am' looks as follows:
+
+[source,am]
+----
+include $(top_srcdir)/test/Makefile.inc
+TESTS_ENVIRONMENT += TEST_DIR=${top_builddir}/test/validation
+
+ODP_MODULES = pktio
+
+if test_vald
+TESTS = pktio/pktio_run \
+	${top_builddir}/test/validation/buffer/buffer_main$(EXEEXT) \
+	${top_builddir}/test/validation/classification/classification_main$(EXEEXT) \
+	${top_builddir}/test/validation/cpumask/cpumask_main$(EXEEXT) \
+	${top_builddir}/test/validation/crypto/crypto_main$(EXEEXT) \
+	${top_builddir}/test/validation/errno/errno_main$(EXEEXT) \
+	${top_builddir}/test/validation/init/init_main_ok$(EXEEXT) \
+	${top_builddir}/test/validation/init/init_main_abort$(EXEEXT) \
+	${top_builddir}/test/validation/init/init_main_log$(EXEEXT) \
+	${top_builddir}/test/validation/packet/packet_main$(EXEEXT) \
+	${top_builddir}/test/validation/pool/pool_main$(EXEEXT) \
+	${top_builddir}/test/validation/queue/queue_main$(EXEEXT) \
+	${top_builddir}/test/validation/random/random_main$(EXEEXT) \
+	${top_builddir}/test/validation/scheduler/scheduler_main$(EXEEXT) \
+	${top_builddir}/test/validation/synchronizers/synchronizers_main$(EXEEXT) \
+	${top_builddir}/test/validation/thread/thread_main$(EXEEXT) \
+	${top_builddir}/test/validation/time/time_main$(EXEEXT) \
+	${top_builddir}/test/validation/timer/timer_main$(EXEEXT) \
+	${top_builddir}/test/validation/shmem/shmem_main$(EXEEXT) \
+	${top_builddir}/test/validation/system/system_main$(EXEEXT)
+
+SUBDIRS = $(ODP_MODULES)
+endif
+
+----
+
+With the exception for module pktio, all other modules testing just involves
+calling the platform agnostic <module>_main executables (in test/validation).
+
+==== Using other languages ====
+
+The pktio module, above, is actually tested using a bash script. This script is
+needed to set up the interfaces used by the tests. The pktio_run script
+eventually calls the platform agnostic 'test/validation/pktio/pktio_main' after
+setting up the interfaces needed by the tests.
+Notice that the path to the script, 'pktio/pktio_run', is pointing to a file
+within the <PLATFORM_SPECIFIC> tree so is private to this platform. Any
+languages supported by the tested platform can be used there, as it will not
+impact other platforms.
+The platform "private" executables (such as this script), of course, must also
+return one of the return code expected by the automake test harness
+(0 for success, 77 for skipped, other values for errors).
+
+==== Defining test wrappers ====
+
+The pktio case above is actually using a script as wrapper around the "standard"
+(platform independent) test executable. Wrappers can also be defined by using
+the LOG_COMPILER variable of automake.
+This is applicable in cases where the same wrapper should be used for more then
+one test, as the test name is passed has parameter to the wrapper. A wrapper is
+just a program expecting one argument: the test name.
+
+Automake also supports the usage different wrappers based of the executable
+filename suffix. See
+https://www.gnu.org/software/automake/manual/html_node/Parallel-Test-Harness.html[Parallel-Test-Harness]
+for more information.
+
+To add a wrapper around the executed test, just add the following LOG_COMPILER
+definition line in the '<PLATFORM_SPECIFIC>/Makefile.am':
+
+[source,am]
+----
+...
+if test_vald
+LOG_COMPILER = $(top_srcdir)/platform/linux-generic/test/wrapper-script
+TESTS = pktio/pktio_run \
+...
+----
+
+Here follows a dummy example of what wrapper-script could be:
+
+[source,bash]
+----
+#!/bin/bash
+
+# The parameter, $1, is the name of the test executable to run
+echo "WRAPPER!!!"
+echo "running $1!"
+
+# run the test:
+$1
+# remember the test result:
+res=$?
+
+echo "Do something to clean up the mess here :-)"
+# return the test result.
+exit $res
+----
+
+Note how the above script stores the return code of the test executable to
+return it properly to the automake test harness.
+
+==== Defining platform specific tests ====
+
+Sometimes, it may be necessary to call platform specific system calls to check
+some functionality: For instance, testing odp_cpumask_* could involve checking
+the underlying system CPU mask. On linux, such a test would require using the
+CPU_ISSET macro, which is linux specific. Such a test would be written in
+'<PLATFORM_SPECIFIC>/cpumask/...' The contents of this directory would be very
+similar to the contents of the platform agnostic side cpu_mask tests
+(including a Makefile.am...), but platform specific test would be written there.
+'<PLATFORM_SPECIFIC>/Makefile.am' would then trigger the building of the
+platform specific tests (by listing their module name in SUBDIRS and therefore
+calling the appropriate Makefile.am) and then it would call both the platform
+agnostic executable(s) and the platform specific test executable.
+
+==== Marking tests as inactive ====
+
+The general policy is that a full run of the validation suite (a "make check")
+must pass at all times. However a particular platform may have one or more test
+cases that are known to be unimplemented either during development or
+permanently, so to avoid these test cases being reported as failures it's useful
+to be able to skip them. This can be achieved by creating a new test executable
+(still on the platform side), giving the platform specific initialization code
+the opportunity to modify the registered tests in order to mark unwanted tests
+as inactive while leaving the remaining tests active. It's important that the
+unwanted tests are still registered with the test framework to allow the fact
+that they're not being tested to be recorded.
+
+The odp_cunit_update() function is intended for this purpose, it is used to
+modify the properties of previously registered tests, for example to mark them
+as inactive. Inactive tests are registered with the test framework but aren't
+executed and will be recorded as inactive in test reports.
+
+In 'test/validation/foo/foo.c', define all tests for the 'foo' module:
+
+[source,c]
+------------------
+odp_testinfo_t foo_tests[] = {
+	ODP_TEST_INFO(foo_test_a),
+	ODP_TEST_INFO(foo_test_b),
+	ODP_TEST_INFO_NULL
+};
+
+odp_suiteinfo_t foo_suites[] = {
+	{"Foo", foo_suite_init, foo_suite_term, foo_tests},
+	ODP_SUITE_INFO_NULL
+};
+------------------
+
+In 'platform/<platform>/test/foo/foo_main.c', register all the tests defined in
+the 'foo' module, then mark a single specific test case as inactive:
+
+[source,c]
+------------------
+static odp_testinfo_t foo_tests_updates[] = {
+	ODP_TEST_INFO_INACTIVE(foo_test_b),
+	ODP_TEST_INFO_NULL
+};
+
+static odp_suiteinfo_t foo_suites_updates[] = {
+	{"Foo", foo_suite_init, foo_suite_term, foo_tests_updates},
+	ODP_SUITE_INFO_NULL
+};
+
+int foo_main(void)
+{
+	int ret = odp_cunit_register(foo_suites);
+
+	if (ret == 0)
+		ret = odp_cunit_update(foo_suites_updates);
+
+	if (ret == 0)
+		ret = odp_cunit_run();
+
+	return ret;
+}
+------------------
+
+So 'foo_test_a' will be executed and 'foo_test_b' is inactive.
+
+It's expected that early in the development cycle of a new implementation the
+inactive list will be quite long, but it should shrink over time as more parts
+of the API are implemented.
+
+==== conditionnal tests ====
+
+Some tests may require specific conditions to make sense: for instance, on
+pktio, checking that sending a packet larger than the MTU is rejected only makes
+sense if packets can indeed, on that ODP implementation, exceed the MTU.
+A test can be marked conditionnal as follows:
+
+[source,c]
+------------------
+odp_testinfo_t foo_tests[] = {
+	...
+	ODP_TEST_INFO_CONDITIONAL(foo_test_x, foo_check_x),
+	...
+	ODP_TEST_INFO_NULL
+};
+
+odp_suiteinfo_t foo_suites[] = {
+	{"Foo", foo_suite_init, foo_suite_term, foo_tests},
+	ODP_SUITE_INFO_NULL
+};
+------------------
+
+Foo_test_x is the usual test function. Foo_check_x is the test precondition,
+i.e. a function returning an bollean (int).
+It is called before the test suite is started. If it returns true, the
+test (foo_test_x) is run. If the precondition function (foo_check_x above)
+returns false, the test is not relevant (or impossible to perform) and it will
+be skipped.
+
+=================
+*Note*
+
+Conditionnal tests can be marked as inactive, keeping the precondition
+function. Both the test and the precondition function will be skipped,
+but re-activating the test is then just a matter of changing back the macro
+from ODP_TEST_INFO_INACTIVE to ODP_TEST_INFO_CONDITIONAL:
+
+[source,c]
+------------------
+	...
+	/* active conditionnal test */
+	ODP_TEST_INFO_CONDITIONAL(foo_test_x, foo_check_x),
+
+	/* inactive conditionnal test */
+	ODP_TEST_INFO_INACTIVE(foo_test_y, foo_check_y),
+	...
+------------------
+=================
+
+
+include::../glossary.adoc[]

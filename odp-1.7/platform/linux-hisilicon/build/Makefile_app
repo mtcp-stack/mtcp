@@ -1,0 +1,64 @@
+#TARGET = $(notdir $(CURDIR))
+THIS_MAKEFILE=$(abspath $(firstword $(subst $(MAKEFILES),,$(MAKEFILE_LIST))))
+SRC_DIR = $(dir $(THIS_MAKEFILE))
+DIR_NAME = $(shell basename $(SRC_DIR))
+ROOT            = $(SRC_DIR)../..
+
+
+ifeq ("$(BUILD_TYPE)", "build_32")
+	GNU_PREFIX=arm-linux-gnueabi-
+	LIB_ODP=odp32
+	APP_OUT=$(FILE_NAME)_app
+	CFLAGS= -O3 -D_GNU_SOURCE -mlittle-endian -lpthread -march=armv7-a  -D__arm32__
+else
+	GNU_PREFIX = aarch64-linux-gnu-
+	LIB_ODP=odp
+	APP_OUT=$(FILE_NAME)_app
+	CFLAGS= -O3 -D_GNU_SOURCE -mlittle-endian -lpthread -march=armv8-a -mtune=cortex-a57 -mcpu=cortex-a57
+endif
+
+CC                := $(GNU_PREFIX)gcc
+LD                := $(GNU_PREFIX)ld
+OBJDUMP           := $(GNU_PREFIX)objdump
+ECHO              := @echo
+
+SRCS          := $(wildcard $(SRC_DIR)*.c)
+
+OBJ_FILE      := $(SRCS:.c=.o)
+I_OBJ_FILE    := $(SRCS:.c=.i)
+
+LIBS := -L$(BUILD_DIR)/objs/lib -l$(LIB_ODP) -lpthread -ldl -lrt -lm
+
+
+
+INCLUDE_FILES      := -I$(SRC_DIR) \
+                     -I$(ROOT)/platform/linux-generic/include \
+                     -I$(ROOT)/platform/linux-generic/arch/linux \
+                     -I$(ROOT)/platform/linux-generic/include/odp/plat \
+                     -I$(ROOT)/helper/include/odp/helper \
+                     -I$(ROOT)/helper/include \
+                     -I$(ROOT)/include \
+                     -I$(ROOT)/test \
+                     -I$(ROOT)/platform/linux-hisilicon/example \
+                     -I$(BUILD_DIR) \
+		     		 -I$(ROOT)/example \
+                     -I$(ROOT)/platform/linux-hisilicon/include
+
+$(APP_OUT) : $(OBJ_FILE)
+	$(ECHO) "LD " $@;\
+	$(CC) $(LIBS) $(CFLAGS) -o $(BUILD_DIR)/objs/examples/$@ $^  $(BUILD_DIR)/objs/libcrypto.a
+	rm -f $(SRC_DIR)*.o $(SRC_DIR)*.d $(SRC_DIR)*.so $(SRC_DIR)$(APP_OUT)
+
+clean:
+	rm -f $(SRC_DIR)*.o $(SRC_DIR)*.d $(SRC_DIR)*.so $(SRC_DIR)$(APP_OUT)
+
+
+
+$(OBJ_FILE) : %.o : %.c
+	$(ECHO) "CC " $(notdir $@);
+	$(CC)  $(CFLAGS) $(INCLUDE_FILES) -c -o $@ $<
+
+
+$(I_OBJ_FILE) :%.i :%.c
+	$(ECHO) "CC " $@;
+	$(CC) $(CFLAGS) $(INCLUDE_FILES) $< -E -P -o $@

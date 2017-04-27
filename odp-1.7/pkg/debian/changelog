@@ -1,0 +1,561 @@
+opendataplane (1.7.0.0-1) unstable; urgency=low
+   * ODP release v1.7
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 05 Feb 2016 13:05:00 +0300
+
+opendataplane (1.6.0.0-1) unstable; urgency=low
+   * ODP release v1.6
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Mon, 28 Dec 2015 17:01:58 +0300
+
+opendataplane (1.5.0.0-1) unstable; urgency=low
+   * ODP release v1.5
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Mon, 30 Nov 2015 13:08:43 +0300
+
+opendataplane (1.4.1.0-1) unstable; urgency=low
+   * Validation
+       - pktio: test transmit error recovery
+       - schedule: add chaos test
+       - check return code from odp_queue_lock_count()
+       - scheduler: test ordered queue reorder processing
+       - pktio: initialize queue parameters correctly
+       - pktio: test for transmit error handling
+       - pktio: add support for direct receive
+       - pktio: pass interface index rather than name
+       - pktio: fix start_stop test
+       - test: l2fwd: separate rx and tx drop counters
+       - test: l2fwd: increase burst size
+       - test: l2fwd: optimize statistics usage
+       - test: l2fwd: optimize queue mode
+       - test: l2fwd: start pktios after worker thread create
+       - test: l2fwd: added option to disable error check
+       - example/ipsec: Increase ip_data_len for Tunnel mode
+       - example: ipsec: check push_tail return code
+   * General:
+       - linux-generic: pktio: handle transmit errors correctly
+       - pktio socket_mmap: recover from transmit errors but 1890
+       - pktio: increase MTU of loop interface
+       - ordered queues: fix race condition during order release
+         and out of order.
+       - configure: move HAVE_PCAP AM_CONDITIONAL to configure.ac
+   * ODP helper:
+       - linux: checkpatch cleaning for helper/linux.c
+       - linux: examine the cause for child process termination
+       - linux: request SIGTERM if parent process dies
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 13 Nov 2015 13:47:22 +0300
+
+opendataplane (1.4.0.0-1) unstable; urgency=low
+   * API:
+       - ** Classification **
+       - odp_cos_set_queue() renamed to odp_cos_queue_set()
+       - int odp_cos_set_drop renamed to odp_cos_drop_set()
+       - new: odp_queue_t odp_cos_queue(odp_cos_t cos_id)
+       - new: odp_drop_e odp_cos_drop(odp_cos_t cos_id)
+       - ODP_PMR_CUSTOM_FRAME support in classification
+       - odp_pmr_create() arguments passing change to use struct
+       - odp_pmr_match_set_create() added id argument
+       - ** Config **
+       - new: odp_config_...() API introduced instead of ODP_CONFIG_ defines
+       - ** Cpu, Threads and Scheduler **
+       - new: uint64_t odp_cpu_cycles(void)
+       - new: uint64_t odp_cpu_cycles_diff(uint64_t c1, uint64_t c2);
+       - new: uint64_t odp_cpu_cycles_max(void);
+       - new: uint64_t odp_cpu_cycles_resolution(void);
+       - odp_cpumask_def_worker() renamed to odp_cpumask_default_worker()
+       - odp_cpumask_def_control() renamed to odp_cpumask_default_control()
+       - odp init extended with num worker and control threads
+       - new: int odp_queue_lock_count(odp_queue_t queue);
+       - refine api doc for scheduler and schedule orderd locks
+       - argument of odp_schedule_order_lock() and odp_schedule_order_unlock changed to unsigned
+       - new: int odp_thread_count_max(void)
+       - ** Packet **
+       - new: uint32_t odp_packet_flow_hash(odp_packet_t pkt)
+       - new: void odp_packet_flow_hash_set(odp_packet_t pkt, uint32_t flow_hash)
+       - new: int odp_packet_has_flow_hash(odp_packet_t pkt);
+       - new: void odp_packet_has_flow_hash_clr(odp_packet_t pkt);
+       - ** Pktio **
+       - pktio can be configuread as receive or transmit only
+       - pktio: refined api doc for start() and stop()
+       - new: void odp_pktio_param_init(odp_pktio_param_t *param)
+   * ODP docs:
+       - implementers-guide: update names of test module libraries
+       - implementers-guide: update section on skipping tests
+   * Test framework
+       - update README files
+       - renaming module libs
+       - add odp_cunit_update() to modify registered tests
+       - add ability to mark tests inactive
+   * Validation
+       - ** Classification **
+       - Add fix for classification tests
+       - remove redundant pool lookup function
+       - remove redundant sequence number check
+       - use tcp data offset field to calculate data offset
+       - move destroy_inq() to common file
+       - add odp_pktio_param_init() API
+       - added additional suite to test individual PMRs
+       - use a structure instead of many args for odp_pmr_create
+       - Add init calls for queue parameters
+       - syntax correction for CU_ASSERT
+       - Add init calls for pool parameters
+       - queue and drop policy API name change
+       - Queue parameter init calls
+       - ** Cpu, Threads and Scheduler **
+       - rename odp_cpumask_def to _default
+       - schedule: revise definition of ordered locks
+       - schedule: remove odp_schedule_order_lock_init() API
+       - schedule: don't check schedule time on 0
+       - synchronizers: support a single worker
+       - init: fix test when debug-print is disabled
+       - ** Packet **
+       - packet: test flow hash
+       - packet: test now handles pool that do not support segmentation
+       - ** Pktio **
+       - pktio: don't call APIs with an invalid pktio handle
+       - ** Config **
+       - config: removed ODP_CONFIG_MAX_THREADS
+       - config: add CUnit tests for config APIs
+   * Performance
+       - l2fwd: add missing braces
+       - l2fwd: add option to disable filling eth addresses
+       - l2fwd: add support for using odd number of ports
+       - l2fwd: fix crash when accuracy is set to 0
+       - l2fwd: add option to select scheduler queue type
+       - l2fwd: add option to change destination eth addresses
+       - l2fwd: obey -t in queue mode
+       - l2fwd: fill correct source ethernet address
+       - sched: update scheduling test to use cycle counts
+       - odp_pktio_perf: fix potential overflow for burst_gap
+       - odp_pktio_perf: fix potential overflow for send_duration
+   * general:
+       - classification: implement ODP_PMR_CUSTOM_FRAME matching
+       - classification: queue and drop policy API name change
+       - cpu: created arch dependent cpu_cycles files
+       - cpu: fix cycle lost while cycle counter overflow
+       - cpu: implementation for cycle count API
+       - cpu: rename time_cycles to cpu_cycles
+       - pktio: implemented pcap pktio
+       - pktio: implemented netmap pktio
+       - pktio: close all pktio when term is called
+       - pktio: enable classifier only when needed
+       - pktio: factor state management into packet_io
+       - pktio: fill in L2 parse results by default
+       - pktio: implement odp_pktio_param_init() API
+       - packet: implement flow hash support
+       - schedule: fix odp_schdule_wait_time
+       - queue: change lock_index from uint32_t to unsigned to match API
+       - queue: direct internal enqueues to target queue
+       - queue: fix pktout_enqueue() logic
+       - queue: remove obsolete prototypes
+       - use cycles_diff for time API also
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 30 Oct 2015 13:55:07 +0300
+
+opendataplane (1.3.0.0-1) unstable; urgency=low
+   * API:
+       - codespell: correct spelling
+       - event: change to odp_event_type_t
+       - init: use const pointer types
+       - packet_io: added odp_pktio_param_t
+       - packet_io: added start and stop
+       - packet_io: change word instance to interface
+       - pktio: added output mode
+       - pktio: rename pktio_input_mode enum
+       - pool: add odp_pool_param_init prototype
+       - pool: standardize description for odp_pool_param_init routine
+       - queue: add odp_queue_param_init prototype
+       - queue: clarify odp_queue_context_set() documentation
+       - queue: rename queue context get/set for consistency
+       - sched: added ordered context lock
+       - sched: added release ordered
+       - sched: added schedule group create and destroy
+       - sched: added schedule prefetch
+       - sched: added worker group
+       - sched: add additional scheduler group APIs
+       - sched: clarified synchronization context
+       - sched: clarify usage of PRIO_DEFAULT
+       - sched: moved scheduler types into new file
+       - sched: removed GROUP_DEFAULT
+       - sched: removed SYNC_DEFAULT
+       - sched: rename order lock APIs and typedef
+       - sched: schedule param
+       - sched: config: add configuration for scheduler groups
+       - schedule: fix comment typo
+       - spelling fixes
+       - style: init api: documentation clean up
+   * ODP docs:
+       - doc: implementers-guide: add validation description
+       - doc: publish contributing text
+   * ODP helper:
+       - fix installation path for includes
+       - linux: catch possible undefined
+       - test: chksum: catch errors in scan_ip
+   * test:
+       * validation:
+           - add test on unused retvals
+           - use _CU_TEST_INFO() macro
+           - system: fix uninitialised variable
+           - schedule: add param init calls
+           - schedule: test scheduler groups
+           - test odp_pktio_start and odp_pktio_stop
+           - fix build from tar source
+           - kill odp_generator
+           - removing current dir from -I
+       * performance:
+           - Makefile: add scripts to EXTRA_DIST
+           - l2fwd: fix race condition between thread init and stat counter
+           - l2fwd: capture test fails
+           - odp_pktio_perf: use real MAC addresses while packet creation
+           - odp_scheduling: remove redundant var inits
+           - use odp_pool_param_init routine
+           - use odp_queue_param_init routine
+   * general:
+       - Makefile.am: fix basename conflicts
+       - Makefile: add all arch to the tarball
+       - fix logic for calling pktio init and term functions
+       - install missing headers
+       - move default cpumask functions to separate file
+       - move openssl checks inside linux-generic
+       - move pthread checks inside linux-generic
+       - add pktio_start and pktio_stop
+       - pktio: add global init and term function for pktios
+       - pktio: always test loop interface
+       - pktio: handle segmented packet in socket mode
+       - pktio: remove basic socket implementation
+       - pktio: store errno correctly in setup
+       - pool: add odp_pool_type_t enum
+       - pool: implement odp_pool_param_init
+       - queue: implement odp_queue_param_init routine
+       - queue: implement ordered queues
+       - remove linux-generic makefile generation from common configure.ac
+       - schedule pktin_poll: account pktio stop state
+       - schedule: implement scheduler groups
+       - schedule: implement odp_schedule_prefetch()
+       - schedule: implement ordered locks
+       - Makefile.am: fix aclocal warning when building from tarball
+       - m4: pthread: fix warning with Wextra
+       - scripts/git_hash: change repo to CUSTOM_STR
+       - scripts/git_hash: fix build from tar source
+       - scripts: Makefile: add odp_version.sh to the tarball
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Tue, 01 Sep 2015 21:14:53 +0300
+
+opendataplane (1.2.0.0-1) unstable; urgency=low
+   * API:
+       - docs: doxygen grouping clean up and remove excess references to ODP
+       - pool: remove shm paramter from odp_pool_create()
+       - packet_io: clarify what happens when not all packets are sent
+       - cpumask: added default masks and cpumask_setall
+       - thrmask: added thread mask
+       - thread: added thread type
+   * ODP helper:
+       - helper: convert to a library
+       - remove helper dependence on ODP internals
+       - helper: linux: check pthread_join return code
+       - test checksum
+       - helpers: fix udp checksum computation
+       - test: helper: add process and thread tests
+       - deleted odph_linux_cpumask_default
+   * test:
+       * validation:
+           - tests execution moved to platfrom side
+           - test: pktio_perf: add missing atomic init
+           - test: synchronizers: use thread_id instead of cpu_id to detect slow threa
+           - validation: pktio: do not dequeue from scheduled queue
+           - test: pktio_perf: fix pthread_t offset for tx threads
+           - packet_io: release unsent packets after odp_pktio_send()
+           - validation: new module errno
+           - test: pktio_perf: add missing ns to cycle conversion for busy loop
+           - validation: classification: fix ODP_PMR_IPPROTO capability check
+           - validation: scheduler: fix race condition in pause test
+           - test: do not use negative array index
+           - thread and cpumask validation suites
+           - example:ipsec: Fix for Polled queues
+           - scheduler: use number of workers
+           - example: classifier: fix string overflow
+   * general:
+           - linux-generic: put pktio types to separate files with common interface.
+           - configure: use stricter warnings
+           - linux-generic: timer: use timer handles as buffer handles
+           - linux-generic: buffer: remove unneeded division/module when mapping within the first segment
+           - linux-generic: pool: use ODP_CONFIG_PACKET_SEG_LEN_MIN correctly
+           - queue: handle return value of odp_queue_enq()
+           - linux-generic: classification: add support for ODP_PMR_IPSEC_SPI
+           - add {EXEEXT} suffix to binaries
+           - event: implement odp_event_free()
+           - packet_socket: do not release packets in odp_pktio_send
+           - linux-generic: packet: fix byte order in IPv6 header parsing
+           - linux-generic: schedule: fix double free
+           - linux-generic: buffers: correct segment length calculation for packets
+           - linux-generic: timer: set timer queue to ODP_QUEUE_INVALID on init
+           - linux-generic: buffer: reduce field size and reorder for better packing
+           - linux-generic: crypto: eliminate buffer type hack for completions
+           - linux-generic: pool: remove double init
+           - linux-generic: pool: group and document pool statistics
+           - platform: Makefile.inc: use `` instead of != for compatibility with older versions of Make
+           - linux-generic: packet: Add lazy parsing support
+           - linux-generic: buffer: init all the odp_buffer_bits_t struct to avoid valgrind warnings
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 24 Jul 2015 17:21:20 +0300
+
+opendataplane (1.1.0.0-1) unstable; urgency=low
+   * API:
+       - style: moved pool type first in pool_param
+       - style: pool_param doxygen comments
+       - api: packet: removed odp_packet_user_u64
+       - api: packet: rename user_data to user_area
+       - api: pktio: Clarify doc on default pool usage on odp_pktio_open
+       - timer: Add missing platform handles to u64 conversion functions
+       - api/linux-generic/example/validation: remove odp_pmr_create_range() function definition
+       - api: packet: relax return code to use non-zero for true
+       - api: packet/pool: proposed APIs for packet user metadata
+
+   * test:
+       * validation:
+           - validation: packet: add user metadata tests
+           - test: pktio: add missing atomic init
+           - test: use CU_ASSERT_FATAL in case odp_buffer_alloc failed to avoid segfaults
+           - validation: pktio: fix polling tests
+           - validation: tests for module odp_ver_abt_log_dbg
+           - validation: rename executable to match modules
+   * general:
+       - linux-generic/odp_impl: add implementation version details
+       - linux-generic: support running with restricted cpu set
+       - linux-generic: packet: add user metadata support
+       - linux-generic: pool: add user metadata support
+       - linux-generic: buffer: restructure user mdatadata fields
+       - linux-generic: use inttypes defines to print (u)int32_t values
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 08 May 2015 13:35:16 +0300
+
+opendataplane (1.0.4-1) unstable; urgency=low
+
+   * test:
+       * validation:
+           - synchronizers: fix init of custom barrier atomic
+           - pktio: don't pass invalid handles
+           - use PRIu32 instead of %u to print uint32_t variables
+           - thread: add odp_thread sunnyday tests
+           - classification: add missing init of atomic variable
+           - api_test: remove odp_shm_test
+       * performance:
+           - pktio: fix check for pktio_tx
+           - pktio: test return value of odp_pktio_close()
+           - pktio: add throughput test
+   * example:
+           - ODP classifier example
+   * bugs:
+           - example: timer: clean up prescheduled events
+   * general:
+           - api: time: force time defines as ULL to avoid computation overflows on 32bits systems
+           - linux-generic: packet_io: init l2 and l3 cos table spinlocks
+           - linux-generic: pool: initialize atomics during odp_pool_init_global
+           - linux-generic: pool: fix initialization of odp_buffer_hdr ref_count
+           - doc: api_guide_lines: add guidance on ODP_DEPRECATED
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Wed, 29 Apr 2015 20:21:25 +0300
+
+opendataplane (1.0.3-1) unstable; urgency=low
+
+   * test:
+       * validation:
+           - validation: add new test l2fwd_run
+           - validation: sched: add missing copyright
+           - validation: move l2fwd from example to performance tests
+           - validation: implement platform env
+           - validation: crypto: combine sync and async tests
+           - validation: crypto: handle synchronous operations in async test
+           - test: enable valgrind check
+           - test/README: explain what's the intention with test/validation
+           - validation: classification: un-checked return
+           - validation: pktio: support arbitrary length packets
+           - validation: pktio: fix memory corruption
+           - validation: common: catch odp_term_local/global failures
+           - validation: common: print odp_init failures to stderr
+           - validation: schedule: exit schedule loop
+           - validation: schedule: added queue destroy test
+   * bugs:
+           - linux-generic: pool: fix missing increment of blkallocs stat
+           - example: odp_generator: use odp_timer
+           - configure.ac: include configure.m4 if platform explicitly selected
+   * general:
+           - doxygen cleanups
+           - scheduler: restructured queue and pktio integration
+           - linux-generic: schedule: terminate
+           - linux-generic: debug_internal: assert prints condition
+           - linux-generic: pool: check for NULL params before dereference
+           - linux-generic: pktio: fix SEGV after odp_pktio_inq_remdef()
+           - linux-generic: system_info: use global data struct
+           - linux-generic: use arch optimisations
+           - examples: odp_ipsec: runtime select multiple vs single deq
+           - examples: odp_ipsec: runtime select scheduled vs poll queues
+           - examples: odp_ipsec: handle alloc_pkt_ctx failure
+           - scripts: odp_check: remove astyle
+           - linux-generic: odp_linux: migrate helpers to helper dir
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 17 Apr 2015 17:36:34 +0300
+
+opendataplane (1.0.2-1) unstable; urgency=low
+   * API:
+       - api files were touched with override patches but no api
+         changes were actually made.
+   * test:
+       * validation:
+           - fix memory allocation in odp_synchronizers
+           - fixed memory leak in odp_cpumask.c
+           - timer: use unused attribute
+           - pktio: add support for VPATH builds
+           - added odp_cpumask test
+           - timer: free malloced memory
+           - timer: use ODP_SHM_NULL
+           - timer: added cancel test
+           - pktio: prevent race when using veth pair
+           - test: debug: replace example with test
+           - test: debug: add unused attribute MACRO
+           - performance: odp_atomic: move atomic test from api_test to performance
+           - performance: scheduling: add support for VPATH builds
+           - performance: scheduling: catch exit codes
+   * general:
+           - barrier: allow platform to override odp_barrier_t
+           - ticketlock: allow platform to override odp_ticketlock_t
+           - rwlock: allow platform to override odp_rwlock_t
+           - spinlock: allow platform to override odp_spinlock_t
+           - doc: move api guidelines to API doc
+           - linux-generic: strongtypes: add dummy struct var to keep c++ happy
+           - linux-generic: queue: fix potential queue leak
+           - linux-generic: strongtypes: use named structs for C++
+           - example: l2fwd print packets per second
+           - linux-generic: linux: destroy used pthread attr
+   * bugs:
+           - validation: packet: use non-zero as true indicato
+           - linux-generic: pktio check for NULL entry
+           - linux-generic: fix incorrect pmr_term_value update in odp_pmr_create_xxx() function
+           - replace strtok_r with strtok and fix leaks
+           - schedule: free queues and pool
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 27 Mar 2015 19:22:22 +0300
+
+opendataplane (1.0.1-1) unstable; urgency=low
+
+   * test:
+       * validation:
+           - pktio: disable arp on virtual interfaces
+           - pktio check return code for pool_destroy
+           - schedule: code clean up
+           - odp_scheduling: limit worker thread count
+           - odp_timer: cleanup for clean termination
+           - common: prevent masking test failures
+           - shm: abort on null pointer
+           - crypto: add packet free to sync test
+           - crypto: add common test cleanup
+           - common: add support for test term
+           - crypto: split crypto and random tests
+           - add unit tests for strong type display functions
+   * general:
+           - linux-generic: only print errors to stderr
+           - linux-generic: linux: remove explicit buffer cache flush
+   * bugs:
+           - linux-generic: odp_timer: set user_ptr for cancelled timeout
+           - validation: odp_timer: cleanup for clean termination
+           - example: odp_packet uncomment polling queues
+           - linux-generic: mmap: jumbo frames support
+           - linux-generic: thread: reuse thread ids
+           - classification: destroy pktio default inqueue during teardown
+           - classification: pktio skip value set to zero
+
+ -- Maxim Uvarov <maxim.uvarov@linaro.org>  Fri, 13 Mar 2015 20:02:59 +0300
+
+opendataplane (1.0.0-1) unstable; urgency=low
+
+   * API:
+       - crypto, cpumask, packet_io, random: replace ssize_t with int32_t
+       - crypto: add session destroy function
+       - crypto: add error code for invalid IV
+       - classification: Add documentation for missing macros
+       - hints: add printf format attribute
+       - errno: add api to public api
+       - init: add missing documentation
+       - packet_io: remove specific errno value
+   * test:
+       * validation:
+           - Makefile.am: restructure
+           - pktio: free unexpected packets/events
+           - pktio: destroy interface specific pools
+           - pktio: destroy pktio input queues
+           - pktio: fix odp_errno usage
+           - buffer: split pool, buffer and packet tests
+           - init: include stdlib.h for abort()
+           - crypto: verify session_destroy
+           - crypto: verify odp_crypto_operation() return code
+           - queue: destroy created ODP resources
+           - errno: add sunnyday test
+       * miscellaneous:
+           - Add CPP test
+   * bugs:
+       - odp_init_log: fix clang format string error
+       - buffers: remove obsolete debugging code
+       - classification: fix unchecked return value
+       - classification: fix incorrect ipv4 checksum update
+       - example: generator: add missing doxygen documentation
+       - pools: switch to simple locks for buf/blk synchronization
+       - performance: fix c99 warnings as errors
+       - crypto: handle copy error
+       - system: read hugepage size for all architectures
+       - queue: fix PKTIN queue destroy
+   * general:
+       - add -std=c99 gcc flag by default, fix all warnings
+       - handle copy error in odp_crypto_operation
+       - fix all doxygen warnings
+       - configured defines changed ODP_CONFIG_ and moved to config.h
+
+ -- Anders Roxell <anders.roxell@linaro.org>  Thu, 26 Feb 2015 22:30:39 +0100
+
+opendataplane (0.11.0-1) unstable; urgency=low
+
+   * API:
+       - update return descriptions
+       - add strong types
+       - thread, rename functions
+       - cpu, rename functions
+       - errno added
+       - classification, remove pmr count
+       - init, allow the abort function to be overridden
+       - hints, add ODP_NORETURN
+       - packet_flag, remove odp_packet_override_l4_checksum
+   * validation:
+       - init, add tests for override the abort function
+   * bugs:
+       - timer, avoid cunit warnings for late timeouts
+       - version, fix odp_version_api_str (1194, 1207)
+       - fix clang (1203, 1023)
+       - validation: init: fix unitalized data in struct (1206)
+       - linux-generic: setup_pktio_entry() null terminate pkio name (1055)
+       - validation: odp_timer.c: (1048, 1056)
+
+ -- Anders Roxell <anders.roxell@linaro.org>  Wed, 20 Feb 2015 06:50:34 +0100
+
+opendataplane (0.10.0-1) unstable; urgency=low
+
+   * API:
+       - Allow init_global logging
+       - Add events
+       - Add Crypto Completion event
+       - Classification API cleanup
+       - Move header files out of linux-generic
+   * validation:
+       - Classification tests
+   * bugs:
+       - l2fwd: fix incorrect cpumask used when spawning threads
+       - shared memory
+   * general:
+       - move headers into namespace the odp/helper
+
+ -- Anders Roxell <anders.roxell@linaro.org>  Sat, 31 Jan 2015 13:50:30 +0100
+
+opendataplane (0.9.0-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Anders Roxell <anders.roxell@linaro.org>  Fri, 23 Jan 2015 16:32:06 +0100

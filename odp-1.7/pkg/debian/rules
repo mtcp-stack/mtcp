@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+DPKG_EXPORT_BUILDFLAGS = 0
+include /usr/share/dpkg/default.mk
+
+# main packaging script based on dh7 syntax
+%:
+	dh $@  --with autotools-dev
+
+override_dh_auto_configure:
+	dh_auto_configure -- --enable-static
+
+.PHONY: override_dh_strip
+override_dh_strip:
+	dh_strip --dbg-package=libodp-dbg

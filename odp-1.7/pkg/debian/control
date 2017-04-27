@@ -1,0 +1,44 @@
+Source: opendataplane
+Priority: optional
+Maintainer: Anders Roxell <anders.roxell@linaro.org>
+Build-Depends: debhelper (>= 9), autotools-dev, libssl-dev, doxygen,
+    imagemagick, libmagickcore-6.q16-2-extra | libmagickcore-extra,
+    ghostscript, asciidoc, mscgen, texlive-latex-recommended
+Standards-Version: 3.9.6
+Section: libs
+Homepage: http://www.opendataplane.org/
+Vcs-Git: git://git.linaro.org/lng/odp.git
+Vcs-Browser: https://git.linaro.org/lng/odp.git
+
+Package: odp-bin
+Section: libdevel
+Architecture: any
+Multi-Arch: allowed
+Depends: libodp (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Description: Example binaries for OpenDataPlane
+ These are the executable examples from the reference implementation.
+
+Package: libodp-dbg
+Priority: extra
+Section: debug
+Architecture: any
+Multi-Arch: same
+Depends: libodp (= ${binary:Version}), ${misc:Depends}
+Description: Debug symbols for OpenDataPlane
+ This is the OpenDataPlane library from the reference implementation
+ with debug turned on.
+
+Package: libodp-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libodp (= ${binary:Version}), ${misc:Depends}, libssl-dev
+Description: Development files for OpenDataPlane
+ These are the source file for the OpenDataPlane reference implementation.
+
+Package: libodp
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Library for OpenDataPlane
+ This is the OpenDataPlane library from the reference implementation.

@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# This script is a clean up for the ODP project src files.
+#
+# Usage
+# ./scripts/opd_check <path/filename>
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+$DIR/cleanfile $1
+$DIR/checkpatch.pl -f $1

@@ -1,0 +1,134 @@
+@import url(http://fonts.googleapis.com/css?family=Squada+One);
+
+
+body {
+}
+#titlearea {
+    width: 100%;
+    display: inline-block;
+    border-bottom: 3px solid #7AC043;
+}
+.tabs, .tabs2, .tabs3 {
+    width: 60%;
+    display: inline-block;
+    background-image: none;
+    font-size: 14px;
+}
+#top {
+    border-top: 3px solid #7AC043;
+}
+.tablist li {
+    background-image: none;
+}
+.tablist a {
+    background-image: none;
+    color: #030303;
+    text-shadow: 0px 0px 0px;
+}
+.tablist li.current a {
+    background-image: none;
+    background: #0;
+    -webkit-border-radius: 5px; -moz-border-radius: 5px; -ms-border-radius: 5px; -o-border-radius: 5px; border-radius: 5px;
+    color: #22a35d;
+    text-shadow: 0px 0px 0px;
+}
+.tablist a:hover {
+    background-image: none; background: #0; -webkit-border-radius: 5px; -moz-border-radius: 5px; -ms-border-radius: 5px; -o-border-radius: 5px; border-radius: 5px;
+    color: #22a35d;
+}
+#projectname {
+    font: font-family: 'Squada One', cursive;
+}
+div.header {
+    background-image: none;
+    background-color: white;
+    border-bottom: 1px dotted #E6E6E6;
+}
+#nav-tree {
+    background-image: none;
+    background-color: white;
+}
+#nav-tree .selected {
+    background-image: none;
+    background-color: #009645;
+}
+a {
+    color: #009645;
+}
+
+.navpath ul {
+    -webkit-filter: grayscale(100%);;
+    /* background-image: none; */
+    border-bottom: 0;
+    background-color: #000;
+    padding: 10px 0 6px 0;
+    color: #ddd;
+    background-image: -webkit-filter: grayscale(100%);
+    background-image: none;
+}
+ {
+}
+#nav-path {}
+.navpath li.footer {
+    color: #ddd
+}
+.tabs2, .tabs3 {
+    border-bottom: 1px solid #22a35d;
+    padding: 8px;
+    width: 99%;
+    display: block;
+}
+div.directory {
+    border-top: 1px solid #D8D8D8;
+    border-bottom: 1px solid #D8D8D8;
+}
+.directory img {
+    -webkit-filter: grayscale(100%);
+}
+#nav-tree img {
+    -webkit-filter: grayscale(100%);
+}
+.ui-resizable-e {
+    -webkit-filter: grayscale(100%);
+    border-right: 1px solid;
+}
+ba {}
+.tabs2 .tablist li.current a {
+    background: none;
+    text-shadow: 0 0 0;
+    color: #22a35d;
+}
+
+h1.glow, h2.glow, h3.glow, h4.glow, h5.glow, h6.glow {
+	text-shadow: 0 0 15px #a1cd41;
+}
+h2.groupheader {
+    color: #22a35d;
+    border-bottom: 1px solid #22a35d;
+}
+.mdescLeft, .mdescRight, .memItemLeft, .memItemRight, .memTemplItemLeft, .memTemplItemRight, .memTemplParams {
+    background-color: #F5FFFA;
+}
+.memproto, dl.reflist dt {
+    background: #c4f2c5; /* Old browsers */
+/* IE9 SVG, needs conditional override of 'filter' to 'none' */
+background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgdmlld0JveD0iMCAwIDEgMSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ibm9uZSI+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkLXVjZ2ctZ2VuZXJhdGVkIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2M0ZjJjNSIgc3RvcC1vcGFjaXR5PSIxIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjE5JSIgc3RvcC1jb2xvcj0iI2Y1ZmZmYSIgc3RvcC1vcGFjaXR5PSIxIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNmNWZmZmEiIHN0b3Atb3BhY2l0eT0iMSIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEiIGhlaWdodD0iMSIgZmlsbD0idXJsKCNncmFkLXVjZ2ctZ2VuZXJhdGVkKSIgLz4KPC9zdmc+);
+background: -moz-linear-gradient(top,  #c4f2c5 0%, #f5fffa 19%, #f5fffa 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#c4f2c5), color-stop(19%,#f5fffa), color-stop(100%,#f5fffa)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top,  #c4f2c5 0%,#f5fffa 19%,#f5fffa 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top,  #c4f2c5 0%,#f5fffa 19%,#f5fffa 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(top,  #c4f2c5 0%,#f5fffa 19%,#f5fffa 100%); /* IE10+ */
+background: linear-gradient(to bottom,  #c4f2c5 0%,#f5fffa 19%,#f5fffa 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#c4f2c5', endColorstr='#f5fffa',GradientType=0 ); /* IE6-8 */
+    border: 1px solid #22a35d;
+}
+.memdoc, dl.reflist dd {
+    border: 1px solid #22a35d;
+}
+.navpath li.navelem a {
+    color: #ddd;
+    text-shadow: 0px 0px 0px;
+}
+.navpath li.navelem a:hover {
+    color: #22a35d;
+}

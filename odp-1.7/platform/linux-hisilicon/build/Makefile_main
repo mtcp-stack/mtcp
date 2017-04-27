@@ -1,0 +1,57 @@
+TARGET = $(notdir $(CURDIR))
+
+ROOT            = ../$(TARGET)
+
+
+GNU_PREFIX        := aarch64-linux-gnu-
+CC                := $(GNU_PREFIX)gcc
+LD                := $(GNU_PREFIX)ld
+AR                := $(GNU_PREFIX)ar
+ECHO              := @echo
+
+
+SRCDIR := $(BUILD_PATH)
+
+SRCFILES := odp.o hisi.o
+
+
+OBJ_FILE        = $(SRCFILES)
+
+CFLAGS  = -O3 -c -pipe $(HRD_ENDIAN_LINUX_CC) -march=armv8-a -mtune=cortex-a57 -mcpu=cortex-a57 -Wall -Wunused -MD -MP -fPIC -DHRD_OS_LINUX -DHRD_ENDNESS_${LINUX_ENDNESS} -DBOARD_TYPE_$(HRD_ENV_TYPE)
+
+
+
+
+DEP_FILE        := $(OBJ_FILE:.o=.d)
+I_OBJ_FILE      := $(OBJ_FILE:.o=.i)
+
+
+
+vpath %.c $(SRCDIR)
+
+
+
+
+
+#$(OBJ_FILENAME) : $(I_OBJ_FILE)
+#	$(ECHO) "LD " $@;\
+	$(LD) -fpic -shared -o  $@ $^
+
+
+$(OBJ_A) : $(OBJ_FILE)
+	$(ECHO) "AR " $@;\
+	$(AR) rcs $@ $^
+
+
+$(OBJ_SO) : $(OBJ_FILE)
+	$(ECHO) "LD " $@;\
+	$(CC) -fpic -shared -o $@ $^
+
+
+clean:
+	rm -f $(ROOT)/objs/lib/*.o $(ROOT)/objs/lib/*.a $(ROOT)/objs/lib/*.so
+
+
+
+
+

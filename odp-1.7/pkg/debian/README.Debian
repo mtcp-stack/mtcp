@@ -1,0 +1,12 @@
+opendataplane for Debian
+------------------------
+
+For up to date information please visit http://www.opendataplane.org
+The OpenDataPlane (ODP) project has been established to produce an open-source,
+cross-platform set of application programming interfaces (APIs) for the
+networking data plane.
+
+It provides a library such as openvswitch with a portable API that facilitates
+platform independence and access to hardware acceleration.
+
+ -- Anders Roxell <anders.roxell@linaro.org>  Mon, 22 Dec 2014 19:07:06 +0100

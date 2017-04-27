@@ -1,0 +1,212 @@
+Prerequisites for building the OpenDataPlane (ODP) API
+
+1. Linux kernel >= 2.6.32
+
+   Earlier versions may or may not work.
+
+2. autotools
+
+   automake
+   autoconf
+   libtool
+
+   On Debian/Ubuntu systems:
+   $ sudo apt-get install automake autoconf libtool
+
+   On CentOS/RedHat/Fedora systems:
+   $ sudo yum install automake autoconf libtool
+
+3. Required libraries
+
+   Libraries currently required to link: openssl
+
+3.1 OpenSSL native compile
+
+   For native compilation, simply load the necessary libraries using the appropriate
+   tool set.
+
+   On Debian/Ubuntu systems:
+   $ sudo apt-get install libssl-dev
+
+   On CentOS/RedHat/Fedora systems:
+   $ sudo yum install openssl-devel
+
+3.2 OpenSSL cross compilation
+
+   Cross compilation requires cross compiling the individual libraries.  In order for
+   a cross compiled executable to run on a target system, one must build the same
+   version as that which is installed on the target rootfs.
+
+   For example, to build openssl for both 32 and 64 bit compilation:
+
+   # Clone openssl repository
+   $ git clone git://git.openssl.org/openssl.git
+   $ cd openssl
+
+   # The command "git tag" will list all tags available in the repo.
+   $ git tag
+
+   # Checkout the specific tag to match openssl library in your target rootfs
+   $ git checkout <tag name>
+
+   # Build and install 32 bit version of openssl
+   $ ./Configure linux-generic32 --cross-compile-prefix=arm-linux-gnueabihf- \
+     --prefix=/home/user/src/install-openssl shared
+   $ make
+   $ make install
+
+   # Build and install 64 bit version of openssl
+   $ ./Configure linux-generic64 --cross-compile-prefix=aarch64-linux-gnu- \
+     --prefix=/home/user/src/install-openssl-aarch64 shared
+   $ make
+   $ make install
+
+   # You may now build either 32 or 64 bit ODP
+   $ git clone git://git.linaro.org/lng/odp.git odp
+   $ cd odp
+   $ ./bootstrap
+
+   # Build 32 bit version of ODP
+   $ ./configure --host=arm-linux-gnueabihf \
+     --with-openssl-path=/home/user/src/install-openssl
+   $ make
+
+   # Or build 64 bit version of ODP
+   $ ./configure --host=aarch64-linux-gnu \
+     --with-openssl-path=/home/user/src/install-openssl-aarch64
+   $ make
+
+3.3 Netmap (optional)
+
+   Netmap accelerated ODP packet I/O.
+
+3.3.1 Building netmap kernel modules
+
+   ODP works (at least) with the latest release version of netmap, which is
+   currently at API version 11.1.
+
+   # Checkout netmap code
+   $ git clone https://github.com/luigirizzo/netmap.git
+   $ cd netmap
+   $ git checkout v11.1
+
+   This is enough to build ODP. If you don't want to build netmap kernel
+   modules you can jump to section 3.3.2.
+
+   Netmap consists of a core kernel module (netmap.ko), optional modified
+   device drivers and user space API headers to access the netmap
+   functionality. It is recommended to build both the core module and modified
+   device drivers for optimal performance.
+
+   Netmap builds as an out-of-tree kernel module, you need matching kernel
+   sources to compile it. General build instructions can be found in the packet
+   README: https://github.com/luigirizzo/netmap/blob/master/LINUX/README.
+
+   If you are running Ubuntu/Debian with the stock kernel and you want to
+   compile both netmap.ko and modified drivers, these steps will guide you
+   through it.
+
+   # Download kernel headers
+   $ sudo apt-get install linux-headers-$(uname -r)
+
+   # Download kernel source matching to the headers
+   $ sudo apt-get install linux-source
+   # or
+   $ apt-get source linux-image-$(uname -r)
+
+   The source archive will be placed in /usr/src/linux-source-<kernel-version>
+   (or in the current directory if using apt-get source). You will need to
+   locate it and extract it to a convenient place.
+
+   # Compile netmap
+   $ cd <netmap_dir>/LINUX
+   $ ./configure --kernel-sources=<path_to_kernel_src>
+   $ make
+
+3.3.2 Building ODP
+
+   $ cd <odp_dir>
+   $ ./bootstrap
+   $ ./configure --with-netmap-path=<netmap_dir>
+   $ make
+
+3.3.3 Inserting netmap kernel modules
+
+   In order to use netmap I/O you need to insert at least the core netmap
+   kernel module.
+
+   $ cd <netmap_dir>/LINUX
+   $ sudo insmod netmap.ko
+
+   To insert the optional modified drivers you first need to remove the
+   original drivers, if loaded (and if not linked into the kernel). For
+   example, if using ixgbe:
+
+   $ cd <netmap_path>/LINUX
+   $ sudo rmmod ixgbe
+   $ sudo insmod ixgbe/ixgbe.ko
+
+   To restore the original drivers you should be able to use modprobe.
+
+3.3.4 Running ODP with netmap I/O
+
+   ODP applications will use netmap for packet I/O by default as long as the
+   netmap kernel module is loaded. If socket I/O is desired instead, it can be
+   activated by setting the environment variable ODP_PKTIO_DISABLE_NETMAP.
+
+4.0 Packages needed to build API tests
+
+   Cunit test framework version 2.1-3 is required
+   Cunit prvodes a framework to run the API test suite that proves conformance to the
+   ODP API. The home page http://cunit.sourceforge.net/doc/introduction.html
+
+4.1 Native Cunit install
+
+   # Debian/Ubuntu
+   $ apt-get install libcunit1-dev
+
+4.2 Built from src
+
+   export CUNIT_VERSION=2.1-3
+   curl -sSOL http://sourceforge.net/projects/cunit/files/CUnit/${CUNIT_VERSION}/CUnit-${CUNIT_VERSION}.tar.bz2
+   tar -jxf *.bz2
+   cd CUnit*
+   ./bootstrap
+   make install
+   #In Step 4.4 use --with-cunit-path=/home/${USER}/CUnitHome
+
+4.3 Cross compile of Cunit
+
+   $ git svn clone http://svn.code.sf.net/p/cunit/code/trunk cunit-code
+   $ cd cunit-code
+   $ ./bootstrap
+   $ ./configure --host=arm-linux-gnueabihf --prefix=/home/${USER}/src/install-cunit
+
+4.4 Using Cunit with ODP
+   $ Add the configuration option to the regular configuration options
+   ./configure  --enable-cunit  #if cunit is in the PATH
+   ./configure  --with-cunit-path=DIR #only if you need a path to Cunit libs and headers
+
+5.0 Documentation Images & Doxygen
+
+  Images are stored as svg files. No conversions for these are needed.
+
+  Message squence diagrams are stored as msc files and the svg versions generated when the docs are built
+  mscgen is used
+  #Debian/Ubuntu
+  # apt-get install mscgen
+
+5.1 API Guide
+See http://www.stack.nl/~dimitri/doxygen/manual/install.html
+
+The tested version of doxygen is 1.8.8
+
+5.1.1 HTML
+   # Debian/Ubuntu
+   $ apt-get install doxygen graphviz
+
+5.2 User guides
+
+5.2.1 HTML
+   # Debian/Ubuntu
+   $ apt-get install asciidoc source-highlight librsvg2-bin

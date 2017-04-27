@@ -1,0 +1,35 @@
+Copyright (c) 2015, Linaro Limited
+All rights reserved.
+
+SPDX-License-Identifier:        BSD-3-Clause
+
+
+To add tests in here, please observe the rules listed below. This list
+is a brief overview, for a more detailed explanation of the test
+framework refer to the ODP Implementers' Guide, which can built as
+follows:
+
+       ./configure --enable-user-guides
+       make
+
+Output will be in doc/output/. If this fails, check the documentation
+section of the DEPENDENCIES file.
+
+Rules for all tests under this tree:
+
+1. Tests must be placed in the directory of the module they belong to.
+
+2. Tests must be platform agnostic, i.e.
+
+    - should be written in plain C only.
+    - may only use C standard library functions, CUnit functions and of
+      course ODP functions
+    - should be expected to pass on all ODP implementations
+
+   Tests that do not follow these rules should be placed in the platform
+   specific test area (currently platform/<platform>/test/).
+
+3. If a new ODP API module is created, please update the Makefile.am.
+
+4. Symbols exported from test libraries must respect the naming
+   convention detailed in the ODP Implementers' Guide.

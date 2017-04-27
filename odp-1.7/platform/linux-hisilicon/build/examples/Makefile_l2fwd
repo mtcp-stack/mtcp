@@ -1,0 +1,36 @@
+##############################################################################
+#
+# 文 件 名 : Makefile
+# 版 本 号 : 初稿
+# 作    者 ：huwei 64632
+# 最近修改 :
+# 功能描述 : 控制example/l2fwd目录下文件的编译
+#
+# 修改历史 :
+# 1.日    期   : 2015年3月24日
+#   作    者   : huwei 64632
+#   修改内容   : 创建文件
+#
+#
+###############################################################################
+
+ODP_EXAMPLE_L2FWD_PATH := $(EXAMPLE_DIR)/l2fwd
+ 
+ODP_EXAMPLE_L2FWD_INC += -I$(ODP_EXAMPLE_L2FWD_PATH) -I$(EXAMPLE_DIR)/../test
+
+ODP_EXAMPLE_L2FWD_CFLAGS := $(ODP_EXAMPLE_CFLAGS) -lodp -L$(OUTPUT_LIB_DIR)
+ODP_EXAMPLE_L2FWD_CFLAGS += $(ODP_EXAMPLE_L2FWD_INC) $(EXTRA_LIB)
+
+
+
+# 编译example/l2fwd
+odp_example_l2fwd : $(OUTPUT_EXAMPLE_DIR)/odp_l2fwd	
+$(OUTPUT_EXAMPLE_DIR)/odp_l2fwd : $(ODP_EXAMPLE_L2FWD_PATH)/odp_l2fwd.c $(EXTRA_LIB)
+	-$(RM) $(OUTPUT_EXAMPLE_DIR)/odp_l2fwd
+	$(CC) $(ODP_EXAMPLE_L2FWD_CFLAGS) $^ -o $@
+	$(OBJDUMP) -D $(OUTPUT_EXAMPLE_DIR)/odp_l2fwd > $(OUTPUT_EXAMPLE_DIR)/odp_l2fwd.s	
+
+odp_example_l2fwd_clean :
+	-$(RM) $(ODP_EXAMPLE_L2FWD_PATH)/*.o
+	-$(RM) $(OUTPUT_EXAMPLE_DIR)/odp_l2fwd
+	-$(RM) $(OUTPUT_EXAMPLE_DIR)/odp_l2fwd.s

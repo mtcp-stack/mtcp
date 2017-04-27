@@ -1,0 +1,105 @@
+:doctitle: OpenDataPlane (ODP)  By-laws-Guide
+:description: This document is intended to guide a new application developer +
+in understanding the by-laws
+:toc:
+:numbered!:
+[abstract]
+Abstract
+--------
+This document is intended to guide a new application developer in
+understanding the by-laws.
+
+The ODP project has established a set of by-laws defining the operational
+processes by which direction of ODP resources is determined and how the product
+is managed.
+
+The by-laws define roles, stewardship/management, patch approvals, voting
+procedures, and reporting (Roadmap) requirements.
+
+Further details about ODP may be found at the http://opendataplane.org[ODP]
+home page.
+
+:numbered:
+
+== Roles considered
+=== Users
+People that use the project and submit bugs and request new features to the
+project.
+
+=== Contributors
+All of the volunteers who are contributing time, code, documentation, or
+resources to the project. A contributor that makes sustained, welcome
+contributions to the project may be invited to become a maintainer, though the
+exact timing of such invitations depends on many factors.
+
+If a contributor wants to move the project in direction X or add feature Y, and
+that requires a lot of rewrite in the existing code-base then:
+
+* explain that in an email to the mailing list.
+* send out RFCs (early and often) with example code, so the community (and
+maintainers) can see what you want and say if it fits or not.
+
+The above helps find and solve common problems among contributors.
+
+=== Maintainer(s)
+* The maintainer for a project have push rights to the main repo. Only one
+maintainer. The most trustworthy sub-maintainer shall step in and take over the
+maintainer ship as required.
+* Sub-maintainer(s) one or many for the different modules in the project.
+* Sub-maintainers shall focus on ensuring that the current code base has good
+quality and review new patches to maintain that good quality.
+* When Maintainers accept code, they have to deal with it until they die or rip
+it out (so its important that they understand what the code does and why they
+need it). The contributor shall convince the maintainer to take their code (the
+maintainer should feel like he would be stupid to not accept the code…)
+
+=== Release Manager ===
+
+* The RM shall publish a Release Plan on the roadmap. One week before the
+release the candidate list will be reviewed.
+* The RM is responsible for building consensus around the content of the
+Release.
+
+== Roadmap
+The roadmap shall state projected future releases and the expected content.
+
+== Steering Committee (SC)
+* Defining the requirements for the project’s shared resources, email
+  lists and the homepage.
+* Speaking on behalf of the project.
+* Resolving license disputes regarding products of the project.
+* Nominating new PMC members and committers.
+* Maintaining these by-laws and other guidelines of the project.
+* Planning the roadmap (shall state projected future releases and the expected
+content).
+
+=== Patch approval
+Reviewed-by is only replied to the list after inspecting the code. If you have
+review comments they should be constructive and not just saying “no”.
+Reviewed-by and Signed-off-by implies that you are co-responsible for any bugs
+found in the code.
+
+If you don’t respond you are assumed to agree with the patch.
+
+== Voting ==
+Voting is necessary if consensus not has been reached. Must have established
+quorum.
+
+* “Yes”, “Agree”,"+1"	the action should be performed.
+In general, this vote also indicates a willingness on the behalf of the voter in
+“making it happen”
+
+* “Abstain”	This vote indicates that the voter abstains.
+The voter has no interest or does not participate in the vote.
+
+* “No”, “Disagree” "-1"	the action should not be performed.
+On issues where consensus is required, this vote counts as a veto. All vetoes
+must contain an explanation of why the veto is appropriate. Vetoes with no
+explanation are void. It may also be appropriate for a -1 vote to include an
+alternative course of action.
+
+== Adding new features ==
+
+If person X adds a new feature (API group X) then he should/could be asked to
+be the maintainer for that feature. Code (old or new) is likely to be removed
+if it is unmaintained.

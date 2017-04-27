@@ -1,0 +1,4 @@
+[gerrit]
+host=review.linaro.org
+port=29418
+project=lng/odp

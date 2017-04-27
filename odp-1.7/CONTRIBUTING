@@ -1,0 +1,141 @@
+Contributing to the OpenDataplane (ODP) API
+-------------------------------------------
+
+Table of content:
+-----------------
+1. New Development
+2. ODP patch expectations as an  open source project
+3. Common Errors in Patch and Commit Messages
+4. Documenting the code
+5. Documenting the user docs
+6. References
+
+1. New Development
+------------------
+ODP code shall be written with the kernel coding style [1].
+ODP code shall be documented using the doxygen style described in the
+"Documenting the code" section.
+Check patch script/checkpatch.pl shall be used before submitting a patch.
+
+2. ODP patch expectations as an  open source project
+----------------------------------------------------
+While specific to the Linux kernel development, the following reference could
+also be considered a general guide for any Open Source development [2] and is
+relevant to ODP. Many of the guidelines in this ODP document are related to the
+items in that information.
+Pay particular attention to section 5.3 that talks about patch preparation.
+The key thing to remember is to break up your changes into logical sections.
+Otherwise you run the risk of not being able to even explain the purpose of a
+change in the patch headers!
+In addition section 5.4 explains the purpose of the Signed-off-by: tag line as
+discussed in later parts of this document. Due to the importance of the
+Signed-off-by: tag line a copy of the description follows:
+
+Signed-off-by: this is a developer's certification that he or she has
+the right to submit the patch for inclusion into the [project].  It is
+an agreement to the Developer's Certificate of Origin, the full text of
+which can be found in [3] Documentation/SubmittingPatches.
+Code without a proper signoff cannot be merged into the mainline.
+
+3. Common Errors in Patch and Commit Messages
+---------------------------------------------
+- Avoid starting the summary line with a capital letter, unless the component
+  being referred to also begins with a capital letter.
+- Don't have one huge patch, split your change into logical subparts. It's
+  easier to track down problems afterward using tools such as git bisect. It
+  also makes it easy for people to cherry-pick changes into things like stable
+  branches.
+- Don't simply translate your change into English for a commit log. The log
+  "Change compare from zero to one" is bad because it describes only the code
+  change in the patch; we can see that from reading the patch itself. Let the
+  code tell the story of the mechanics of the change (as much as possible), and
+  let your comment tell the other details -- i.e. what the problem was, how it
+  manifested itself (symptoms), and if necessary, the justification for why the
+  fix was done in manner that it was. In other words, the long commit message
+  must describe *why* the change was needed (instead of what has changed).
+- Don't start your commit log with "This patch..." -- we already know it is a
+  patch.
+- Don't repeat your short log in the long log. If you really really don't have
+  anything new and informational to add in as a long log, then don't put a long
+  log at all. This should be uncommon -- i.e. the only acceptable cases for no
+  long log would be something like:
+  "Documentation/README: Fix spelling mistakes".
+- Don't put absolute paths to source files that are specific to your site.
+- Always use the most significant ramification of the change in the words of
+  your subject/shortlog. For example, don't say "fix compile warning in foo"
+  when the compiler warning was really telling us that we were dereferencing
+  complete garbage off in the weeds that could in theory cause an OOPS under
+  some circumstances. When people are choosing commits for backports to stable
+  or distro kernels, the shortlog will be what they use for an initial sorting
+  selection. If they see "Fix possible OOPS in...." then these people will look
+  closer, whereas they most likely will skip over simple warning fixes.
+- Don't put in the full 20 or more lines of a backtrace when really it is just
+  the last 5 or so function calls that are relevant to the crash/fix. If the
+  entry point, or start of the trace is relevant (i.e. a syscall or similar),
+  you can leave that, and then replace a chunk of the intermediate calls in the
+  middle with a single [...]
+- Don't include timestamps or other unnecessary information, unless they are
+  relevant to the situation (i.e. indicating an unacceptable delay in a driver
+  initialization etc.)
+- Don't use links to temporary resources like pastebin and friends. The commit
+  message may be read long after this resource timed out.
+- Don't reference mirrors, but instead always reference original authoritative
+  sources.
+- Avoid punctuation in the short log.
+
+4. Documenting the code
+-----------------------
+- Allow doxygen to use all its default behaviors to identify tagged
+  information but where a doxygen tag must be specified use @
+- The first line is by default the brief summary.
+- The next paragraph is by default the detailed summary
+- Doxygen shall generate the layout, no additional formatting should be inserted
+- Normal comment sections should be before the code block and start with
+  /** on its own line and finish with */ on its own line. The exception
+  to this rule is a case where the comment is very small, for example
+  /** macro description */
+  #define SOME_MACRO 0
+- Commenting on the end of a line for macros and struct members is allowed
+  using:
+  /**< <text> */ for example
+  #define SOME_MACRO 0 /**< <text> */
+- Files should start with a files description using @file
+- Functions should specify their parameters with @param[in] and @param[out]
+- Functions return values should all be specified using @return or @retval
+- There should be no doxygen warnings or errors generated.
+
+5. Documenting the user docs
+----------------------------
+- Users guides are stored in asciidoc format in the odp/docs directory and in
+  sub directories of it as appropriate.
+- ODP code references such as types and enums are highlighted using the
+  + syntax. For example text referring to the type odp_pktio_t would decorate the
+  type thus:-
+        +odp_pktio_t+
+- Section heading use the = syntax. For example:-
+        == Level 1
+        Text.
+
+        === Level 2
+        Text.
+- Code and scripting excerpts are decorated with the block syntax:-
+        .Optional Title
+        [source,perl]
+        ----
+        <code here>
+        ----
+- Images are decorated with :-
+        .Optional Title
+        image::../images/<image name>.svg[align="center"]
+- The images are stored in the doc/images directory as svg files.
+- Body text shall wrap at the 80 char point.
+- No warnings may be generated by the asciidoc tool.
+
+6. References
+-------------
+[1] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/CodingStyle
+[2] http://ldn.linuxfoundation.org/book/how-participate-linux-community
+[3] https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/SubmittingPatches
+
+
+

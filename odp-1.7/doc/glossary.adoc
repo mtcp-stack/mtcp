@@ -1,0 +1,18 @@
+== Glossary
+[glossary]
+worker thread::
+    A worker is a type of ODP thread. It will usually be isolated from
+    the scheduling of any host operating system and is intended for fast-path
+    processing with a low and predictable latency. Worker threads will not
+    generally receive interrupts and will run to completion.
+control thread::
+    A control thread is a type of ODP thread. It will be isolated from the host
+    operating system house keeping tasks but will be scheduled by it and may
+    receive interrupts.
+thread::
+    An ODP thread is a flow of execution that in a Linux environment could be
+    a Linux process or thread.
+event::
+    An event is a notification that can be placed in a queue.
+queue::
+    A communication channel that holds events

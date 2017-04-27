@@ -1,0 +1,17 @@
+Copyright (c) 2014, Linaro Limited
+All rights reserved.
+
+SPDX-License-Identifier:        BSD-3-Clause
+
+1. Intro
+
+OpenDataPlane implementation for Linux generic. Directory linux-generic contains ODP headers and implementation
+for linux-generic target. This drop does not target high
+performance. It is rather proof of ODP API functionality. It still uses
+linux-generic's SW scheduler.
+
+2. Build
+# To compile ODP
+./bootstrap
+./configure
+make

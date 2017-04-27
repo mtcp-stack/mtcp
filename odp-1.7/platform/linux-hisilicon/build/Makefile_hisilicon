@@ -1,0 +1,113 @@
+TARGET = $(notdir $(CURDIR))
+
+ROOT            = ../$(TARGET)/../..
+
+GNU_PREFIX        := aarch64-linux-gnu-
+CC                := $(GNU_PREFIX)gcc
+LD                := $(GNU_PREFIX)ld
+ECHO              := @echo
+
+SRCS      := $(wildcard $(ROOT)/platform/linux-hisilicon/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/accelerator/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/common/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/cpudrv/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/ether/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/mem/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/pci/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/ring/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/timer/*.c)
+SRCS      += $(wildcard $(ROOT)/platform/linux-hisilicon/uio/*.c)
+
+CLEAN_DIR := $(ROOT)/platform/linux-hisilicon
+OBJS      := $(SRCS:.c=.o)
+
+
+NO_COMPILE =
+
+OBJ_FILE = $(filter-out $(NO_COMPILE),$(OBJS))
+
+
+
+DEP_FILE        := $(OBJ_FILE:.o=.d)
+I_OBJ_FILE      := $(OBJ_FILE:.o=.i)
+
+
+
+vpath %.c $(SRCDIR)
+
+
+
+INCLUDE_FILES     := -I$(ROOT)/platform/linux-hisilicon \
+                     -I$(ROOT)/platform/linux-hisilicon/include/odp \
+                     -I$(ROOT)/platform/linux-hisilicon/include \
+                     -I$(ROOT)/platform/linux-generic/include \
+                     -I$(ROOT)/platform/linux-generic/include/odp/plat \
+                     -I$(ROOT)/platform/linux-generic/arch/linux \
+                     -I$(BUILD_PATH) \
+                     -I$(ROOT)/helper/include/odp/helper \
+                     -I$(ROOT)/helper/include \
+                     -I$(ROOT)/include \
+                     -I$(ABS_GCC_DIR)/aarch64-linux-gnu/include \
+                     -I$(ABS_GCC_DIR)/aarch64-linux-gnu/sys-include \
+                     -I$(ABS_GCC_DIR)/aarch64-linux-gnu/sys-include\sys \
+                     -I$(ABS_GCC_DIR)/aarch64-linux-gnu/sys-include\asm \
+                     -I$(ABS_GCC_DIR)/aarch64-linux-gnu/sys-include\asm-generic
+
+
+
+CFLAGS  = -O3 -c -pipe $(HRD_ENDIAN_LINUX_CC) -march=armv8-a -mtune=cortex-a57 -mcpu=cortex-a57 -Wall -Wunused -MD -MP -fPIC -DHRD_OS_LINUX -DHRD_ENDNESS_${LINUX_ENDNESS} -DBOARD_TYPE_$(HRD_ENV_TYPE) -D__AARCH64__
+
+
+
+#$(HISI_OBJ_FILENAME) : $(I_OBJ_FILE)
+#	$(ECHO) "LD " $@;\
+	$(LD) -fpic -shared -o  $@ $^
+
+
+$(HISI_OBJ_FILENAME) : $(OBJ_FILE)
+	$(ECHO) "LD " $@;\
+	$(LD)  -r -o $@ $^
+
+
+#$(HISI_OBJ_FILENAME) : $(OBJ_FILE)
+#	$(ECHO) "LD " $@;\
+	$(LD) -fpic -shared -o $@ $^
+
+
+#$(HISI_OBJ_FILENAME) : $(OBJ_FILE)
+#	$(ECHO) "LD " $@;\
+#	$(CC) -o $@ -lc -ldl -T app.lds  $^
+
+.PHONY: clean
+clean:
+	rm -f *.o *.i *.d *.so $(CLEAN_DIR)/accelerator/*.o $(CLEAN_DIR)/accelerator/*.d  $(CLEAN_DIR)/common/*.o $(CLEAN_DIR)/common/*.d \
+	$(CLEAN_DIR)/cpudrv/*.o $(CLEAN_DIR)/cpudrv/*.d $(CLEAN_DIR)/ether/*.o $(CLEAN_DIR)/ether/*.d \
+	$(CLEAN_DIR)/mem/*.o $(CLEAN_DIR)/mem/*.d $(CLEAN_DIR)/pci/*.o $(CLEAN_DIR)/pci/*.d \
+	$(CLEAN_DIR)/ring/*.o $(CLEAN_DIR)/ring/*.d $(CLEAN_DIR)/timer/*.o $(CLEAN_DIR)/timer/*.d $(CLEAN_DIR)/uio/*.o $(CLEAN_DIR)/uio/*.d \
+	$(CLEAN_DIR)/kni/*.o $(CLEAN_DIR)/kni/*.d
+
+$(I_OBJ_FILE) :%.i :%.c
+	$(ECHO) "CC " $@;
+	$(CC) $(CFLAGS) $(INCLUDE_FILES) $< -E -C -P -o $@
+
+
+$(OBJ_FILE) : %.o : %.c
+	$(ECHO) "CC " $(notdir $@);
+	$(CC)  $(CFLAGS) $(INCLUDE_FILES) -c -o $@ $<
+
+
+
+$(DEP_FILE) : %.d : %.c
+	$(ECHO) "CC -MM " $@;\
+	set -e;rm -f $@;\
+	$(CC) $(INCLUDE_FILES) -MM  $< > $@.$$$$;\
+	sed 's,\($(*F)\).o \[ :]*,\1.o \ $@ : ,g' < $@.$$$$ > $@;\
+	rm -f $@.$$$$
+
+
+
+ifeq ($(INC_BUILD),1)
+-include $(PEM_DEP_FILE)
+endif
+
+

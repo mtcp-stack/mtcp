@@ -1,0 +1,120 @@
+#!/bin/sh
+#
+# Copyright (c) 2015, Linaro Limited
+# All rights reserved.
+#
+# SPDX-License-Identifier:	BSD-3-Clause
+#
+# Test script wrapper for running ODP pktio apps on linux-generic.
+#
+# For linux-generic the default behavior is to create two pairs of
+# virtual Ethernet interfaces and provide the names of these via
+# environment variables to pktio apps, the interfaces will be removed
+# before the script exits.
+#
+# Note that the creation of virtual Ethernet devices depends on having
+# CONFIG_VETH enabled in the kernel, if not enabled the env setup will be skipped.
+#
+# Network set up
+# IF0 <---> IF1
+# IF2 <---> IF3
+IF0=pktiop0p1
+IF1=pktiop1p0
+IF2=pktiop2p3
+IF3=pktiop3p2
+
+if [ "$0" = "$BASH_SOURCE" ]; then
+	echo "Error: Platform specific env file has to be sourced."
+fi
+
+check_for_root()
+{
+	if [ "$(id -u)" != "0" ]; then
+		echo "check_for_root(): need to be root to setup VETH"
+		return 1
+	fi
+	return 0
+}
+
+# wait for a network interface's operational state to be "up"
+wait_for_iface_up()
+{
+	iface=$1
+	cnt=0
+
+	while [ $cnt -lt 50 ]; do
+		read operstate < /sys/class/net/$iface/operstate
+
+		if [ $? -ne 0 ]; then
+			break
+		elif [ "$operstate" = "up" ]; then
+			return 0
+		fi
+
+		sleep 0.1
+		cnt=`expr $cnt + 1`
+	done
+
+	return 1
+}
+
+setup_pktio_env()
+{
+	echo "pktio: setting up test interfaces $IF0, $IF1, $IF2, $IF3."
+
+	check_for_root
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	for iface in $IF0 $IF1 $IF2 $IF3; do
+		ip link show $iface 2> /dev/null
+		if [ $? -eq 0 ]; then
+			echo "pktio: interface $iface already exist $?"
+			return 2
+		fi
+	done
+
+	if [ "$1" = "clean" ]; then
+		trap cleanup_pktio_env EXIT
+	fi
+
+	ip link add $IF0 type veth peer name $IF1
+	if [ $? -ne 0 ]; then
+		echo "pktio: error: unable to create veth pair"
+		return 3
+	fi
+	ip link add $IF2 type veth peer name $IF3
+	if [ $? -ne 0 ]; then
+		echo "pktio: error: unable to create veth pair"
+		return 4
+	fi
+
+	for iface in $IF0 $IF1 $IF2 $IF3; do
+		ip link set $iface mtu 9216 up
+		ifconfig $iface -arp
+	done
+
+	# check that the interface has come up before starting the test
+	for iface in $IF0 $IF1 $IF2 $IF3; do
+		wait_for_iface_up $iface
+		if [ $? -ne 0 ]; then
+			echo "pktio: interface $iface failed to come up"
+			return 5
+		fi
+	done
+}
+
+cleanup_pktio_env()
+{
+	echo "pktio: removing test interfaces $IF0, $IF1, $IF2, $IF3"
+	check_for_root
+	if [ $? -ne 0 ]; then
+		return 1
+	fi
+
+	for iface in $IF0 $IF1 $IF2 $IF3; do
+		ip link del $iface 2> /dev/null
+	done
+	return 0
+}

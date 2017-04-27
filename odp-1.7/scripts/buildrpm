@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+export ROOT_DIR=$(readlink -e $(dirname $0) | sed 's|/scripts||')
+
+source ${ROOT_DIR}/scripts/common_pkg_build.sh
+
+prepare_tarball
+
+mkdir -p ${ROOT_DIR}/rpm/RPMS
+mkdir -p ${ROOT_DIR}/rpm/SRPMS
+mkdir -p ${ROOT_DIR}/rpm/BUILD
+mkdir -p ${ROOT_DIR}/rpm/SOURCES
+mkdir -p ${ROOT_DIR}/rpm/tmp
+rm -rf ${ROOT_DIR}/rpm/BUILD/${package}-root
+rm -rf ${ROOT_DIR}/rpm/RPMS/${package}*
+rm -rf ${ROOT_DIR}/rpm/SRPMS/${package}*
+rm -rf ${ROOT_DIR}/rpm/SOURCES/${package}*
+cp ${ROOT_DIR}/${package}-${version}.tar.gz ${ROOT_DIR}/rpm/SOURCES/
+cp ${ROOT_DIR}/pkg/rpm/odp.spec ${ROOT_DIR}/rpm/odp.spec
+if [ $(egrep "\.([a-z0-9]{8}\>|dirty)" .scmversion |wc -l) -gt 0 ]; then
+	creation_date=$(date '+%a %b %e %G')
+	RPMEMAIL="donald.duck (at) linaro.org"
+	sed -i -e "s/changelog/changelog\n* ${creation_date} - ${RPMEMAIL}\n- not a official release\!/g" ${ROOT_DIR}/rpm/odp.spec
+fi
+sed -i "s|^Version: .*$|Version: ${version}|g" ${ROOT_DIR}/rpm/odp.spec
+rpmbuild --quiet --nodeps --define="_topdir ${ROOT_DIR}/rpm" -ba ${ROOT_DIR}/rpm/odp.spec
+cp ${ROOT_DIR}/rpm/RPMS/*/* ${ROOT_DIR}/
+popd

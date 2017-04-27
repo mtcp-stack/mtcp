@@ -1,14 +1,25 @@
-### GCC ###
-GCC=@CC@
+ARM=@ARM@
 
+### GCC ###
+ifeq ($(ARM),1)
+GCC=@ARMPREFIX@-gcc
+else
+GCC=@CC@
+endif
+
+ifeq ($(ARM), 0)
 ifeq ($(shell uname -m),x86_64)
 GCC_OPT = -m64
 else
 GCC_OPT =
 endif
+endif
 GCC_OPT += -Wall -fPIC -c
 GCC_OPT += -DNDEBUG -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 
+### FLAGS ###
+GCC_OPT = -Wall -fPIC -c
+GCC_OPT += -DNDEBUG -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 
 ### LIBRARIES AND INCLUDES ###
 CFLAGS = -I./include/
@@ -33,7 +44,7 @@ default: $(OBJS)
 
 $(OBJS): %.o: %.c Makefile
 	$(MSG) "   CC $<"
-	$(HIDE) ${CC} ${GCC_OPT} ${CFLAGS} $<
+	$(HIDE) ${GCC} ${GCC_OPT} ${CFLAGS} $<
 
 clean:
 	rm -rf *~ *.o

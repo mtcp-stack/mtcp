@@ -1,0 +1,71 @@
+#TARGET = $(notdir $(CURDIR)) 当前工作路径
+THIS_MAKEFILE=$(abspath $(firstword $(subst $(MAKEFILES),,$(MAKEFILE_LIST)))) 
+SRC_DIR = $(dir $(THIS_MAKEFILE))
+DIR_NAME = $(shell basename $(SRC_DIR))
+ROOT            = $(SRC_DIR)../../..
+
+#32位应用程序
+ifeq ("$(BUILD_TYPE)", "build_32") 
+	GNU_PREFIX=arm-linux-gnueabi-
+	LIB_ODP=odp32
+	LIB_CUNIT=cunit32
+	APP_OUT=odp_$(FILE_NAME)_32
+	CFLAGS=-O3 -D_GNU_SOURCE -mlittle-endian -lpthread -march=armv7-a  -D__arm32__ -DODP_DEBUG_PRINT
+else    
+	GNU_PREFIX = aarch64-linux-gnu-
+	LIB_ODP=odp
+	LIB_CUNIT=cunit
+	APP_OUT=odp_$(FILE_NAME)
+	CFLAGS=-O3 -D_GNU_SOURCE -mlittle-endian -lpthread -march=armv8-a -mtune=cortex-a57 -mcpu=cortex-a57 -DODP_DEBUG_PRINT
+endif
+
+CC                := $(GNU_PREFIX)gcc
+LD                := $(GNU_PREFIX)ld
+OBJDUMP           := $(GNU_PREFIX)objdump
+ECHO              := @echo
+
+
+SRCS          += $(wildcard $(ROOT)/test/validation/common/*.c)
+
+OBJ_FILE     := $(SRC_DIR)/init_main_abort.o $(SRC_DIR)/init.o $(SRCS:.c=.o)
+
+I_OBJ_FILE    := $(SRCS:.c=.i)
+
+LIBS := -L$(BUILD_DIR)/objs/lib -l$(LIB_ODP) -lpthread -ldl -lrt -lm
+
+
+
+INCLUDE_FILES      :=-I$(ROOT)/test/validation/common \
+                     -I$(ROOT)/include \
+                     -I$(ROOT)/test \
+                     -I$(ROOT)/test/api_test \
+	             -I$(ROOT)/helper \
+		     -I$(ROOT)/platform/linux-generic \
+                     -I$(ROOT)/platform/linux-generic/include \
+                     -I$(ROOT)/platform/linux-generic/arch/linux \
+                     -I$(ROOT)/platform/linux-generic/include/odp/plat \
+                     -I$(ROOT)/platform/linux-hisilicon/include \
+                     -I$(ROOT)/helper/include/odp/helper \
+                     -I$(ROOT)/helper/include \
+                     -I$(BUILD_DIR)
+
+$(APP_OUT) : $(OBJ_FILE)
+	$(ECHO) "LD " $@;\
+	$(CC) $(LIBS) $(CFLAGS) -o $(BUILD_DIR)/objs/test/validation/$@ $^  $(BUILD_DIR)/objs/libcrypto.a $(BUILD_DIR)/objs/libcunit.a
+	rm -f $(SRC_DIR)*.o $(SRC_DIR)*.d  $(SRC_DIR)$(APP_OUT)
+
+
+clean:
+	rm -f $(SRC_DIR)*.o $(SRC_DIR)*.d  $(SRC_DIR)$(APP_OUT) $(ROOT)/test/validation/common/*.o
+
+
+#当前模块的.o 的编译规则, 把 %.c 改成为 .i , 则为在代码目录生成 .i文件。
+$(OBJ_FILE) : %.o : %.c
+	$(ECHO) "CC " $(notdir $@);
+	$(CC)  $(CFLAGS) $(INCLUDE_FILES) -c -o $@ $<
+
+#加入 -C ，则增加注释
+$(I_OBJ_FILE) :%.i :%.c
+	$(ECHO) "CC " $@;
+	$(CC) $(CFLAGS) $(INCLUDE_FILES) $< -E -P -o $@
+

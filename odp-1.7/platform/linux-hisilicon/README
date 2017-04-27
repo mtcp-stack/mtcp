@@ -1,0 +1,48 @@
+Copyright (c) 2013-2014, Linaro Limited
+All rights reserved.
+
+SPDX-License-Identifier:        BSD-3-Clause
+
+OpenDataPlane (ODP) project source code.
+    http://www.opendataplane.org/
+
+Main git repository:
+    git://git.linaro.org/lng/odp.git
+
+    How to build:
+    Look in platform/linux-*/README for more detail how to build.
+    Directory test contains test applications for ODP API calls and features support.
+
+    For a list of build dependencies, read DEPENDENCIES.
+    In general you can build:
+    ./bootstrap
+    ./configure
+    Use 'make' to build ODP library and samples and 'make doxygen-html' to build
+    ODP API documentation. 'make install' will copy all required headers and
+    binary files to the install directory.
+
+    Configure options:
+        ./configure --help
+
+    To execute all the testcases, assuming CUnit is installed for the validation tests:
+        ./bootstrap
+        ./configure --enable-test-perf --enable-test-vald
+        make check
+
+    To generate the users guides:
+        ./bootstrap
+        ./configure --enable-user-guide
+        make
+
+Patches tracking system:
+    http://patches.opendataplane.org/project/lng-odp/list/
+
+Mailing list:
+    lng-odp@lists.linaro.org
+
+    Please read CONTRIBUTING file before submitting patches.
+    Email prefixes:
+        [PATCH] means patch is for odp.git
+
+Bug tracking:
+    https://bugs.linaro.org/describecomponents.cgi?product=OpenDataPlane

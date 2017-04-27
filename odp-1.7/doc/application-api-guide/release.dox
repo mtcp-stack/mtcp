@@ -1,0 +1,65 @@
+/* Copyright (c) 2015, Linaro Limited
+ * All rights reserved
+ *
+ * SPDX-License-Identifier:     BSD-3-Clause
+ */
+
+/**
+@page release Release Management
+@tableofcontents
+@section api_numbering API Numbering
+
+The API uses a three digit release number, for ODP this number refers to
+- The API header definitions
+- The documentation
+
+ODP API releases follow a standard three-level naming designation.
+Changes to the API are reflected in the #ODP_VERSION_API_GENERATION and #ODP_VERSION_API_MAJOR numbers.
+A change to the #ODP_VERSION_API_MINOR number is used only for updates not breaking the API compatibility but which do touch the API source files in the include directory.
+
+The header file odp_version.h contains helper macros for dealing with ODP versions in application code.
+
+@note The version refers to API source compatibility and not binary compatibility.
+Every change in API version will require a recompilation, relinking will not be sufficient.
+
+The ODP API generation & major version will only change at well-defined release points.
+A release will be tagged @code v-<generation>.<major> @endcode and bug fix releases will be tagged @code v-<generation>.<major>.<minor> @endcode The first bug fix release minor = 1.
+
+The API odp_version_api_str() returns this string.
+
+@subsection generation  Generation
+The digit is the ODP API generation.
+A change to this digit indicates a break in backwards compatibility.
+@note The incompatibility covers the whole ODP API, however the change may be a tiny change to an esoteric function that is not used by a given application.
+
+- Altering API signature
+- Altering a structure other than adding optional items at the end
+- Changing the required calling sequence for APIs
+- Changes to the installed structure i.e. the output from "make install" moves a file in a way that breaks compilation
+- New element to an enum that is an output from ODP
+
+@subsection major Major
+The digit is for changes that are likely backwards incompatible.
+For example changes such as the addition of a new API.
+Existing application code shall not have to change if the new API is not used.
+- Adding a new struct
+- Adding a new function
+- Adding an additional alternate API to an existing one
+- New element to an enum that is an input to ODP
+
+@subsection minor Minor
+The digit is used for backward compatible changes
+Any existing app should work as before.
+- Documentation updates
+
+@section implementation_string Implementation String
+
+The API odp_version_impl_str() returns a platform specific version string defined by the vendor.
+The intent of this string is to provide a unique identifier of the service level or build number of the implementation.
+Implementations should change this for each change they make (e.g., bug fix, performance improvement, etc.).
+It is recommended that this be in a format suitable for logging for serviceability tracking.
+
+This affects
+- The implementation
+- In the case of linux-generic it also covers the test & validation suite.
+*/

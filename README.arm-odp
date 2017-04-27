@@ -1,0 +1,35 @@
+- ARM-ODP VERSION -
+-------------------
+1. Install the ODP library. Please use our version of ODP.
+   We used the following steps in the setup.sh (<path_to_odp_1_7_directory>)
+   script for our steps:
+       # ./setup.sh
+           - Press [1] build pv660 odp
+           - Press [4] Exit Script
+
+   - check the odp/ directory has libodp.so
+
+   - copy the libodp.so (<path_to_odp_1_7_directory>/platform/linux-
+     hisilicon/build/objs/lib/) to the /usr/lib/ directory on the ARM
+
+2. Next bring the dpdk-registered interfaces up.
+
+3. Setup mtcp library:
+	   # ./configure --with-odp-lib=$<path_to_mtcp_release_v3>/odp-1.7 \
+                     --with-arm-prefix=<cross compiler prefix>
+	     ## e.g. ./configure --with-odp-lib=`echo $PWD`/odp-1.7
+                             --with-arm-prefix=aarch64-linux-gnu
+   	   # make
+  - In case `./configure' script prints an error, run the
+    following command; and then re-do step-3 (configure again):
+    	   # autoreconf -ivf
+  - check libmtcp.a in mtcp/lib
+  - check header files in mtcp/include
+  - check example binary files in apps/example
+
+4. Check the configurations in apps/example
+  - epserver.conf for server-side configuration
+  - epwget.conf for client-side configuration
+  - you may write your own configuration file for your application
+
+5. Run the applications!

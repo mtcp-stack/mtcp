@@ -1,0 +1,16 @@
+Copyright (c) 2014, Linaro Limited
+All rights reserved.
+
+SPDX-License-Identifier:        BSD-3-Clause
+
+Files in test/validation directory are intended to be terse checks that help
+ensure that the ODP API Implementations all perform identically and to
+specification. Tests inside the validation directory shall be platform
+independent.
+
+To run valgrind on the executables do:
+$ ./bootstrap
+$ ./configure --enable-test-vald --enable-valgrind
+$ cd test/validation
+$ make check-valgrind
+

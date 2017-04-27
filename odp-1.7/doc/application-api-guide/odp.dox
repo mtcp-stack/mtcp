@@ -1,0 +1,47 @@
+/* Copyright (c) 2013, Linaro Limited
+ * All rights reserved
+ *
+ * SPDX-License-Identifier:     BSD-3-Clause
+ */
+
+/**
+ * @mainpage
+ *
+ * @section sec_1 Introduction
+ *
+ * OpenDataPlane (ODP) provides a data plane application programming
+ * environment that is easy to use, high performance, and portable
+ * between networking SoCs. This documentation is both a user guide
+ * for developers who wish to use ODP and a detailed reference for ODP
+ * programmers covering APIs, data structures, files, etc.  It should
+ * also be useful for those wishing to implement ODP on other
+ * platforms.
+ *
+ *  @image html overview.svg
+ *
+ * ODP consists of a common layer and an implementation layer.
+ * Applications written to the common layer are portable across all
+ * ODP implementations.  To compile and run an ODP application, it is
+ * compiled against a specific ODP implementation layer.  The purpose
+ * of the implementation layer is to provide an optimal mapping of ODP
+ * APIs to the underlying capabilities (including hardware
+ * co-processing and acceleration support) of of SoCs hosting ODP
+ * implementations.  As a bootstrapping mechanism for applications, as
+ * well as to provide a model for ODP implementers, ODP provides a
+ * 'linux-generic' reference implementation designed to run on any SoC
+ * which has a Linux kernel.  While linux-generic is not a performance
+ * target, it does provide a starting point for ODP implementers and
+ * application programmers alike.  As a pure software implementation
+ * of ODP, linux-generic is designed to provide best-in-class performance
+ * for general Linux data plane support.
+ *
+ * @section contact Contact Details
+ * - The main web site is http://www.opendataplane.org/
+ * - The git repo is https://git.linaro.org/lng/odp.git
+ * - Bug tracking is https://bugs.linaro.org/buglist.cgi?product=OpenDataPlane
+ *
+ */
+
+/**@page contributing Contributing Guide Lines
+ * @verbinclude CONTRIBUTING
+ */

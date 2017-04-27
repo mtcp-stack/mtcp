@@ -241,6 +241,7 @@ mystrtol(const char *nptr, int base)
 	int rval;
 	char *endptr;
 
+	errno = 0;
 	rval = strtol(nptr, &endptr, 10);
 	/* check for strtol errors */
 	if ((errno == ERANGE && (rval == LONG_MAX ||

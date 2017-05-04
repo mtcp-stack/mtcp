@@ -632,9 +632,11 @@ igb_net_ioctl(struct file *filp,
 	int ret = 0;
 	struct stats_struct ss;
 
-	copy_from_user(&ss,
-		       (struct stats_struct __user *)arg,
-		       sizeof(struct stats_struct));
+	ret = copy_from_user(&ss,
+			     (struct stats_struct __user *)arg,
+			     sizeof(struct stats_struct));
+	if (ret)
+		return -EFAULT;
 
 	switch (cmd) {
 	case SEND_STATS:

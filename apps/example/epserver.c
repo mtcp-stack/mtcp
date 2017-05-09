@@ -90,6 +90,7 @@ static int core_limit;
 static pthread_t app_thread[MAX_CPUS];
 static int done[MAX_CPUS];
 static char *conf_file = NULL;
+static int backlog = -1;
 /*----------------------------------------------------------------------------*/
 const char *www_main;
 static struct file_cache fcache[MAX_FILES];
@@ -392,8 +393,8 @@ CreateListeningSocket(struct thread_context *ctx)
 		return -1;
 	}
 
-	/* listen (backlog: 4K) */
-	ret = mtcp_listen(ctx->mctx, listener, 4096);
+	/* listen (backlog: can be configured) */
+	ret = mtcp_listen(ctx->mctx, listener, backlog);
 	if (ret < 0) {
 		TRACE_ERROR("mtcp_listen() failed!\n");
 		return -1;
@@ -573,7 +574,7 @@ main(int argc, char **argv)
 		return FALSE;
 	}
 
-	while (-1 != (o = getopt(argc, argv, "N:f:p:c:h"))) {
+	while (-1 != (o = getopt(argc, argv, "N:f:p:c:b:h"))) {
 		switch (o) {
 		case 'p':
 			/* open the directory to serve */
@@ -611,12 +612,15 @@ main(int argc, char **argv)
 				return FALSE;
 			}
 			break;
+		case 'b':
+			backlog = mystrtol(optarg, 10);
+			break;
 		case 'h':
 			printHelp(argv[0]);
 			break;
 		}
 	}
-
+	
 	if (dir == NULL) {
 		TRACE_CONFIG("You did not pass a valid www_path!\n");
 		exit(EXIT_FAILURE);
@@ -687,6 +691,17 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	mtcp_getconf(&mcfg);
+	if (backlog > mcfg.max_concurrency) {
+		TRACE_CONFIG("backlog can not be set larger than CONFIG.max_concurrency\n");
+		return FALSE;
+	}
+
+	/* if backlog is not specified, set it to CONFIG.max_concurrency */
+	if (backlog == -1) {
+		backlog = mcfg.max_concurrency;
+	}
+	
 	/* register signal handler to mtcp */
 	mtcp_register_signal(SIGINT, SignalHandler);
 

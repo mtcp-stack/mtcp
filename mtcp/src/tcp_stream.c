@@ -441,7 +441,7 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 	if (stream->on_timewait_list)
 		RemoveFromTimewaitList(mtcp, stream);
 
-	if (CONFIG.tcp_timeout > 0)
+	if (stream->on_timeout_list)
 		RemoveFromTimeoutList(mtcp, stream);
 
 #if BLOCKING_SUPPORT

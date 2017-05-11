@@ -288,8 +288,8 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 		tcph->ack = TRUE;
 		tcph->ack_seq = htonl(cur_stream->rcv_nxt);
 		cur_stream->sndvar->ts_lastack_sent = cur_ts;
-		cur_stream->last_active_ts = cur_ts;
-		UpdateTimeoutList(mtcp, cur_stream);
+		/*cur_stream->last_active_ts = cur_ts;
+		UpdateTimeoutList(mtcp, cur_stream);*/
 	}
 
 	if (flags & TCP_FLAG_SYN) {

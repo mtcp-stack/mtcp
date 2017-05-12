@@ -34,6 +34,10 @@ io_module_func *current_iomodule_func = &dpdk_module_func;
 #define MAX(a, b) 			((a)>(b)?(a):(b))
 #define MIN(a, b) 			((a)<(b)?(a):(b))
 /*----------------------------------------------------------------------------*/
+
+/* onvm struct for port info lookup */
+extern struct port_info *ports;
+
 static int 
 GetNumQueues()
 {
@@ -131,7 +135,7 @@ SetInterfaceInfo(char* dev_name_list)
 					if (devices_attached[j] == devices[i].ifindex) {
 						break;
 					}
-				}			
+				}
 				devices_attached[num_devices_attached] = devices[i].ifindex;
 				num_devices_attached++;
 				
@@ -362,7 +366,127 @@ SetInterfaceInfo(char* dev_name_list)
 		
 		freeifaddrs(ifap);
 #endif /* !DISABLE_NETMAP */
-	}
-	return 0;
+	} else if (current_iomodule_func == &onvm_module_func) {
+#ifndef DISABLE_DPDK
+		int cpu = CONFIG.num_cores;
+		uint32_t cpumask = 0;
+		char cpumaskbuf[10];
+		char mem_channels[5];
+		char service[6];
+		char instance[6];
+		int ret;
+		
+		/* get the cpu mask */
+		for (ret = 0; ret < cpu; ret++)
+			cpumask = (cpumask | (1 << ret));
+		sprintf(cpumaskbuf, "%X", cpumask);
+
+		/* get the mem channels per socket */
+		if (CONFIG.num_mem_ch == 0) {
+			TRACE_ERROR("DPDK module requires # of memory channels "
+				    "per socket parameter!\n");
+			exit(EXIT_FAILURE);
+		}
+		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
+		sprintf(service, "%d", CONFIG.service_id);
+		sprintf(instance, "%d", CONFIG.instance_id);
+
+		/* initialize the rte env first, what a waste of implementation effort!  */
+		char *argv[] = {"", 
+				"-l", 
+				CONFIG.core_list,
+				"-n", 
+				mem_channels,
+				"--proc-type=secondary",
+				"--",
+				"-r",
+				service,
+				instance,
+				""
+		};
+		
+		const int argc = 10; 
+
+		/* 
+		 * re-set getopt extern variable optind.
+		 * this issue was a bitch to debug
+		 * rte_eal_init() internally uses getopt() syscall
+		 * mtcp applications that also use an `external' getopt
+		 * will cause a violent crash if optind is not reset to zero
+		 * prior to calling the func below...
+		 * see man getopt(3) for more details
+		 */
+		optind = 0;
+
+		/* initialize the dpdk eal env */
+		ret = onvm_nflib_init(argc, argv, "mtcp_nf");
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE, "Invalid EAL args!\n");
+		/* give me the count of 'detected' ethernet ports */
+		num_devices = ports->num_ports;
+		if (num_devices == 0) {
+			rte_exit(EXIT_FAILURE, "No Ethernet port!\n");
+		}
+		
+		struct ifaddrs *ifap;
+		struct ifaddrs *iter_if;
+		char *seek;
+
+		if (getifaddrs(&ifap) != 0) {
+			perror("getifaddrs: ");
+			exit(EXIT_FAILURE);
+		}
+		
+		iter_if = ifap;
+		do {
+			if (iter_if->ifa_addr->sa_family == AF_INET &&
+			    !set_all_inf && 
+			    (seek=strstr(dev_name_list, iter_if->ifa_name)) != NULL &&
+			    /* check if the interface was not aliased */
+			    *(seek + strlen(iter_if->ifa_name)) != ':') {
+				struct ifreq ifr;
+				
+				/* Setting informations */
+				eidx = CONFIG.eths_num++;
+				strcpy(CONFIG.eths[eidx].dev_name, iter_if->ifa_name);
+				strcpy(ifr.ifr_name, iter_if->ifa_name);
+
+				/* Create socket */
+				int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+				if (sock == -1) {
+					perror("socket");
+				}			
+				
+				/* getting address */
+				if (ioctl(sock, SIOCGIFADDR, &ifr) == 0 ) {
+					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+					CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
+				}
+
+				for (j = 0; j < ETH_ALEN; j ++) {
+					CONFIG.eths[eidx].haddr[j] = ports->mac[eidx].addr_bytes[j];
+					};
+
+				/* Net MASK */
+				if (ioctl(sock, SIOCGIFNETMASK, &ifr) == 0) {
+					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+					CONFIG.eths[eidx].netmask = *(uint32_t *)&sin;
+				}
+				close(sock);
+				
+				CONFIG.eths[eidx].ifindex = ports->id[eidx];		
+				devices_attached[num_devices_attached] = CONFIG.eths[eidx].ifindex;
+				num_devices_attached++;
+				fprintf(stderr, "Total number of attached devices: %d\n",
+					num_devices_attached);
+				fprintf(stderr, "Interface name: %s\n", 
+					iter_if->ifa_name);
+			}
+			iter_if = iter_if->ifa_next;
+		} while (iter_if != NULL);
+		
+		freeifaddrs(ifap);
+#endif /* !DISABLE_DPDK */
+	}return 0;
 }
 /*----------------------------------------------------------------------------*/

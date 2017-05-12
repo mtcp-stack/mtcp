@@ -13,6 +13,15 @@ MTCP_HDR_DIR=../include
 MTCP_HDR = mtcp_api.h mtcp_epoll.h
 
 
+### Check onvm related env vars ###
+ifeq ($(RTE_SDK),)
+$(error "Please define RTE_SDK environment variable")
+endif
+
+ifeq ($(ONVM),)
+$(error "Please define ONVM environment variable")
+endif
+
 ### GCC ###
 GCC=@CC@
 
@@ -38,6 +47,9 @@ endif
 ### LIBRARIES AND INCLUDES ###
 INC_DIR=./include
 INC= -I$(INC_DIR)
+
+INC += -I$(ONVM)/onvm_nflib
+LDFLAGS += $(ONVM)/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
 
 ifeq ($(PS),1)
 LIBS = -lps
@@ -84,7 +96,7 @@ SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 	   tcp_util.c eth_in.c ip_in.c tcp_in.c eth_out.c ip_out.c tcp_out.c \
 	   arp.c timer.c cpu.c rss.c addr_pool.c fhash.c memory_mgt.c logger.c debug.c \
 	   tcp_rb_frag_queue.c tcp_ring_buffer.c tcp_send_buffer.c tcp_sb_queue.c tcp_stream_queue.c \
-	   psio_module.c io_module.c dpdk_module.c netmap_module.c icmp.c
+	   psio_module.c io_module.c dpdk_module.c netmap_module.c onvm_module.c icmp.c
 
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 DEPS = $(patsubst %.c,.%.d,$(SRCS))

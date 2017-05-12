@@ -537,13 +537,15 @@ static void
 printHelp(const char *prog_name)
 {
 	TRACE_CONFIG("%s -p <path_to_www/> -f <mtcp_conf_file> "
-		     "[-N num_cores] [-c <per-process core_id>] [-h]\n",
+		     "[-N num_cores] [-c <core_list>] [-h] "
+		     "-- [-n onvm_instance_id] [-r onvm_service_id] "
+		     "[-d onvm_dest_id]\n",
 		     prog_name);
 	exit(EXIT_SUCCESS);
 }
 /*----------------------------------------------------------------------------*/
 int 
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	DIR *dir;
 	struct dirent *ent;
@@ -551,19 +553,24 @@ main(int argc, char **argv)
 	int ret;
 	uint64_t total_read;
 	struct mtcp_conf mcfg;
-	int cores[MAX_CPUS];
+	int core_list[MAX_CPUS];
 	int process_cpu;
-	int i, o;
-
+	int o;
+	int i, val;
+	char *core_list_tokens;
+	
 	num_cores = GetNumCPUs();
 	core_limit = num_cores;
 	process_cpu = -1;
 	dir = NULL;
+	i = 0;
 
 	if (argc < 2) {
 		TRACE_CONFIG("$%s directory_to_service\n", argv[0]);
 		return FALSE;
 	}
+
+	mtcp_getconf(&mcfg);
 
 	while (-1 != (o = getopt(argc, argv, "N:f:p:c:h"))) {
 		switch (o) {
@@ -584,31 +591,53 @@ main(int argc, char **argv)
 					     "number of CPUs: %d\n", num_cores);
 				return FALSE;
 			}
+			if (core_limit != 1) {
+				TRACE_CONFIG("Multi core is currently NOT supported, "
+					     "use -N 1\n");
+				return FALSE;
+			}
 			/** 
 			 * it is important that core limit is set 
 			 * before mtcp_init() is called. You can
 			 * not set core_limit after mtcp_init()
 			 */
-			mtcp_getconf(&mcfg);
 			mcfg.num_cores = core_limit;
-			mtcp_setconf(&mcfg);
 			break;
 		case 'f':
 			conf_file = optarg;
 			break;
 		case 'c':
-			process_cpu = atoi(optarg);
-			if (process_cpu > core_limit) {
-				TRACE_CONFIG("Starting CPU is way off limits!\n");
-				return FALSE;
-			}
+			mcfg.core_list = optarg;
 			break;
 		case 'h':
 			printHelp(argv[0]);
 			break;
-		}
+		} 
 	}
 
+	mtcp_setconf(&mcfg);
+
+	/* Modify argc/argv to correctly pass arguments to mtcp_parse_args */
+	argv += optind-1;
+	argc -= optind-1;
+ 
+	/* Check core_list was passed */
+	if (mcfg.core_list == NULL){
+		TRACE_CONFIG("You did not pass a valid core_list!\n");
+		exit(EXIT_FAILURE);
+	}
+	core_list_tokens = malloc(sizeof(char) * strlen(mcfg.core_list));
+	strcpy(core_list_tokens, mcfg.core_list);
+	if (core_list_tokens == NULL){
+		perror("core_list_tokens malloc");
+	}
+	
+	while (core_list_tokens !=NULL){
+		val = atoi(core_list_tokens);
+		core_list[i++]=val;
+		core_list_tokens = strtok(NULL, ",");
+	}
+	       
 	if (dir == NULL) {
 		TRACE_CONFIG("You did not pass a valid www_path!\n");
 		exit(EXIT_FAILURE);
@@ -672,7 +701,7 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	ret = mtcp_init(conf_file);
+	ret = mtcp_init(conf_file, argc, argv);
 	if (ret) {
 		TRACE_CONFIG("Failed to initialize mtcp\n");
 		exit(EXIT_FAILURE);
@@ -682,13 +711,12 @@ main(int argc, char **argv)
 	mtcp_register_signal(SIGINT, SignalHandler);
 
 	TRACE_INFO("Application initialization finished.\n");
-
-	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
-		cores[i] = i;
-		done[i] = FALSE;
+	
+	for (i = 0; i < core_limit; i++) {
+		done[core_list[i]] = FALSE;
 		
-		if (pthread_create(&app_thread[i], 
-				   NULL, RunServerThread, (void *)&cores[i])) {
+		if (pthread_create(&app_thread[core_list[i]], 
+				   NULL, RunServerThread, (void *)&core_list[i])) {
 			perror("pthread_create");
 			TRACE_CONFIG("Failed to create server thread.\n");
 				exit(EXIT_FAILURE);
@@ -697,8 +725,8 @@ main(int argc, char **argv)
 			break;
 	}
 	
-	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
-		pthread_join(app_thread[i], NULL);
+	for (i = 0; i < core_limit; i++) {
+		pthread_join(app_thread[core_list[i]], NULL);
 
 		if (process_cpu != -1)
 			break;

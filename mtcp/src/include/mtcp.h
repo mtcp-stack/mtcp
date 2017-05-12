@@ -139,6 +139,14 @@ struct mtcp_config
 	int num_mem_ch;
 	int max_concurrency;
 
+	/* dpdk args */
+	char * core_list;
+
+	/* onvm args */
+	uint16_t service_id;
+	uint16_t instance_id;
+	uint16_t dest_id;
+
 	int max_num_buffers;
 	int rcvbuf_size;
 	int sndbuf_size;

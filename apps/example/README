@@ -1,19 +1,13 @@
+This example application was modified to work with onvm
+
 ========================================================================
  USAGE OF EXAMPLE APPLICATIONS
 ========================================================================
 
 epserver: a simple mtcp-epoll-based web server
    Single-Process, Multi-threaded Usage:
-      ./epserver -p www_home -f epserver.conf [-N #cores] 
-      ex) ./epserver -p /home/notav/www -f epserver.conf -N 8
-
-   Multi-Process, Single-threaded Usage [DPDK-only]
-      (Master runs on core 0 by default, Slave processes on core 1~N)
-      ex) ./epserver -p /home/notav/www -f epserver-master.conf -c 0
-      	  for i in {1..7}
-	  do
-	     ./epserver -p /home/notav/www -f epserver-slave.conf -c $i
-	  done
+      ./epserver -p www_home -f epserver.conf [-N #cores] [-c core_list] -- [-s service_id]
+      ex) ./epserver -p /home/notav/www -f epserver.conf -N 1 -c 6 -- -r 1
 
 
 options:
@@ -22,8 +16,15 @@ options:
   -N: number of CPU cores to use. default: all existing cores
   -p: path to www/ files
   -f: path to mtcp configuration file
-  -c: the core_id on which the process should run
-      [only works for multi-process mode]
+  -c: the core_list on which the process should run
+      [So far only single core is supported]
+  onvm args after --
+  -n: instanse id
+  -r: service id 
+  -d: destination id
+
+Epserver doesn't support large files
+  - Large files roughly > 10 Megabytes are currently causing an error in rte_eal_init for dpdk/onvm setup 
 
 ========================================================================
 

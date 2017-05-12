@@ -80,6 +80,7 @@ HandleSignal(int signal)
 		int core;
 		struct timespec cur_ts;
 
+		onvm_nflib_stop();
 		core = sched_getcpu();
 		clock_gettime(CLOCK_REALTIME, &cur_ts);
 
@@ -264,7 +265,7 @@ PrintNetworkStats(mtcp_manager_t mtcp, uint32_t cur_ts)
 	mtcp->p_nstat_ts = cur_ts;
 	gflow_cnt = 0;
 	memset(&g_nstat, 0, sizeof(struct net_stat));
-	for (i = 0; i < CONFIG.num_cores; i++) {
+	for (i = 0; i < MAX_CPUS; i++) {
 		if (running[i]) {
 			PrintThreadNetworkStats(g_mtcp[i], &ns);
 #if NETSTAT_TOTAL
@@ -1143,19 +1144,12 @@ mtcp_create_context(int cpu)
 	mctx_t mctx;
 	int ret;
 
-	if (cpu >=  CONFIG.num_cores) {
-		TRACE_ERROR("Failed initialize new mtcp context. "
-					"Requested cpu id %d exceed the number of cores %d configured to use.\n",
-					cpu, CONFIG.num_cores);
+	/* check if mtcp_create_context() was already initialized */
+	if (g_logctx[cpu] != NULL) {
+		TRACE_ERROR("%s was already initialized before!\n",
+			    __FUNCTION__);
 		return NULL;
 	}
-
-        /* check if mtcp_create_context() was already initialized */
-        if (g_logctx[cpu] != NULL) {
-                TRACE_ERROR("%s was already initialized before!\n",
-                            __FUNCTION__);
-                return NULL;
-        }
 
 	ret = sem_init(&g_init_sem[cpu], 0, 0);
 	if (ret) {
@@ -1375,6 +1369,8 @@ mtcp_getconf(struct mtcp_conf *conf)
 	conf->tcp_timewait = CONFIG.tcp_timewait;
 	conf->tcp_timeout = CONFIG.tcp_timeout;
 
+	conf->core_list = CONFIG.core_list;
+
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -1399,6 +1395,8 @@ mtcp_setconf(const struct mtcp_conf *conf)
 		CONFIG.tcp_timewait = conf->tcp_timewait;
 	if (conf->tcp_timeout > 0)
 		CONFIG.tcp_timeout = conf->tcp_timeout;
+	if (conf->core_list)
+		CONFIG.core_list = conf->core_list;
 
 	TRACE_CONFIG("Configuration updated by mtcp_setconf().\n");
 	//PrintConfiguration();
@@ -1407,7 +1405,40 @@ mtcp_setconf(const struct mtcp_conf *conf)
 }
 /*----------------------------------------------------------------------------*/
 int 
-mtcp_init(const char *config_file)
+mtcp_parse_args(int argc, char *argv[])
+{
+	int c;
+
+	/* Set default values */
+	CONFIG.instance_id = NF_NO_ID;
+	CONFIG.dest_id = (uint16_t) - 1;
+	CONFIG.service_id = (int16_t) -1;
+
+	opterr = 0;
+	optind = 1;
+	while ((c = getopt (argc, argv, "n:r:d:")) != -1){
+		switch (c) {
+		case 'n':
+			CONFIG.instance_id = (uint16_t) strtoul(optarg, NULL, 10);
+			break;
+		case 'r':
+			CONFIG.service_id = (uint16_t) strtoul(optarg, NULL, 10);
+			break;
+		case 'd':
+			CONFIG.dest_id = (uint16_t) strtoul(optarg, NULL, 10);
+			break;
+		}
+	}
+	if (CONFIG.service_id == (uint16_t)-1) {
+		/* Service ID is required */
+		fprintf(stderr, "You must provide a nonzero service ID with -r\n");
+		return -1;
+	}
+	return optind;
+}
+/*----------------------------------------------------------------------------*/
+int 
+mtcp_init(const char *config_file, int argc, char *argv[])
 {
 	int i;
 	int ret;
@@ -1420,7 +1451,7 @@ mtcp_init(const char *config_file)
 	/* getting cpu and NIC */
 	/* set to max cpus only if user has not arbitrarily set it to lower # */
 	num_cpus = (CONFIG.num_cores == 0) ? GetNumCPUs() : CONFIG.num_cores;
-			
+
 	assert(num_cpus >= 1);
 
 	if (num_cpus > MAX_CPUS) {
@@ -1431,10 +1462,17 @@ mtcp_init(const char *config_file)
 		exit(EXIT_FAILURE);
 	}
 	
-	for (i = 0; i < num_cpus; i++) {
+	for (i = 0; i < MAX_CPUS; i++) {
 		g_mtcp[i] = NULL;
 		running[i] = FALSE;
 		sigint_cnt[i] = 0;
+	}
+
+	/* Set specific onvm args */       
+	ret = mtcp_parse_args(argc, argv);
+	if (ret < 0){
+		TRACE_CONFIG("Error while parsing command line arguments.\n");
+		return -1;
 	}
 
 	ret = LoadConfiguration(config_file);

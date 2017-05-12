@@ -4,6 +4,15 @@ DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@
 
+### Check onvm related env vars ###
+ifeq ($(RTE_SDK),)
+$(error "Please define RTE_SDK environment variable")
+endif
+
+ifeq ($(ONVM),)
+$(error "Please define ONVM environment variable")
+endif
+
 # DPDK LIBRARY and HEADER
 DPDK_INC=@DPDKLIBPATH@/include
 DPDK_LIB=@DPDKLIBPATH@/lib/
@@ -55,6 +64,9 @@ else
 #LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
 LIBS += -m64 -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
 endif
+
+INC += -I$(ONVM)/onvm_nflib
+LIBS += $(ONVM)/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
 
 all: epserver epwget
 

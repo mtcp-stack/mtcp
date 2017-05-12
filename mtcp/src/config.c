@@ -637,6 +637,9 @@ PrintConfiguration()
 	}
 	TRACE_CONFIG("TCP timewait seconds: %d\n", 
 			USEC_TO_SEC(CONFIG.tcp_timewait * TIME_TICK));
+	TRACE_CONFIG("Instance ID: %d\n", CONFIG.instance_id);
+	TRACE_CONFIG("Service ID: %d\n", CONFIG.service_id);
+	TRACE_CONFIG("Destination ID: %d\n", CONFIG.dest_id);
 	TRACE_CONFIG("NICs to print statistics:");
 	for (i = 0; i < CONFIG.eths_num; i++) {
 		if (CONFIG.eths[i].stat_print) {

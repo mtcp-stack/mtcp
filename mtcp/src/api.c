@@ -46,7 +46,7 @@ GetMTCPManager(mctx_t mctx)
 		return NULL;
 	}
 
-	if (mctx->cpu < 0 || mctx->cpu >= num_cpus) {
+	if (mctx->cpu < 0) {
 		errno = EINVAL;
 		return NULL;
 	}

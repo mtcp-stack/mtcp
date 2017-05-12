@@ -2,6 +2,16 @@
 
 # README #
 
+### This application was modified to work with [ONVM][onvm] ###
++ Currently only supports single core usage
++ Tested with the provided application epserver
+
+
+#### INSTALL DIFFERENCES ####
++ Follow the installation steps for dpdk version
++ Make sure to set ONVM and RTE_SDK env path variable
+
+
 mTCP is a highly scalable user-level TCP stack for multicore systems. 
 mTCP source code is distributed under the Modified BSD License. For 
 more detail, please refer to the LICENSE. The license term of io_engine 
@@ -233,3 +243,6 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
                              April 2, 2015. 
                     EunYoung Jeong <notav at ndsl.kaist.edu>
                     M. Asim Jamshed <ajamshed at ndsl.kaist.edu>
+	
+	
+[onvm]: http://sdnfv.github.io/onvm/

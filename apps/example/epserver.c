@@ -697,9 +697,9 @@ main(int argc, char **argv)
 		return FALSE;
 	}
 
-	/* if backlog is not specified, set it to CONFIG.max_concurrency */
+	/* if backlog is not specified, set it to 4K */
 	if (backlog == -1) {
-		backlog = mcfg.max_concurrency;
+		backlog = 4096;
 	}
 	
 	/* register signal handler to mtcp */

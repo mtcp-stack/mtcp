@@ -654,7 +654,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 	}
 
 	if (saddr_base == INADDR_ANY) {
-		int nif_out;
+		int nif_out, eidx;
 
 		/* for the INADDR_ANY, find the output interface for the destination
 		   and set the saddr_base as the ip address of the output interface */
@@ -664,7 +664,8 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 			TRACE_DBG("Could not determine nif idx!\n");
 			return -1;
 		}
-		saddr_base = CONFIG.eths[nif_out].ip_addr;
+		eidx = CONFIG.nif_to_eidx[nif_out];
+		saddr_base = CONFIG.eths[eidx].ip_addr;
 	}
 
 	ap = CreateAddressPoolPerCore(mctx->cpu, num_cpus, 

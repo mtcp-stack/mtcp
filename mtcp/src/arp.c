@@ -140,10 +140,11 @@ ARPOutput(struct mtcp_manager *mtcp, int nif, int opcode,
 	arph->ar_op = htons(opcode);
 
 	/* Fill arp body */
-	arph->ar_sip = CONFIG.eths[nif].ip_addr;
+	int edix = CONFIG.nif_to_eidx[nif];
+	arph->ar_sip = CONFIG.eths[edix].ip_addr;
 	arph->ar_tip = dst_ip;
 
-	memcpy(arph->ar_sha, CONFIG.eths[nif].haddr, arph->ar_hln);
+	memcpy(arph->ar_sha, CONFIG.eths[edix].haddr, arph->ar_hln);
 	if (target_haddr) {
 		memcpy(arph->ar_tha, target_haddr, arph->ar_hln);
 	} else {
@@ -255,7 +256,7 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 		                  const int ifidx, unsigned char *pkt_data, int len)
 {
 	struct arphdr *arph = (struct arphdr *)(pkt_data + sizeof(struct ethhdr));
-	int i;
+	int i, nif;
 	int to_me = FALSE;
 	
 	/* process the arp messages destined to me */
@@ -274,7 +275,8 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 
 	switch (ntohs(arph->ar_op)) {
 		case arp_op_request:
-			ProcessARPRequest(mtcp, arph, ifidx, cur_ts);
+		        nif = CONFIG.eths[ifidx].ifindex; // use the port index as argument
+			ProcessARPRequest(mtcp, arph, nif, cur_ts);
 			break;
 
 		case arp_op_reply:

@@ -1341,6 +1341,10 @@ mtcp_destroy_context(mctx_t mctx)
 	//TRACE_INFO("MTCP thread %d destroyed.\n", mctx->cpu);
 	mtcp->iom->destroy_handle(ctx);
 	free(ctx);
+	if (g_logctx[mctx->cpu]) {
+		free(g_logctx[mctx->cpu]);
+		g_logctx[mctx->cpu] = NULL;
+	}
 	free(mctx);
 }
 /*----------------------------------------------------------------------------*/

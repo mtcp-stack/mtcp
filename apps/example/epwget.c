@@ -25,8 +25,6 @@
 #include "netlib.h"
 #include "debug.h"
 
-#define MAX_CPUS 16
-
 #define MAX_URL_LEN 128
 #define MAX_FILE_LEN 128
 #define HTTP_HEADER_LEN 1024

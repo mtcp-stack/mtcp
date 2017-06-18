@@ -233,8 +233,8 @@ struct stats_struct {
 	uint8_t dev;
 };
 /* max qid */
-#define MAX_QID			16
-#define MAX_DEVICES		16
+#define MAX_QID			128
+#define MAX_DEVICES		128
 /* ioctl# */
 #define SEND_STATS		 0
 /* major number */

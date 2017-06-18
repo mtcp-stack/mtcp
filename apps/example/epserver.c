@@ -34,7 +34,6 @@
 #define HTTP_HEADER_LEN 1024
 #define URL_LEN 128
 
-#define MAX_CPUS 16
 #define MAX_FILES 30
 
 #define NAME_LIMIT 128

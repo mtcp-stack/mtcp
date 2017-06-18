@@ -1,3 +1,4 @@
+# TODO: Make this Makefile.in pretty
 
 .PHONY: clean
 
@@ -55,6 +56,8 @@ ifeq ($(NETMAP),1)
 else
 INC += -DDISABLE_NETMAP
 endif
+
+INC += -DMAX_CPUS=$(shell cat /proc/cpuinfo | grep processor | wc -l)
 
 # PacketShader LIBRARY and HEADER
 PS_DIR=../../io_engine

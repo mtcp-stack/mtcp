@@ -129,8 +129,8 @@ struct wget_vars
 	int fd;
 };
 /*----------------------------------------------------------------------------*/
-static struct thread_context *g_ctx[MAX_CPUS];
-static struct wget_stat *g_stat[MAX_CPUS];
+static struct thread_context *g_ctx[MAX_CPUS] = {0};
+static struct wget_stat *g_stat[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 thread_context_t 
 CreateContext(int core)
@@ -159,6 +159,7 @@ CreateContext(int core)
 void 
 DestroyContext(thread_context_t ctx) 
 {
+	g_stat[ctx->core] = NULL;
 	mtcp_destroy_context(ctx->mctx);
 	free(ctx);
 }
@@ -474,6 +475,8 @@ PrintStats()
 
 	for (i = 0; i < core_limit; i++) {
 		st = g_stat[i];
+
+		if (st == NULL) continue;
 		avg_resp_time = st->completes? st->sum_resp_time / st->completes : 0;
 #if 0
 		fprintf(stderr, "[CPU%2d] epoll_wait: %5lu, event: %7lu, "
@@ -498,7 +501,7 @@ PrintStats()
 		total.errors += st->errors;
 		total.timedout += st->timedout;
 
-		memset(st, 0, sizeof(struct wget_stat));
+		memset(st, 0, sizeof(struct wget_stat));		
 	}
 	fprintf(stderr, "[ ALL ] connect: %7lu, read: %4lu MB, write: %4lu MB, "
 			"completes: %7lu (resp_time avg: %4lu, max: %6lu us)\n", 
@@ -594,7 +597,7 @@ RunWgetMain(void *arg)
 
 		/* print statistics every second */
 		if (core == 0 && cur_tv.tv_sec > prev_tv.tv_sec) {
-			PrintStats();
+		  	PrintStats();
 			prev_tv = cur_tv;
 		}
 

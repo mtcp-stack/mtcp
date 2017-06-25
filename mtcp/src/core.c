@@ -70,6 +70,8 @@ static int sigint_cnt[MAX_CPUS] = {0};
 static struct timespec sigint_ts[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int mtcp_master = -1;
+void 
+mtcp_free_context(mctx_t mctx);
 /*----------------------------------------------------------------------------*/
 void
 HandleSignal(int signal)
@@ -1120,6 +1122,9 @@ MTCPRunThread(void *arg)
 	/* start the main loop */
 	RunMainLoop(ctx);
 
+	struct mtcp_context m;
+	m.cpu = cpu;
+	mtcp_free_context(&m);
 	/* destroy hash tables */
 	DestroyHashtable(g_mtcp[cpu]->tcp_flow_table);
 	DestroyHashtable(g_mtcp[cpu]->listeners);
@@ -1128,14 +1133,6 @@ MTCPRunThread(void *arg)
 	
 	return 0;
 }
-/*----------------------------------------------------------------------------*/
-#ifndef DISABLE_DPDK
-static int MTCPDPDKRunThread(void *arg)
-{
-	MTCPRunThread(arg);
-	return 0;
-}
-#endif
 /*----------------------------------------------------------------------------*/
 mctx_t 
 mtcp_create_context(int cpu)
@@ -1189,28 +1186,10 @@ mtcp_create_context(int cpu)
 		return NULL;
 	}
 
-	/* Wake up mTCP threads (wake up I/O threads) */
-	if (current_iomodule_func == &dpdk_module_func) {
-#ifndef DISABLE_DPDK
-		int master;
-		master = rte_get_master_lcore();
-		if (master == cpu) {
-			lcore_config[master].ret = 0;
-			lcore_config[master].state = FINISHED;
-			if (pthread_create(&g_thread[cpu], 
-					   NULL, MTCPRunThread, (void *)mctx) != 0) {
-				TRACE_ERROR("pthread_create of mtcp thread failed!\n");
-				return NULL;
-			}
-		} else
-			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, cpu);
-#endif /* !DISABLE_DPDK */
-	} else {
-		if (pthread_create(&g_thread[cpu], 
-				   NULL, MTCPRunThread, (void *)mctx) != 0) {
-			TRACE_ERROR("pthread_create of mtcp thread failed!\n");
-			return NULL;
-		}
+	if (pthread_create(&g_thread[cpu], 
+			   NULL, MTCPRunThread, (void *)mctx) != 0) {
+	  	TRACE_ERROR("pthread_create of mtcp thread failed!\n");
+	  	return NULL;
 	}
 
 	sem_wait(&g_init_sem[cpu]);
@@ -1226,14 +1205,25 @@ mtcp_create_context(int cpu)
 	return mctx;
 }
 /*----------------------------------------------------------------------------*/
-void 
+void
 mtcp_destroy_context(mctx_t mctx)
+{
+  	struct mtcp_thread_context *ctx = g_pctx[mctx->cpu];
+  	if (ctx != NULL)
+    		ctx->done = 1;
+	free(mctx);
+}
+/*----------------------------------------------------------------------------*/
+void 
+mtcp_free_context(mctx_t mctx)
 {
 	struct mtcp_thread_context *ctx = g_pctx[mctx->cpu];
 	struct mtcp_manager *mtcp = ctx->mtcp_manager;
 	struct log_thread_context *log_ctx = mtcp->logger;
 	int ret, i;
 
+	if (g_pctx[mctx->cpu] == NULL) return;
+	
 	TRACE_DBG("CPU %d: mtcp_destroy_context()\n", mctx->cpu);
 
 	/* close all stream sockets that are still open */
@@ -1253,6 +1243,7 @@ mtcp_destroy_context(mctx_t mctx)
 	ctx->done = 1;
 
 	//pthread_kill(g_thread[mctx->cpu], SIGINT);
+#if 0
 	/* XXX - dpdk logic changes */
 	if (current_iomodule_func == &dpdk_module_func) {
 #ifndef DISABLE_DPDK
@@ -1263,7 +1254,10 @@ mtcp_destroy_context(mctx_t mctx)
 			rte_eal_wait_lcore(mctx->cpu);
 #endif /* !DISABLE_DPDK */
 	} else
-		pthread_join(g_thread[mctx->cpu], NULL);
+#endif
+	{
+	  	pthread_join(g_thread[mctx->cpu], NULL);
+	}
 
 	TRACE_INFO("MTCP thread %d joined.\n", mctx->cpu);
 	running[mctx->cpu] = FALSE;
@@ -1329,6 +1323,7 @@ mtcp_destroy_context(mctx_t mctx)
 	
 	if (mtcp->ap) {
 		DestroyAddressPool(mtcp->ap);
+		mtcp->ap = NULL;
 	}
 
 	SQ_LOCK_DESTROY(&ctx->connect_lock);
@@ -1345,7 +1340,7 @@ mtcp_destroy_context(mctx_t mctx)
 		free(g_logctx[mctx->cpu]);
 		g_logctx[mctx->cpu] = NULL;
 	}
-	free(mctx);
+	g_pctx[mctx->cpu] = NULL;
 }
 /*----------------------------------------------------------------------------*/
 mtcp_sighandler_t 

@@ -29,9 +29,11 @@ GCC_OPT += -Wall -fPIC -fgnu89-inline -Werror
 #DBG_OPT += -DPKTDUMP
 #DBG_OPT += -DDUMP_STREAM
 #GCC_OPT += -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
-GCC_OPT += -DNDEBUG -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
+GCC_OPT += -DNDEBUG -g -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 #GCC_OPT += -DNDEBUG -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 GCC_OPT += $(DBG_OPT)
+
+CFLAGS=@CFLAGS@
 
 ifeq ($(LRO),1)
 GCC_OPT += -DENABLELRO
@@ -56,8 +58,6 @@ ifeq ($(NETMAP),1)
 else
 INC += -DDISABLE_NETMAP
 endif
-
-INC += -DMAX_CPUS=$(shell cat /proc/cpuinfo | grep processor | wc -l)
 
 # PacketShader LIBRARY and HEADER
 PS_DIR=../../io_engine
@@ -106,7 +106,7 @@ default: $(OBJS) $(MTCP_HDR)
 
 $(OBJS): %.o: %.c Makefile
 	$(MSG) "   CC $<"
-	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -c $< -o $@
+	$(HIDE) $(GCC) $(CFLAGS) $(GCC_OPT) $(INC) -c $< -o $@
 $(DEPS): .%.d: %.c Makefile
 	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -MM $(CFLAGS) $< > $@
 

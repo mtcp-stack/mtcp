@@ -53,6 +53,9 @@
 
 #define HT_SUPPORT FALSE
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 struct file_cache
 {

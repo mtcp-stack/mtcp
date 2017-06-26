@@ -53,6 +53,9 @@
 /* blocking api became obsolete */
 #define BLOCKING_SUPPORT	FALSE
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 /* Statistics */
 #ifdef NETSTAT

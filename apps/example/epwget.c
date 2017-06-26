@@ -52,6 +52,9 @@
 #define ERROR (-1)
 #endif
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 static pthread_t app_thread[MAX_CPUS];
 static mctx_t g_mctx[MAX_CPUS];

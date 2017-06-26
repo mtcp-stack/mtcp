@@ -1427,8 +1427,8 @@ mtcp_init(const char *config_file)
 
 	if (num_cpus > MAX_CPUS) {
 		TRACE_ERROR("You cannot run mTCP with more than %d cores due "
-			    "to NIC hardware queues restriction. Please disable "
-			    "the last %d cores in your system\n",
+			    "to your static mTCP configuration. Please disable "
+			    "the last %d cores in your system.\n",
 			    MAX_CPUS, num_cpus - MAX_CPUS);
 		exit(EXIT_FAILURE);
 	}

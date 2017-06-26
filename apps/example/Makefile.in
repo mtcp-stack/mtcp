@@ -5,6 +5,7 @@ CC=@CC@ -g -O3 -Wall -Werror -fgnu89-inline
 DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@
+CFLAGS=@CFLAGS@
 
 # DPDK LIBRARY and HEADER
 DPDK_INC=@DPDKLIBPATH@/include
@@ -33,8 +34,6 @@ endif
 ifeq ($(NETMAP),1)
 LIBS += -lmtcp -lpthread -lnuma -lrt
 endif
-
-INC += -DMAX_CPUS=$(shell cat /proc/cpuinfo | grep processor | wc -l)
 
 # CFLAGS for DPDK-related compilation
 INC += ${MTCP_INC}

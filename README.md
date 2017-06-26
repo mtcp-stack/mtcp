@@ -79,6 +79,14 @@ mTCP can be prepared in two ways.
    ## e.g. ./configure --with-psio-lib=`echo $PWD`/io_engine
    # make
    ```
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    ```bash
+    	   # ./configure --with-psio-lib=`echo $PWD`/io_engine CFLAGS="-DMAX_CPUS=32"
+    ```
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-3 (configure again):
 
@@ -143,6 +151,15 @@ mTCP can be prepared in two ways.
 	 ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
    	 # make
     ```
+
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    ```bash
+    	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk CFLAGS="-DMAX_CPUS=32"
+    ```
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+    
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-4 (configure again):
     

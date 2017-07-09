@@ -273,6 +273,34 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 }
 /*----------------------------------------------------------------------------*/
 int 
+FetchAddressPerCore(addr_pool_t ap, int core, int num_queues,
+		    const struct sockaddr_in *daddr, struct sockaddr_in *saddr)
+{
+	struct addr_entry *walk;
+	int ret = -1;
+
+	if (!ap || !daddr || !saddr)
+		return -1;
+
+	pthread_mutex_lock(&ap->lock);
+	
+	/* we don't need to calculate RSSCPUCore if mtcp_init_rss is called */
+	walk = TAILQ_FIRST(&ap->free_list);
+	if (walk) {
+		*saddr = walk->addr;
+		TAILQ_REMOVE(&ap->free_list, walk, addr_link);
+		TAILQ_INSERT_TAIL(&ap->used_list, walk, addr_link);
+		ap->num_free--;
+		ap->num_used++;
+		ret = 0;
+	}
+	
+	pthread_mutex_unlock(&ap->lock);
+	
+	return ret;
+}
+/*----------------------------------------------------------------------------*/
+int 
 FreeAddress(addr_pool_t ap, const struct sockaddr_in *addr)
 {
 	struct addr_entry *walk, *next;

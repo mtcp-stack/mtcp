@@ -9,6 +9,7 @@ notifications:
 
 matrix:
   include:
+    - env: COMPILER=gcc VERSION=6
     - env: COMPILER=gcc VERSION=5
     - env: COMPILER=gcc VERSION=4.8
 
@@ -16,7 +17,9 @@ before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
   - |
-      if [ "$VERSION" = "5" ]; then
+      if [ "$VERSION" = "6" ]; then
+        sudo apt-get install -qq -y gcc-6  
+      elif [ "$VERSION" = "5" ]; then
         sudo apt-get install -qq -y gcc-5
       elif [ "$VERSION" = "4.8" ]; then
         sudo apt-get install -qq -y gcc-4.8
@@ -24,6 +27,8 @@ before_install:
 
 before_script:
   - |
+      if [ "$VERSION" = "6" ]; then
+        export CC=gcc-6  
       if [ "$VERSION" = "5" ]; then
         export CC=gcc-5
       elif [ "$VERSION" = "4.8" ]; then

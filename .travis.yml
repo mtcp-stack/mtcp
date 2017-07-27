@@ -29,7 +29,7 @@ before_script:
   - |
       if [ "$VERSION" = "6" ]; then
         export CC=gcc-6  
-      if [ "$VERSION" = "5" ]; then
+      elif [ "$VERSION" = "5" ]; then
         export CC=gcc-5
       elif [ "$VERSION" = "4.8" ]; then
         export CC=gcc-4.8

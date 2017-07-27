@@ -316,7 +316,7 @@ FreeAddress(addr_pool_t ap, const struct sockaddr_in *addr)
 		uint16_t port_h = ntohs(addr->sin_port);
 		int index = addr_h - ap->addr_base;
 
-		if (index >= 0 || index < ap->num_addr) {
+		if (index >= 0 && index < ap->num_addr) {
 			walk = ap->mapper[addr_h - ap->addr_base].addrmap[port_h];
 		} else {
 			walk = NULL;

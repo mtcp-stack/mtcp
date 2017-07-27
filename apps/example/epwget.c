@@ -348,6 +348,14 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 				wv->response[wv->header_len] = '\0';
 				wv->file_len = http_header_long_val(wv->response, 
 						CONTENT_LENGTH_HDR, sizeof(CONTENT_LENGTH_HDR) - 1);
+				if (wv->file_len < 0) {
+					/* failed to find the Content-Length field */
+					wv->recv += rd;
+					rd = 0;
+					CloseConnection(ctx, sockid);
+					return 0;
+				}
+
 				TRACE_APP("Socket %d Parsed response header. "
 						"Header length: %u, File length: %lu (%luMB)\n", 
 						sockid, wv->header_len, 

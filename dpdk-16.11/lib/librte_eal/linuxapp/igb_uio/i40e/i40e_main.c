@@ -375,6 +375,7 @@ struct net_device_stats *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi)
  * The statistics are actually updated from the service task.
  **/
 #ifdef HAVE_NDO_GET_STATS64
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0))
 #ifdef I40E_FCOE
 struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 					     struct net_device *netdev,
@@ -384,6 +385,17 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 					     struct net_device *netdev,
 					     struct rtnl_link_stats64 *stats)
 #endif
+#else
+#ifdef I40E_FCOE
+void i40e_get_netdev_stats_struct(
+				  struct net_device *netdev,
+				  struct rtnl_link_stats64 *stats)
+#else
+static void i40e_get_netdev_stats_struct(
+					 struct net_device *netdev,
+					 struct rtnl_link_stats64 *stats)	
+#endif
+#endif
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_ring *tx_ring, *rx_ring;
@@ -391,11 +403,19 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 	struct rtnl_link_stats64 *vsi_stats = i40e_get_vsi_stats_struct(vsi);
 	int i;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0))
 	if (test_bit(__I40E_DOWN, &vsi->state))
 		return stats;
 
 	if (!vsi->tx_rings)
 		return stats;
+#else
+	if (test_bit(__I40E_DOWN, &vsi->state))
+		return;
+
+	if (!vsi->tx_rings)
+		return;	
+#endif
 
 	rcu_read_lock();
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
@@ -436,7 +456,9 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 	stats->rx_crc_errors	= vsi_stats->rx_crc_errors;
 	stats->rx_length_errors	= vsi_stats->rx_length_errors;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0))
 	return stats;
+#endif
 }
 #else
 #ifdef I40E_FCOE

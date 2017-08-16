@@ -93,7 +93,7 @@ struct dpdk_private_context {
 struct onvm_nf_info *nf_info;
 struct rte_ring *rx_ring;
 struct rte_ring *tx_ring;
-volatile struct client_tx_stats *tx_stats;
+volatile struct onvm_nf *nf;
 
 #ifdef ENABLE_STATS_IOCTL
 /**
@@ -132,9 +132,9 @@ onvm_init_handle(struct mtcp_thread_context *ctxt)
 	onvm_nflib_nf_ready(nf_info);
 	
 	/* Initialize onvm rings*/
-	rx_ring = onvm_nflib_get_rx_ring(nf_info);
-	tx_ring = onvm_nflib_get_tx_ring(nf_info);
-	tx_stats = onvm_nflib_get_tx_stats(nf_info);	
+	nf = onvm_nflib_get_nf(nf_info->instance_id);	
+	rx_ring = nf->rx_q;
+	tx_ring = nf->tx_q;
 
 	/* set wmbufs correctly */
 	for (j = 0; j < num_devices_attached; j++) {
@@ -227,9 +227,10 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 		}
 		ret = rte_ring_enqueue_bulk(tx_ring, (void * const*)pkts ,cnt);
 		if(cnt>0 && ret== -ENOBUFS) {
-			TRACE_ERROR("Dropped %d packets",ret);
+			TRACE_ERROR("Dropped %d packets", cnt);
+			nf->stats.tx_drop += cnt;
 		}
-		tx_stats->tx[nf_info->instance_id]+=cnt;
+		nf->stats.tx += cnt;
 			
 		/* time to allocate fresh mbufs for the queue */
 		for (i = 0; i < dpc->wmbufs[nif].len; i++) {

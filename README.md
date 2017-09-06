@@ -15,12 +15,16 @@ We require the following libraries to run mTCP.
  - ``libnuma``
  - ``libpthread``
  - ``librt``
- Compling PSIO/DPDK driver requires kernel headers.
+
+Compling PSIO/DPDK driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
 We have modified the dpdk-16.11 package to export net_device stat data 
-to the OS. To achieve this, the dpdk-16.11/lib/librte_eal/linuxapp/igb_uio/
-directory was updated. We recommend using our package for DPDK installation. 
+(for Intel-based Ethernet adapters only) to the OS. To achieve this, the
+dpdk-16.11/lib/librte_eal/linuxapp/igb_uio/ directory was updated. We also modified 
+``mk/rte.app.mk`` and ``rte_cpuflags.mk`` files to ease the compilation
+process of mTCP applications. We recommend using our package for DPDK
+installation. 
 
 ### INCLUDED DIRECTORIES ###
 
@@ -80,9 +84,9 @@ mTCP can be prepared in two ways.
    # make
    ```
   - By default, mTCP assumes that there are 16 CPUs in your system.
-    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    You can set the CPU limit, e.g. on a 8-core system, by using the following command:
     ```bash
-    	   # ./configure --with-psio-lib=`echo $PWD`/io_engine CFLAGS="-DMAX_CPUS=32"
+    	   # ./configure --with-psio-lib=`echo $PWD`/io_engine CFLAGS="-DMAX_CPUS=8"
     ```
     Please note that your NIC should support RSS queues equal to the MAX_CPUS value
     (since mTCP expects a one-to-one RSS queue to CPU binding).
@@ -106,13 +110,13 @@ mTCP can be prepared in two ways.
 ***DPDK VERSION***
 
 1. Set up Intel's DPDK driver. Please use our version of DPDK.
-   We have only changed the lib/igb_uio/ submodule. The best
-   method to compile DPDK package is to use DPDK's tools/setup.sh
-   script. Please compile your package based on your own hardware
-   configuration. We tested the mTCP stack on Intel Xeon E5-2690
-   (x86_64) machine with Intel 82599 Ethernet adapters (10G). We
-   used the following steps in the dpdk-setup.sh script for our
-   setup:
+   We have changed the lib/igb_uio/ submodule and a few makefiles
+   in DPDK's ``mk/`` subdirectory. The best method to compile DPDK
+   package is to use DPDK's tools/setup.sh script. Please compile
+   your package based on your own hardware configuration. We tested
+   the mTCP stack on Intel Xeon E5-2690 (x86_64) machine with Intel
+   82599 Ethernet adapters (10G). We used the following steps in
+   the dpdk-setup.sh script for our setup:
    
      - Press [13] to compile the package
      - Press [16] to install the driver
@@ -127,6 +131,18 @@ mTCP can be prepared in two ways.
    - only those devices will work with DPDK drivers that are listed
   on this page: http://dpdk.org/doc/nics. Please make sure that your
   NIC is compatible before moving on to the next step.
+
+   - recent Linux kernels tend to rename Ethernet interfaces based on
+  their PCI addresses. If you are using Intel based Ethernet adapters,
+  please rename the interface with a ``dpdk`` prefix. You can do so
+  using the following command:
+  
+    ```bash
+	# sudo ifconfig <iface> down
+	## where X is an integer value.
+	## e.g. sudo ip link set ens786f0 name dpdk0
+	# sudo ip link set <iface> name dpdkX
+    ```
 
 2. Next bring the dpdk-registered interfaces up. Please use the
    ``setup_iface_single_process.sh`` script file present in ``dpdk-16.11/tools/``
@@ -219,8 +235,9 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 5. mTCP has been tested with the following Ethernet adapters:
 
    1. Intel-82598	     ixgbe	      	        (Max-queue-limit: 16)
-   2. Intel-82599								    ixgbe		(Max-queue-limit: 16)
-   3. Intel-I350								    					          igb   (Max-queue-limit: 08)
+   2. Intel-82599	     ixgbe			(Max-queue-limit: 16)
+   3. Intel-I350             igb   			(Max-queue-limit: 08)
+   4. Intel-X710	     i40e			(Max-queue-limit: ~)
  
 ***FREQUENTLY ASKED QUESTIONS***
 

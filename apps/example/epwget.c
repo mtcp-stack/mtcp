@@ -16,6 +16,7 @@
 #include <sys/queue.h>
 #include <assert.h>
 #include <limits.h>
+#include <sys/epoll.h>
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
@@ -170,34 +171,35 @@ DestroyContext(thread_context_t ctx)
 static inline int 
 CreateConnection(thread_context_t ctx)
 {
-	mctx_t mctx = ctx->mctx;
-	struct mtcp_epoll_event ev;
+	//	mctx_t mctx = ctx->mctx;
+	struct epoll_event ev;
 	struct sockaddr_in addr;
 	int sockid;
 	int ret;
 
-	sockid = mtcp_socket(mctx, AF_INET, SOCK_STREAM, 0);
+	sockid = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockid < 0) {
 		TRACE_INFO("Failed to create socket!\n");
 		return -1;
 	}
-	memset(&ctx->wvars[sockid], 0, sizeof(struct wget_vars));
+	memset(&ctx->wvars[sockid - 1024], 0, sizeof(struct wget_vars));
+#if 0
 	ret = mtcp_setsock_nonblock(mctx, sockid);
 	if (ret < 0) {
 		TRACE_ERROR("Failed to set socket in nonblocking mode.\n");
 		exit(-1);
 	}
-
+#endif
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = daddr;
 	addr.sin_port = dport;
 	
-	ret = mtcp_connect(mctx, sockid, 
+	ret = connect(sockid, 
 			(struct sockaddr *)&addr, sizeof(struct sockaddr_in));
 	if (ret < 0) {
 		if (errno != EINPROGRESS) {
-			perror("mtcp_connect");
-			mtcp_close(mctx, sockid);
+			perror("connect");
+			close(sockid);
 			return -1;
 		}
 	}
@@ -206,9 +208,9 @@ CreateConnection(thread_context_t ctx)
 	ctx->pending++;
 	ctx->stat.connects++;
 
-	ev.events = MTCP_EPOLLOUT;
-	ev.data.sockid = sockid;
-	mtcp_epoll_ctl(mctx, ctx->ep, MTCP_EPOLL_CTL_ADD, sockid, &ev);
+	ev.events = EPOLLOUT;
+	ev.data.fd = sockid;
+	epoll_ctl(ctx->ep, EPOLL_CTL_ADD, sockid, &ev);
 
 	return sockid;
 }
@@ -216,8 +218,8 @@ CreateConnection(thread_context_t ctx)
 static inline void 
 CloseConnection(thread_context_t ctx, int sockid)
 {
-	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_DEL, sockid, NULL);
-	mtcp_close(ctx->mctx, sockid);
+	epoll_ctl(ctx->ep, EPOLL_CTL_DEL, sockid, NULL);
+	close(sockid);
 	ctx->pending--;
 	ctx->done++;
 	assert(ctx->pending >= 0);
@@ -233,7 +235,7 @@ static inline int
 SendHTTPRequest(thread_context_t ctx, int sockid, struct wget_vars *wv)
 {
 	char request[HTTP_HEADER_LEN];
-	struct mtcp_epoll_event ev;
+	struct epoll_event ev;
 	int wr;
 	int len;
 
@@ -250,7 +252,7 @@ SendHTTPRequest(thread_context_t ctx, int sockid, struct wget_vars *wv)
 			url, host);
 	len = strlen(request);
 
-	wr = mtcp_write(ctx->mctx, sockid, request, len);
+	wr = write(sockid, request, len);
 	if (wr < len) {
 		TRACE_ERROR("Socket %d: Sending HTTP request failed. "
 				"try: %d, sent: %d\n", sockid, len, wr);
@@ -259,9 +261,9 @@ SendHTTPRequest(thread_context_t ctx, int sockid, struct wget_vars *wv)
 	TRACE_APP("Socket %d HTTP Request of %d bytes. sent.\n", sockid, wr);
 	wv->request_sent = TRUE;
 
-	ev.events = MTCP_EPOLLIN;
-	ev.data.sockid = sockid;
-	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_MOD, sockid, &ev);
+	ev.events = EPOLLIN;
+	ev.data.fd = sockid;
+	epoll_ctl(ctx->ep, EPOLL_CTL_MOD, sockid, &ev);
 
 	gettimeofday(&wv->t_start, NULL);
 
@@ -321,19 +323,19 @@ DownloadComplete(thread_context_t ctx, int sockid, struct wget_vars *wv)
 static inline int
 HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 {
-	mctx_t mctx = ctx->mctx;
+	//mctx_t mctx = ctx->mctx;
 	char buf[BUF_SIZE];
 	char *pbuf;
 	int rd, copy_len;
 
 	rd = 1;
 	while (rd > 0) {
-		rd = mtcp_read(mctx, sockid, buf, BUF_SIZE);
+		rd = read(sockid, buf, BUF_SIZE);
 		if (rd <= 0)
 			break;
 		ctx->stat.reads += rd;
 
-		TRACE_APP("Socket %d: mtcp_read ret: %d, total_recv: %lu, "
+		TRACE_APP("Socket %d: read ret: %d, total_recv: %lu, "
 				"header_set: %d, header_len: %u, file_len: %lu\n", 
 				sockid, rd, wv->recv + rd, 
 				wv->headerset, wv->header_len, wv->file_len);
@@ -434,7 +436,7 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 
 	} else if (rd < 0) {
 		if (errno != EAGAIN) {
-			TRACE_DBG("Socket %d: mtcp_read() error %s\n", 
+			TRACE_DBG("Socket %d: read() error %s\n", 
 					sockid, strerror(errno));
 			ctx->stat.errors++;
 			ctx->errors++;
@@ -540,7 +542,7 @@ RunWgetMain(void *arg)
 	struct in_addr daddr_in;
 	int n, maxevents;
 	int ep;
-	struct mtcp_epoll_event *events;
+	struct epoll_event *events;
 	int nevents;
 	struct wget_vars *wvars;
 	int i;
@@ -575,13 +577,13 @@ RunWgetMain(void *arg)
 
 	/* Initialization */
 	maxevents = max_fds * 3;
-	ep = mtcp_epoll_create(mctx, maxevents);
+	ep = epoll_create(maxevents);
 	if (ep < 0) {
 		TRACE_ERROR("Failed to create epoll struct!n");
 		exit(EXIT_FAILURE);
 	}
-	events = (struct mtcp_epoll_event *)
-			calloc(maxevents, sizeof(struct mtcp_epoll_event));
+	events = (struct epoll_event *)
+			calloc(maxevents, sizeof(struct epoll_event));
 	if (!events) {
 		TRACE_ERROR("Failed to allocate events!\n");
 		exit(EXIT_FAILURE);
@@ -619,12 +621,12 @@ RunWgetMain(void *arg)
 			}
 		}
 
-		nevents = mtcp_epoll_wait(mctx, ep, events, maxevents, -1);
+		nevents = epoll_wait(ep, events, maxevents, -1);
 		ctx->stat.waits++;
 	
 		if (nevents < 0) {
 			if (errno != EINTR) {
-				TRACE_ERROR("mtcp_epoll_wait failed! ret: %d\n", nevents);
+				TRACE_ERROR("epoll_wait failed! ret: %d\n", nevents);
 			}
 			done[core] = TRUE;
 			break;
@@ -634,37 +636,37 @@ RunWgetMain(void *arg)
 
 		for (i = 0; i < nevents; i++) {
 
-			if (events[i].events & MTCP_EPOLLERR) {
+			if (events[i].events & EPOLLERR) {
 				int err;
 				socklen_t len = sizeof(err);
 
 				TRACE_APP("[CPU %d] Error on socket %d\n", 
-						core, events[i].data.sockid);
+						core, events[i].data.fd);
 				ctx->stat.errors++;
 				ctx->errors++;
-				if (mtcp_getsockopt(mctx, events[i].data.sockid, 
+				if (getsockopt(events[i].data.fd, 
 							SOL_SOCKET, SO_ERROR, (void *)&err, &len) == 0) {
 					if (err == ETIMEDOUT)
 						ctx->stat.timedout++;
 				}
-				CloseConnection(ctx, events[i].data.sockid);
+				CloseConnection(ctx, events[i].data.fd);
 
-			} else if (events[i].events & MTCP_EPOLLIN) {
+			} else if (events[i].events & EPOLLIN) {
 				HandleReadEvent(ctx, 
-						events[i].data.sockid, &wvars[events[i].data.sockid]);
+						events[i].data.fd, &wvars[events[i].data.fd - 1024]);
 
-			} else if (events[i].events == MTCP_EPOLLOUT) {
-				struct wget_vars *wv = &wvars[events[i].data.sockid];
+			} else if (events[i].events == EPOLLOUT) {
+				struct wget_vars *wv = &wvars[events[i].data.fd - 1024];
 
 				if (!wv->request_sent) {
-					SendHTTPRequest(ctx, events[i].data.sockid, wv);
+					SendHTTPRequest(ctx, events[i].data.fd, wv);
 				} else {
 					//TRACE_DBG("Request already sent.\n");
 				}
 
 			} else {
 				TRACE_ERROR("Socket %d: event: %s\n", 
-						events[i].data.sockid, EventToString(events[i].events));
+						events[i].data.fd, EventToString(events[i].events));
 				assert(0);
 			}
 		}
@@ -781,7 +783,8 @@ main(int argc, char **argv)
 		concurrency = total_concurrency / core_limit;
 
 	/* set the max number of fds 3x larger than concurrency */
-	max_fds = concurrency * 3;
+	max_fds = concurrency * 3;/////////////////////////////////////
+	//max_fds = 100000;
 
 	TRACE_CONFIG("Application configuration:\n");
 	TRACE_CONFIG("URL: %s\n", url);

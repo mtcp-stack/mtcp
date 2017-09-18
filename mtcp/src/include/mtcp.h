@@ -54,7 +54,7 @@
 #define BLOCKING_SUPPORT	FALSE
 
 #ifndef MAX_CPUS
-#define MAX_CPUS		16
+#define MAX_CPUS		32
 #endif
 /*----------------------------------------------------------------------------*/
 /* Statistics */
@@ -213,7 +213,8 @@ struct mtcp_manager
 	/* variables related to event */
 	struct mtcp_epoll *ep;
 	uint32_t ts_last_event;
-
+	int ep_fd;
+	
 	struct hashtable *listeners;
 
 	stream_queue_t connectq;				/* streams need to connect */
@@ -311,6 +312,7 @@ typedef struct mtcp_thread_context* mtcp_thread_context_t;
 extern struct mtcp_manager *g_mtcp[MAX_CPUS];
 extern struct mtcp_config CONFIG;
 extern addr_pool_t ap[ETH_NUM];
+extern int mtcp_max_fds;
 /*----------------------------------------------------------------------------*/
 
 #endif /* __MTCP_H_ */

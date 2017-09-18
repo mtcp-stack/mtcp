@@ -45,7 +45,7 @@ struct mtcp_epoll_event
 {
 	uint32_t events;
 	mtcp_epoll_data_t data;
-};
+} __attribute__((packed));
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_epoll_create(mctx_t mctx, int size);

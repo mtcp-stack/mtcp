@@ -1,4 +1,5 @@
 #include <sys/queue.h>
+#include <sys/epoll.h>
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
@@ -109,6 +110,19 @@ mtcp_epoll_create(mctx_t mctx, int size)
 		return -1;
 	}
 
+#ifdef USE_EVENT_FD
+	ep->efd = eventfd(0, 0); //EFD_NONBLOCK
+	if (ep->efd == -1 || mtcp->ep_fd < 0) {
+		FreeSocket(mctx, epsocket->id, FALSE);
+		free(ep);
+		return -1;
+	}
+
+	struct epoll_event event;
+	event.events = EPOLLHUP | EPOLLERR | EPOLLIN;
+	event.data.fd = ep->efd;
+	epoll_ctl(mtcp->ep_fd, EPOLL_CTL_ADD, ep->efd, &event);
+#endif
 	/* create event queues */
 	ep->usr_queue = CreateEventQueue(size);
 	if (!ep->usr_queue) {
@@ -183,10 +197,16 @@ CloseEpollSocket(mctx_t mctx, int epid)
 	pthread_mutex_lock(&ep->epoll_lock);
 	mtcp->ep = NULL;
 	mtcp->smap[epid].ep = NULL;
+#ifdef USE_EVENT_FD
+	uint64_t u = 0;
+	write(ep->efd, &u, sizeof(uint64_t));
+#else
 	pthread_cond_signal(&ep->epoll_cond);
+#endif
 	pthread_mutex_unlock(&ep->epoll_lock);
-
+#ifndef USE_EVENT_FD
 	pthread_cond_destroy(&ep->epoll_cond);
+#endif
 	pthread_mutex_destroy(&ep->epoll_lock);
 	free(ep);
 
@@ -400,8 +420,29 @@ wait:
 		ep->stat.waits++;
 		ep->waiting = TRUE;
 		if (timeout > 0) {
+#ifdef USE_EVENT_FD
+			pthread_mutex_unlock(&ep->epoll_lock);
+                        ret = epoll_wait(mtcp->ep_fd, (struct epoll_event *)&events[0], 1, timeout);
+			
+		  	pthread_mutex_lock(&ep->epoll_lock);
+			if (ret == -1) {
+				pthread_mutex_unlock(&ep->epoll_lock);
+				TRACE_ERROR("epoll_wait failed. ret: %d, error: %s\n", ret, strerror(errno));
+			}
+			
+			if (ret > 0 && events[0].data.sockid == ep->efd) {
+				uint64_t val;
+				ret = read(ep->efd, &val, sizeof(val));
+				if (ret == -1) {
+					TRACE_ERROR("epoll_read failed. ret: %d, error: %s\n", ret, strerror(errno));
+				}
+			} else {
+				pthread_mutex_unlock(&ep->epoll_lock);
+				return ret;
+			}			
+#else
 			struct timespec deadline;
-
+			
 			clock_gettime(CLOCK_REALTIME, &deadline);
 			if (timeout >= 1000) {
 				int sec;
@@ -429,7 +470,28 @@ wait:
 				return -1;
 			}
 			timeout = 0;
+#endif
 		} else if (timeout < 0) {
+#ifdef USE_EVENT_FD
+			pthread_mutex_unlock(&ep->epoll_lock);
+			ret = epoll_wait(mtcp->ep_fd, (struct epoll_event *)&events[0], 1, -1);
+		 	pthread_mutex_lock(&ep->epoll_lock);
+			if (ret == -1) {
+				pthread_mutex_unlock(&ep->epoll_lock);
+				TRACE_ERROR("epoll_wait failed. ret: %d, error: %s. ep_fd: %d\n",
+					    ret, strerror(errno), mtcp->ep_fd);
+			}
+			if (ret > 0 && events[0].data.sockid == ep->efd) {
+				uint64_t val;
+				ret = read(ep->efd, &val, sizeof(val));
+				if (ret == -1) {
+					TRACE_ERROR("epoll_read failed. ret: %d, error: %s\n", ret, strerror(errno));
+				}
+			} else {
+				pthread_mutex_unlock(&ep->epoll_lock);
+				return ret;
+			}			
+#else
 			ret = pthread_cond_wait(&ep->epoll_cond, &ep->epoll_lock);
 			if (ret) {
 				/* errno set by pthread_cond_wait() */
@@ -438,6 +500,7 @@ wait:
 						ret, strerror(errno));
 				return -1;
 			}
+#endif
 		}
 		ep->waiting = FALSE;
 

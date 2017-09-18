@@ -3,7 +3,9 @@
 
 #include "mtcp_api.h"
 #include "mtcp_epoll.h"
+#include <sys/eventfd.h>
 
+#define USE_EVENT_FD		1
 /*----------------------------------------------------------------------------*/
 struct mtcp_epoll_stat
 {
@@ -48,7 +50,9 @@ struct mtcp_epoll
 
 	uint8_t waiting;
 	struct mtcp_epoll_stat stat;
-	
+
+	int efd;
+
 	pthread_cond_t epoll_cond;
 	pthread_mutex_t epoll_lock;
 };

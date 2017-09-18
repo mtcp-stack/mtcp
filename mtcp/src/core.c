@@ -9,6 +9,8 @@
 #include <signal.h>
 #include <assert.h>
 #include <sched.h>
+/* for rlimit */
+#include <sys/resource.h>
 
 #include "cpu.h"
 #include "ps.h"
@@ -54,6 +56,9 @@
 
 #define GBPS(bytes) (bytes * 8.0 / (1000 * 1000 * 1000))
 
+#ifdef USE_EVENT_FD
+extern int current_core;
+#endif
 /*----------------------------------------------------------------------------*/
 /* handlers for threads */
 struct mtcp_thread_context *g_pctx[MAX_CPUS] = {0};
@@ -460,7 +465,13 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 				ep->usr_queue->num_events, cur_ts, mtcp->ts_last_event);
 		mtcp->ts_last_event = cur_ts;
 		ep->stat.wakes++;
+#ifdef USE_EVENT_FD
+		static const uint64_t val = 1;
+		write(mtcp->ep->efd, &val, sizeof(val));
+#else
 		pthread_cond_signal(&ep->epoll_cond);
+#endif
+		
 	}
 	pthread_mutex_unlock(&ep->epoll_lock);
 }
@@ -719,7 +730,12 @@ InterruptApplication(mtcp_manager_t mtcp)
 	if (mtcp->ep) {
 		pthread_mutex_lock(&mtcp->ep->epoll_lock);
 		if (mtcp->ep->waiting) {
+#ifdef USE_EVENT_FD
+			static const uint64_t val = 1;
+			write(mtcp->ep->efd, &val, sizeof(val));
+#else
 			pthread_cond_signal(&mtcp->ep->epoll_cond);
+#endif
 		}
 		pthread_mutex_unlock(&mtcp->ep->epoll_lock);
 	}
@@ -731,7 +747,12 @@ InterruptApplication(mtcp_manager_t mtcp)
 		if (listener != NULL) {
 			pthread_mutex_lock(&listener->accept_lock);
 			if (!(listener->socket->opts & MTCP_NONBLOCK)) {
+#ifdef USE_EVENT_FD
+				static const uint64_t val = 1;
+				write(mtcp->ep->efd, &val, sizeof(val));
+#else
 				pthread_cond_signal(&listener->accept_cond);
+#endif
 			}
 			pthread_mutex_unlock(&listener->accept_lock);			
 		}
@@ -1202,6 +1223,9 @@ mtcp_create_context(int cpu)
 		TRACE_INFO("CPU %d is now the master thread.\n", mtcp_master);
 	}
 
+#ifdef USE_EVENT_FD
+	current_core = cpu;
+#endif
 	return mctx;
 }
 /*----------------------------------------------------------------------------*/
@@ -1413,7 +1437,19 @@ mtcp_init(const char *config_file)
 {
 	int i;
 	int ret;
+	struct rlimit r;
 
+	/* set mtcp_max_fds limit */
+	ret = getrlimit(RLIMIT_NOFILE, &r);
+	if (ret == -1) {
+		TRACE_CONFIG("Can't get max number of file descriptors!\n");
+		exit(EXIT_FAILURE);
+	} else {
+		mtcp_max_fds = r.rlim_cur;
+		TRACE_INFO("Setting mtcp_max_fds to: %u\n",
+			   mtcp_max_fds);
+	}
+	
 	if (geteuid()) {
 		TRACE_CONFIG("[CAUTION] Run the app as root!\n");
 		exit(EXIT_FAILURE);
@@ -1495,8 +1531,10 @@ mtcp_destroy()
 		}
 	}
 
-	for (i = 0; i < CONFIG.eths_num; i++)
+	for (i = 0; i < CONFIG.eths_num; i++) {
 		DestroyAddressPool(ap[i]);
+		ap[i] = NULL;
+	}
 
 	TRACE_INFO("All MTCP threads are joined.\n");
 }

@@ -467,7 +467,8 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 		ep->stat.wakes++;
 #ifdef USE_EVENT_FD
 		static const uint64_t val = 1;
-		write(mtcp->ep->efd, &val, sizeof(val));
+		int __attribute__((unused)) rc;
+		rc = write(mtcp->ep->efd, &val, sizeof(val));
 #else
 		pthread_cond_signal(&ep->epoll_cond);
 #endif
@@ -732,7 +733,8 @@ InterruptApplication(mtcp_manager_t mtcp)
 		if (mtcp->ep->waiting) {
 #ifdef USE_EVENT_FD
 			static const uint64_t val = 1;
-			write(mtcp->ep->efd, &val, sizeof(val));
+			int __attribute__((unused)) rc;
+			rc = write(mtcp->ep->efd, &val, sizeof(val));
 #else
 			pthread_cond_signal(&mtcp->ep->epoll_cond);
 #endif
@@ -749,7 +751,8 @@ InterruptApplication(mtcp_manager_t mtcp)
 			if (!(listener->socket->opts & MTCP_NONBLOCK)) {
 #ifdef USE_EVENT_FD
 				static const uint64_t val = 1;
-				write(mtcp->ep->efd, &val, sizeof(val));
+				int __attribute__((unused)) rc;				
+				rc = write(mtcp->ep->efd, &val, sizeof(val));
 #else
 				pthread_cond_signal(&listener->accept_cond);
 #endif

@@ -199,7 +199,8 @@ CloseEpollSocket(mctx_t mctx, int epid)
 	mtcp->smap[epid].ep = NULL;
 #ifdef USE_EVENT_FD
 	uint64_t u = 0;
-	write(ep->efd, &u, sizeof(uint64_t));
+	int __attribute__((unused)) rc;	
+	rc = write(ep->efd, &u, sizeof(uint64_t));
 #else
 	pthread_cond_signal(&ep->epoll_cond);
 #endif

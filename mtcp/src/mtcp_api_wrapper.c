@@ -90,7 +90,7 @@ not_mtcp_socket_fd(mctx_t mctx, int sock_fd)
 	return rc;
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_socket(int sock_domain, int sock_type, int sock_protocol)
 {
 	int fd;
@@ -118,13 +118,13 @@ mtcp_wrapper_socket(int sock_domain, int sock_type, int sock_protocol)
 	}
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 socket(int sock_domain, int sock_type, int sock_protocol)
 {
 	return mtcp_wrapper_socket(sock_domain, sock_type, sock_protocol);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_close(int sock_fd)
 {
 	struct mtcp_context mctx;
@@ -136,13 +136,13 @@ mtcp_wrapper_close(int sock_fd)
 	return mtcp_close(&mctx, mtcp_get_sockid_from_fd(sock_fd));
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 close(int sock_fd)
 {
 	return mtcp_wrapper_close(sock_fd);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_shutdown(int sock_fd, int sock_how)
 {
 	struct mtcp_context mctx;
@@ -158,13 +158,13 @@ mtcp_wrapper_shutdown(int sock_fd, int sock_how)
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 shutdown(int sock_fd, int sock_how)
 {
 	return mtcp_wrapper_shutdown(sock_fd, sock_how);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_fcntl(int sock_fd, int sock_cmd, void *sock_arg)
 {
 	struct mtcp_context mctx;
@@ -177,7 +177,7 @@ mtcp_wrapper_fcntl(int sock_fd, int sock_cmd, void *sock_arg)
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 fcntl(int sock_fd, int sock_cmd, ...)
 {
 	void *sock_arg;
@@ -190,7 +190,7 @@ fcntl(int sock_fd, int sock_cmd, ...)
 	return mtcp_wrapper_fcntl(sock_fd, sock_cmd, sock_arg);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_ioctl(int sock_fd, unsigned long int sock_req, void *sock_data)
 {
 	struct mtcp_context mctx;
@@ -203,7 +203,7 @@ mtcp_wrapper_ioctl(int sock_fd, unsigned long int sock_req, void *sock_data)
 				 sock_req, sock_data);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 ioctl(int sock_fd, unsigned long int sock_req, ...)
 {
 	void *sock_data;
@@ -216,7 +216,7 @@ ioctl(int sock_fd, unsigned long int sock_req, ...)
 	return mtcp_wrapper_ioctl(sock_fd, sock_req, sock_data);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_accept(int sock_fd, struct sockaddr *sock_name,
 		    socklen_t *sock_namelen)
 {
@@ -237,14 +237,15 @@ mtcp_wrapper_accept(int sock_fd, struct sockaddr *sock_name,
 	return fd;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 accept(int sock_fd, struct sockaddr *sock_name,
        socklen_t *sock_namelen)
 {
 	return mtcp_wrapper_accept(sock_fd, sock_name, sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
-int accept4(int sock_fd, struct sockaddr *sock_name,
+__attribute__((gnu_inline)) inline int
+accept4(int sock_fd, struct sockaddr *sock_name,
 	    socklen_t *sock_namelen, int flags)
 {
 	int on = 1;
@@ -253,7 +254,7 @@ int accept4(int sock_fd, struct sockaddr *sock_name,
 	return mtcp_wrapper_accept(sock_fd, sock_name, sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_listen(int sock_fd, int sock_backlog)
 {
 	struct mtcp_context mctx;
@@ -266,7 +267,7 @@ mtcp_wrapper_listen(int sock_fd, int sock_backlog)
 			   sock_backlog);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 listen(int sock_fd, int sock_backlog)
 {
 	int rc;
@@ -277,7 +278,7 @@ listen(int sock_fd, int sock_backlog)
 	return rc;
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_bind(int sock_fd, const struct sockaddr *sock_addr,
 		  socklen_t sock_addrlen)
 {
@@ -292,14 +293,14 @@ mtcp_wrapper_bind(int sock_fd, const struct sockaddr *sock_addr,
 			 sock_addr, sock_addrlen);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 bind(int sock_fd, const struct sockaddr *sock_addr,
      socklen_t sock_addrlen)
 {
 	return mtcp_wrapper_bind(sock_fd, sock_addr, sock_addrlen);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_connect(int sock_fd, const struct sockaddr *sock_addr,
 		     socklen_t sock_len)
 {
@@ -319,14 +320,14 @@ mtcp_wrapper_connect(int sock_fd, const struct sockaddr *sock_addr,
 	return rc;
 }
 /*----------------------------------------------------------------------------*/
-int
+__attribute__((gnu_inline)) inline int
 connect(int sock_fd, const struct sockaddr *sock_addr,
 	socklen_t sock_len)
 {
 	return mtcp_wrapper_connect(sock_fd, sock_addr, sock_len);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_select(int sock_n, fd_set *sock_readfds, fd_set *sock_writefds,
 		    fd_set *sock_exceptfds, struct timeval *sock_timeout)
 {
@@ -342,7 +343,7 @@ mtcp_wrapper_select(int sock_n, fd_set *sock_readfds, fd_set *sock_writefds,
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 select(int sock_n, fd_set *sock_readfds, fd_set *sock_writefds,
        fd_set *sock_exceptfds, struct timeval *sock_timeout)
 {
@@ -357,14 +358,14 @@ mtcp_wrapper_poll(struct pollfd *sock_fds, unsigned long sock_nfds,
 	return MTCP_KERNEL_CALL(poll)(sock_fds, sock_nfds, sock_timeout);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 poll(struct pollfd *sock_fds, unsigned long sock_nfds,
      int sock_timeout)
 {
 	return mtcp_wrapper_poll(sock_fds, sock_nfds, sock_timeout);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_getpeername(int sock_fd, struct sockaddr *sock_name,
 			 socklen_t *sock_namelen)
 {
@@ -378,14 +379,14 @@ mtcp_wrapper_getpeername(int sock_fd, struct sockaddr *sock_name,
 					sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 getpeername(int sock_fd, struct sockaddr *sock_name,
 	    socklen_t *sock_namelen)
 {
 	return mtcp_wrapper_getpeername(sock_fd, sock_name, sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_getsockopt(int sock_fd, int sock_level, int sock_optname,
 			void *sock_optval, socklen_t *sock_optlen)
 {
@@ -401,7 +402,7 @@ mtcp_wrapper_getsockopt(int sock_fd, int sock_level, int sock_optname,
 			       sock_optname, sock_optval, sock_optlen);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 getsockopt(int sock_fd, int sock_level, int sock_optname,
 	   void *sock_optval, socklen_t *sock_optlen)
 {
@@ -409,7 +410,7 @@ getsockopt(int sock_fd, int sock_level, int sock_optname,
 				       sock_optval, sock_optlen);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_setsockopt(int sock_fd, int sock_level, int sock_optname,
 			const void *sock_optval, socklen_t sock_optlen)
 {
@@ -427,7 +428,7 @@ mtcp_wrapper_setsockopt(int sock_fd, int sock_level, int sock_optname,
 			       sock_optlen);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 setsockopt(int sock_fd, int sock_level, int sock_optname,
 	   const void *sock_optval, socklen_t sock_optlen)
 {
@@ -435,7 +436,7 @@ setsockopt(int sock_fd, int sock_level, int sock_optname,
 				       (void *)sock_optval, sock_optlen);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_getsockname(int sock_fd, struct sockaddr *sock_name,
 			 socklen_t *sock_namelen)
 {
@@ -449,28 +450,28 @@ mtcp_wrapper_getsockname(int sock_fd, struct sockaddr *sock_name,
 				sock_name, sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 getsockname(int sock_fd, struct sockaddr *sock_name,
 	    socklen_t *sock_namelen)
 {
 	return mtcp_wrapper_getsockname(sock_fd, sock_name, sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_sendmsg(int sock_fd, const struct msghdr *sock_msg,
 		     int sock_flags)
 {	 
 	return MTCP_KERNEL_CALL(sendmsg)(sock_fd, sock_msg, sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 sendmsg(int sock_fd, const struct msghdr *sock_msg,
 	int sock_flags)
 {
 	return mtcp_wrapper_sendmsg(sock_fd, sock_msg, sock_flags );
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_send(int sock_fd, void *sock_buf, size_t sock_len,
 		  int sock_flags)
 {
@@ -485,7 +486,7 @@ mtcp_wrapper_send(int sock_fd, void *sock_buf, size_t sock_len,
 			  sock_buf, sock_len);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 send(int sock_fd, const void *sock_buf, size_t sock_len,
      int sock_flags)
 {
@@ -493,7 +494,7 @@ send(int sock_fd, const void *sock_buf, size_t sock_len,
 				 sock_len, sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-static inline
+static __attribute__((gnu_inline)) inline
 ssize_t mtcp_wrapper_sendto(int sock_fd, const void *sock_buf, size_t sock_len,
 		int sock_flags, const struct sockaddr *sock_addr, socklen_t sock_addrlen)
 {
@@ -509,7 +510,7 @@ ssize_t mtcp_wrapper_sendto(int sock_fd, const void *sock_buf, size_t sock_len,
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 sendto(int sock_fd, const void *sock_buf, size_t sock_len,
        int sock_flags, const struct sockaddr *sock_addr,
        socklen_t sock_addrlen)
@@ -518,7 +519,7 @@ sendto(int sock_fd, const void *sock_buf, size_t sock_len,
 				   sock_flags, sock_addr, sock_addrlen);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 		      int sock_flags, struct sockaddr *sock_from,
 		      socklen_t *sock_fromlen)
@@ -534,7 +535,7 @@ mtcp_wrapper_recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 	 int sock_flags, struct sockaddr *sock_from,
 	 socklen_t *sock_fromlen)
@@ -543,7 +544,7 @@ recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 				     sock_from, sock_fromlen);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_recv(int sock_fd, void *sock_buf, size_t sock_len, int sock_flags)
 {
 	struct mtcp_context mctx;
@@ -557,19 +558,19 @@ mtcp_wrapper_recv(int sock_fd, void *sock_buf, size_t sock_len, int sock_flags)
 			 sock_buf, sock_len, sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 recv(int sock_fd, void *sock_buf, size_t sock_len, int sock_flags)
 {
 	return mtcp_wrapper_recv(sock_fd, sock_buf, sock_len, sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_recvmsg(int sock_fd, struct msghdr *sock_l_msg, int sock_flags)
 {	 
 	return MTCP_KERNEL_CALL(recvmsg)(sock_fd, sock_l_msg, sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 recvmsg(int sock_fd, struct msghdr *sock_l_msg, int sock_flags)
 {
 	struct mtcp_context mctx;
@@ -582,7 +583,7 @@ recvmsg(int sock_fd, struct msghdr *sock_l_msg, int sock_flags)
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_read(int sock_fd, void *sock_buf, size_t sock_count)
 {
 	struct mtcp_context mctx;
@@ -596,13 +597,13 @@ mtcp_wrapper_read(int sock_fd, void *sock_buf, size_t sock_count)
 			 sock_buf, sock_count);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 read(int sock_fd, void *sock_buf, size_t sock_count)
 {
 	return mtcp_wrapper_read(sock_fd, sock_buf, sock_count);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_readv(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 {
 	struct mtcp_context mctx;
@@ -617,13 +618,13 @@ mtcp_wrapper_readv(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 			  (struct iovec *)sock_iov, sock_iovcnt);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 readv(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 {
 	return mtcp_wrapper_readv(sock_fd, (struct iovec *)sock_iov, sock_iovcnt);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_write(int sock_fd, const void *sock_buf, size_t sock_count)
 {
 	struct mtcp_context mctx;
@@ -638,13 +639,13 @@ mtcp_wrapper_write(int sock_fd, const void *sock_buf, size_t sock_count)
 			  (void *)sock_buf, sock_count);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 write(int sock_fd, const void *sock_buf, size_t sock_count)
 {
 	return mtcp_wrapper_write(sock_fd, (void *)sock_buf, sock_count);
 }
 /*----------------------------------------------------------------------------*/
-static inline ssize_t
+static __attribute__((gnu_inline)) inline ssize_t
 mtcp_wrapper_writev(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 {
 	struct mtcp_context mctx;
@@ -658,25 +659,25 @@ mtcp_wrapper_writev(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 			   (struct iovec *)sock_iov, sock_iovcnt);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 writev(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 {
 	return mtcp_wrapper_writev(sock_fd, (struct iovec *)sock_iov, sock_iovcnt);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_epoll_create1(int sock_flags)
 {
 	return MTCP_KERNEL_CALL(epoll_create1)(sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 epoll_create1(int sock_flags)
 {
 	return mtcp_wrapper_epoll_create1(sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_epoll_create(int sock_size)
 {
 	struct mtcp_context mctx;
@@ -698,13 +699,13 @@ mtcp_wrapper_epoll_create(int sock_size)
 	return epoll_fd;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 epoll_create(int sock_size)
 {
 	return mtcp_wrapper_epoll_create(sock_size);
 }
 /*----------------------------------------------------------------------------*/
-static int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_epoll_ctl(int sock_epfd, int sock_op, int sock_fd,
 		       struct epoll_event *sock_event)
 {
@@ -738,14 +739,14 @@ mtcp_wrapper_epoll_ctl(int sock_epfd, int sock_op, int sock_fd,
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 epoll_ctl(int sock_epfd, int sock_op, int sock_fd,
 	  struct epoll_event *sock_event)
 {
 	return mtcp_wrapper_epoll_ctl(sock_epfd, sock_op, sock_fd, sock_event);
 }
 /*----------------------------------------------------------------------------*/
-static inline int
+static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_epoll_wait(int sock_epfd, struct epoll_event *sock_events,
 			int sock_maxevents, int sock_timeout)
 {
@@ -772,7 +773,7 @@ mtcp_wrapper_epoll_wait(int sock_epfd, struct epoll_event *sock_events,
 	return nevent;
 }
 /*----------------------------------------------------------------------------*/
-inline int
+__attribute__((gnu_inline)) inline int
 epoll_wait(int sock_epfd, struct epoll_event *sock_events,
 	   int sock_maxevents, int sock_timeout)
 {
@@ -780,7 +781,7 @@ epoll_wait(int sock_epfd, struct epoll_event *sock_events,
 				       sock_maxevents, sock_timeout);
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 sendfile64(int sock_fd, int in_fd, off_t *offset, size_t count)
 {
 	struct mtcp_context mctx;
@@ -799,7 +800,7 @@ sendfile64(int sock_fd, int in_fd, off_t *offset, size_t count)
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+__attribute__((gnu_inline)) inline ssize_t
 sendfile(int sock_fd, int in_fd, off_t *offset, size_t count)
 {
 	struct mtcp_context mctx;

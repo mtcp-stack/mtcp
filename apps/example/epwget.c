@@ -171,7 +171,6 @@ DestroyContext(thread_context_t ctx)
 static inline int 
 CreateConnection(thread_context_t ctx)
 {
-	//	mctx_t mctx = ctx->mctx;
 	struct epoll_event ev;
 	struct sockaddr_in addr;
 	int sockid;
@@ -182,14 +181,8 @@ CreateConnection(thread_context_t ctx)
 		TRACE_INFO("Failed to create socket!\n");
 		return -1;
 	}
-	memset(&ctx->wvars[sockid - 1024], 0, sizeof(struct wget_vars));
-#if 0
-	ret = mtcp_setsock_nonblock(mctx, sockid);
-	if (ret < 0) {
-		TRACE_ERROR("Failed to set socket in nonblocking mode.\n");
-		exit(-1);
-	}
-#endif
+	memset(&ctx->wvars[sockid], 0, sizeof(struct wget_vars));
+
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = daddr;
 	addr.sin_port = dport;
@@ -590,7 +583,7 @@ RunWgetMain(void *arg)
 	}
 	ctx->ep = ep;
 
-	wvars = (struct wget_vars *)calloc(max_fds, sizeof(struct wget_vars));
+	wvars = (struct wget_vars *)calloc(max_fds * 3, sizeof(struct wget_vars));
 	if (!wvars) {
 		TRACE_ERROR("Failed to create wget variables!\n");
 		exit(EXIT_FAILURE);
@@ -653,10 +646,10 @@ RunWgetMain(void *arg)
 
 			} else if (events[i].events & EPOLLIN) {
 				HandleReadEvent(ctx, 
-						events[i].data.fd, &wvars[events[i].data.fd - 1024]);
+						events[i].data.fd, &wvars[events[i].data.fd]);
 
 			} else if (events[i].events == EPOLLOUT) {
-				struct wget_vars *wv = &wvars[events[i].data.fd - 1024];
+				struct wget_vars *wv = &wvars[events[i].data.fd];
 
 				if (!wv->request_sent) {
 					SendHTTPRequest(ctx, events[i].data.fd, wv);
@@ -783,8 +776,7 @@ main(int argc, char **argv)
 		concurrency = total_concurrency / core_limit;
 
 	/* set the max number of fds 3x larger than concurrency */
-	max_fds = concurrency * 3;/////////////////////////////////////
-	//max_fds = 100000;
+	max_fds = concurrency * 3;
 
 	TRACE_CONFIG("Application configuration:\n");
 	TRACE_CONFIG("URL: %s\n", url);

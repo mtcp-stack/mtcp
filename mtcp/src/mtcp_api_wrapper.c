@@ -31,7 +31,7 @@
 #define LIBC_PATH1		"/lib64/libc.so.6"
 #define LIBC_PATH2		"/lib/libc.so.6"
 int mtcp_max_fds;
-int current_core;
+__thread int current_core;
 /*
  * mTCP library initialization/close routine.
  *   1. try to override libc socket funtions
@@ -284,7 +284,6 @@ mtcp_wrapper_bind(int sock_fd, const struct sockaddr *sock_addr,
 {
 	struct mtcp_context mctx;
 
-	TRACE_ERROR("Binding to port (sock fd is: %d)\n\n\n", sock_fd);
 	mctx.cpu = current_core;
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(bind)(sock_fd, sock_addr, sock_addrlen);

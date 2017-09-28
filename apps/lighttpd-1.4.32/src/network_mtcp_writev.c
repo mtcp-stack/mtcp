@@ -82,7 +82,6 @@ network_write_chunkqueue_mtcp_writev(server *srv, connection *con, int fd, chunk
 					toSend = tc->mem->used - 1 - tc->offset;
 					
 					chunks[i].iov_base = offset;
-					
 					/* protect the return value of writev() */
 					if (toSend > max_bytes ||
 					    (off_t) num_bytes + toSend > max_bytes) {
@@ -372,7 +371,7 @@ int network_write_chunkqueue_mtcp_writev(server *srv, connection *con, int fd, c
 				return -1;
 			}
 #else
-			if ((r = mtcp_write(srv->mctx, fd, offset, toSend)) < 0) {
+			if ((r = write(fd, offset, toSend)) < 0) {
 				switch (errno) {
 				case EAGAIN:
 				case EINTR:
@@ -484,7 +483,7 @@ int network_write_chunkqueue_mtcp_writev(server *srv, connection *con, int fd, c
 				return -1;
 			}
 #else /* __WIN32 */
-			if ((r = mtcp_write(srv->mctx, fd, srv->tmp_buf->ptr, toSend)) < 0) {
+			if ((r = write(fd, srv->tmp_buf->ptr, toSend)) < 0) {
 				switch (errno) {
 				case EAGAIN:
 				case EINTR:

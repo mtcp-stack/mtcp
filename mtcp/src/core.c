@@ -57,7 +57,7 @@
 #define GBPS(bytes) (bytes * 8.0 / (1000 * 1000 * 1000))
 
 #ifdef USE_EVENT_FD
-extern int current_core;
+extern __thread int current_core;
 #endif
 /*----------------------------------------------------------------------------*/
 /* handlers for threads */

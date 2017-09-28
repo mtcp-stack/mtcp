@@ -304,7 +304,6 @@ AcceptConnection(struct thread_context *ctx, int listener)
 		TRACE_APP("New connection %d accepted.\n", c);
 		ev.events = EPOLLIN;
 		ev.data.fd = c;
-		//mtcp_setsock_nonblock(ctx->mctx, c);
 		epoll_ctl(ctx->ep, EPOLL_CTL_ADD, c, (struct epoll_event *)&ev);
 		TRACE_APP("Socket %d registered.\n", c);
 
@@ -382,15 +381,8 @@ CreateListeningSocket(struct thread_context *ctx)
 			    listener);
 		abort();
 		return -1;
-	} else
-		fprintf(stderr, "listener fd is: %u\n\n\n", listener);
-#if 0
-	ret = mtcp_setsock_nonblock(ctx->mctx, listener);
-	if (ret < 0) {
-		TRACE_ERROR("Failed to set socket in nonblocking mode.\n");
-		return -1;
-	}
-#endif
+	} 
+
 	/* bind to port 80 */
 	saddr.sin_family = AF_INET;
 	saddr.sin_addr.s_addr = INADDR_ANY;

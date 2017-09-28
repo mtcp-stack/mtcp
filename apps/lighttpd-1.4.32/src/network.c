@@ -232,14 +232,9 @@ network_server_init(server *srv, buffer *host_token, specific_config *s) {
 
 #ifdef USE_MTCP
 	srv_socket->addr.plain.sa_family = AF_INET;
-	srv_socket->fd = mtcp_socket(srv->mctx, AF_INET, SOCK_STREAM, 0);
+	srv_socket->fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (srv_socket->fd < 0) {
 		log_error_write(srv, __FILE__, __LINE__, "ss", "socket failed:", strerror(errno));
-		goto error_free_socket;
-	}
-	if (mtcp_setsock_nonblock(srv->mctx, srv_socket->fd) < 0) {
-		log_error_write(srv, __FILE__, __LINE__, "ss", 
-				"socket non-blocking operation failed:", strerror(errno));
 		goto error_free_socket;
 	}
 #endif
@@ -398,8 +393,8 @@ network_server_init(server *srv, buffer *host_token, specific_config *s) {
 	}
 
 #ifdef USE_MTCP
-	if (0 != mtcp_bind(srv->mctx, srv_socket->fd, 
-			   (struct sockaddr *) &(srv_socket->addr), addr_len)) {
+	if (0 != bind(srv_socket->fd, 
+		      (struct sockaddr *) &(srv_socket->addr), addr_len)) {	
 #else
 #ifdef REUSEPORT
 	  int port_reuse = 1;
@@ -426,7 +421,7 @@ network_server_init(server *srv, buffer *host_token, specific_config *s) {
 	}
 
 #ifdef USE_MTCP
-	if (-1 == mtcp_listen(srv->mctx, srv_socket->fd, srv->listen_backlog)) {
+	if (-1 == listen(srv_socket->fd, srv->listen_backlog)) {
 #else
 	if (-1 == listen(srv_socket->fd, 128 * 8)) {
 #endif
@@ -539,11 +534,7 @@ error_free_socket:
 			fdevent_event_del(srv->ev, &(srv_socket->fde_ndx), srv_socket->fd);
 			fdevent_unregister(srv->ev, srv_socket->fd);
 		}
-#ifdef USE_MTCP
-		mtcp_close(srv->mctx, srv_socket->fd);
-#else
 		close(srv_socket->fd);
-#endif
 	}
 	buffer_free(srv_socket->srv_token);
 	free(srv_socket);
@@ -565,11 +556,7 @@ network_close(server *srv) {
 				fdevent_event_del(srv->ev, &(srv_socket->fde_ndx), srv_socket->fd);
 				fdevent_unregister(srv->ev, srv_socket->fd);
 			}
-#ifdef HAVE_LIBMTCP
-			mtcp_close(srv->mctx, srv_socket->fd);
-#else
 			close(srv_socket->fd);
-#endif
 		}
 
 		buffer_free(srv_socket->srv_token);
@@ -940,7 +927,7 @@ network_init(server *srv) {
 #endif
 #ifdef USE_MTCP
 	case NETWORK_BACKEND_MTCP:
-	        srv->network_backend_write = network_write_chunkqueue_mtcp_writev;
+		srv->network_backend_write = network_write_chunkqueue_writev;
 		break;
 #endif
 	default:

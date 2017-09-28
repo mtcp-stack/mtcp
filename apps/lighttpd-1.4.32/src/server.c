@@ -432,7 +432,7 @@ initialize_fd_framework(server *srv)
 				"s", "fdevent_init failed");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	/*
 	 * kqueue() is called here, select resets its internals,
 	 * all server sockets get their handlers
@@ -487,7 +487,6 @@ i hope this does not work
 static inline void
 set_listen_backlog(server *srv)
 {
-	fprintf(stderr, "Applying listen_backlog: %d\n", srv->srvconf.listen_backlog);
 	srv->listen_backlog = srv->srvconf.listen_backlog;	
 }
 #endif
@@ -880,11 +879,7 @@ start_server(void *svrptr)
 						 *  */
 
 						fdevent_unregister(srv->ev, srv_socket->fd);
-#ifdef USE_MTCP
-						mtcp_close(srv->mctx, srv_socket->fd);
-#else
 						close(srv_socket->fd);
-#endif
 						srv_socket->fd = -1;
 
 						/* network_close() will cleanup after us */
@@ -1454,13 +1449,14 @@ main(int argc, char **argv) {
 
 			rlim.rlim_cur = srv->srvconf.max_fds;
 			rlim.rlim_max = srv->srvconf.max_fds;
-
+#if 0
 			if (0 != setrlimit(RLIMIT_NOFILE, &rlim)) {
 				log_error_write(srv, __FILE__, __LINE__,
 						"ss", "couldn't set 'max filedescriptors'",
 						strerror(errno));
 				return EXIT_FAILURE;
 			}
+#endif
 		}
 
 		if (srv->event_handler == FDEVENT_HANDLER_SELECT) {
@@ -1472,7 +1468,9 @@ main(int argc, char **argv) {
 		/* set core file rlimit, if enable_cores is set */
 		if (use_rlimit && srv->srvconf.enable_cores && getrlimit(RLIMIT_CORE, &rlim) == 0) {
 			rlim.rlim_cur = rlim.rlim_max;
+#if 0
 			setrlimit(RLIMIT_CORE, &rlim);
+#endif
 		}
 #endif
 		if (srv->event_handler == FDEVENT_HANDLER_SELECT) {
@@ -1532,13 +1530,14 @@ main(int argc, char **argv) {
 			/* set rlimits */
 
 			rlim.rlim_cur = srv->srvconf.max_fds;
-
+#if 0
 			if (0 != setrlimit(RLIMIT_NOFILE, &rlim)) {
 				log_error_write(srv, __FILE__, __LINE__,
 						"ss", "couldn't set 'max filedescriptors'",
 						strerror(errno));
 				return EXIT_FAILURE;
 			}
+#endif
 		}
 
 		if (srv->event_handler == FDEVENT_HANDLER_SELECT) {
@@ -1550,7 +1549,9 @@ main(int argc, char **argv) {
 		/* set core file rlimit, if enable_cores is set */
 		if (srv->srvconf.enable_cores && getrlimit(RLIMIT_CORE, &rlim) == 0) {
 			rlim.rlim_cur = rlim.rlim_max;
+#if 0
 			setrlimit(RLIMIT_CORE, &rlim);
+#endif
 		}
 
 #endif

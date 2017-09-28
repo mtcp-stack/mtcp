@@ -235,12 +235,6 @@ int
 fdevent_fcntl_set(fdevents *ev, int fd) 
 {
 #ifdef HAVE_LIBMTCP
-	/* Bailing out early, socket set as non-blocking */
-	if (mtcp_setsock_nonblock(ev->srv->mctx, fd) < 0) {
-		fprintf(stderr, "Failed to set socket (%d) in nonblocking mode.\n",
-			fd);
-		exit(EXIT_FAILURE);
-	}
 	return 0;
 #endif
 #ifdef FD_CLOEXEC

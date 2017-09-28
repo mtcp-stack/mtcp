@@ -133,11 +133,7 @@ int connection_close(server *srv, connection *con) {
 				"(warning) close:", con->fd, strerror(errno));
 	}
 #else
-#ifdef HAVE_LIBMTCP
-	if (mtcp_close(srv->mctx, con->fd)) {
-#else
 	if (close(con->fd)) {
-#endif
 		log_error_write(srv, __FILE__, __LINE__, "sds",
 				"(warning) close:", con->fd, strerror(errno));
 	}
@@ -359,9 +355,8 @@ static int connection_handle_read(server *srv, connection *con) {
 	len = recv(con->fd, b->ptr + read_offset, b->size - 1 - read_offset, 0);
 #else
 #ifdef HAVE_LIBMTCP
-	/* toread = MAX_READ_LIMIT; */
-	if (mtcp_socket_ioctl(srv->mctx, con->fd, FIONREAD, &toread) 
-	    || toread == 0 || toread <= 4*1024) {
+	toread = MAX_READ_LIMIT;
+	if (0) {
 #else
 	if (ioctl(con->fd, FIONREAD, &toread) || toread == 0 || toread <= 4*1024) {
 #endif
@@ -376,12 +371,7 @@ static int connection_handle_read(server *srv, connection *con) {
 	}
 
 	read_offset = (b->used == 0) ? 0 : b->used - 1;
-#ifdef HAVE_LIBMTCP
-	len = mtcp_read(srv->mctx, con->fd, b->ptr + read_offset, 
-			b->size - 1 - read_offset);
-#else
 	len = read(con->fd, b->ptr + read_offset, b->size - 1 - read_offset);
-#endif
 #endif
 
 	if (len < 0) {
@@ -1284,11 +1274,7 @@ static handler_t connection_handle_fdevent(server *srv, void *context, int reven
 		int len;
 		char buf[1024];
 
-#ifdef HAVE_LIBMTCP
-		len = mtcp_read(srv->mctx, con->fd, buf, sizeof(buf));
-#else
 		len = read(con->fd, buf, sizeof(buf));
-#endif
 		if (len == 0 || (len < 0 && errno != EAGAIN && errno != EINTR) ) {
 			con->close_timeout_ts = srv->cur_ts - (HTTP_LINGER_TIMEOUT+1);
 		}
@@ -1320,7 +1306,7 @@ connection *connection_accept(server *srv, server_socket *srv_socket) {
 	}
 
 #ifdef HAVE_LIBMTCP
-	if (-1 == (cnt = mtcp_accept(srv->mctx, srv_socket->fd, NULL, NULL))) {
+	if (-1 == (cnt = accept(srv_socket->fd, NULL, NULL))) {	
 #else
 	cnt_len = sizeof(cnt_addr);
 	if (-1 == (cnt = accept(srv_socket->fd, (struct sockaddr *) &cnt_addr, &cnt_len))) {
@@ -1655,11 +1641,8 @@ int connection_state_machine(server *srv, connection *con) {
 			{
 				int len;
 				char buf[1024];
-#ifdef HAVE_LIBMTCP
-				len = mtcp_read(srv->mctx, con->fd, buf, sizeof(buf));
-#else
+
 				len = read(con->fd, buf, sizeof(buf));
-#endif
 				if (len == 0 || (len < 0 && errno != EAGAIN && errno != EINTR) ) {
 					con->close_timeout_ts = srv->cur_ts - (HTTP_LINGER_TIMEOUT+1);
 				}

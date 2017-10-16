@@ -1030,9 +1030,13 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter, bool msix)
 		if (adapter->msix_entries) {
 			for (i = 0; i < numvecs; i++)
 				adapter->msix_entries[i].entry = i;
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
 			err = pci_enable_msix(pdev,
 			                      adapter->msix_entries, numvecs);
+#else
+			err = pci_enable_msix_exact(pdev,
+						    adapter->msix_entries, numvecs);
+#endif
 			if (err == 0)
 				break;
 		}

@@ -5734,16 +5734,30 @@ exit:
 
 #ifdef NETIF_F_HW_TC
 #ifdef I40E_FCOE
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 int __i40e_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 		    struct tc_to_netdev *tc)
 #else
+int __i40e_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
+		    __be16 proto, struct tc_to_netdev *tc)  
+#endif
+#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)  
 static int __i40e_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 			   struct tc_to_netdev *tc)
+#else
+static int __i40e_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
+			   __be16 proto, struct tc_to_netdev *tc)  
+#endif
 #endif
 {
 	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)	
 	return i40e_setup_tc(netdev, tc->tc);
+#else
+	return i40e_setup_tc(netdev, tc->mqprio->num_tc);	
+#endif
 }
 #endif /* NETIF_F_HW_TC */
 #endif /* HAVE_SETUP_TC */

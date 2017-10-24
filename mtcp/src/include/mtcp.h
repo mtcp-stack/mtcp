@@ -32,8 +32,6 @@
 #define ERROR (-1)
 #endif
 
-#define MAX_CPUS 16
-
 #define ETHERNET_HEADER_LEN		14	// sizeof(struct ethhdr)
 #define IP_HEADER_LEN			20	// sizeof(struct iphdr)
 #define TCP_HEADER_LEN			20	// sizeof(struct tcphdr)
@@ -55,6 +53,9 @@
 /* blocking api became obsolete */
 #define BLOCKING_SUPPORT	FALSE
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 /* Statistics */
 #ifdef NETSTAT
@@ -83,6 +84,14 @@
 #define SBUF_LOCK(lock)			pthread_mutex_lock(lock)
 #define SBUF_UNLOCK(lock)		pthread_mutex_unlock(lock)
 #endif /* USE_SPIN_LOCK */
+
+/* add macro if it is not defined in /usr/include/sys/queue.h */
+#ifndef TAILQ_FOREACH_SAFE
+#define TAILQ_FOREACH_SAFE(var, head, field, tvar)                      \
+	for ((var) = TAILQ_FIRST((head));                               \
+	     (var) && ((tvar) = TAILQ_NEXT((var), field), 1);		\
+	     (var) = (tvar))
+#endif
 /*----------------------------------------------------------------------------*/
 struct eth_table
 {
@@ -126,6 +135,7 @@ struct mtcp_config
 
 	/* network interface config */
 	struct eth_table *eths;
+	int *nif_to_eidx; // mapping physic port indexes to that of the configured port-list
 	int eths_num;
 
 	/* route config */
@@ -139,14 +149,6 @@ struct mtcp_config
 	int num_mem_ch;
 	int max_concurrency;
 
-	/* dpdk args */
-	char * core_list;
-
-	/* onvm args */
-	uint16_t service_id;
-	uint16_t instance_id;
-	uint16_t dest_id;
-
 	int max_num_buffers;
 	int rcvbuf_size;
 	int sndbuf_size;
@@ -158,6 +160,13 @@ struct mtcp_config
 	uint8_t multi_process;
 	uint8_t multi_process_is_master;
 	uint8_t multi_process_curr_core;
+
+#ifdef ENABLE_ONVM
+	/* onvm specific args */
+	uint16_t onvm_serv;
+  	uint16_t onvm_inst;
+  	uint16_t onvm_dest;
+#endif
 };
 /*----------------------------------------------------------------------------*/
 struct mtcp_context

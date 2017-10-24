@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "mtcp.h"
 #include "config.h"
@@ -28,6 +29,29 @@ static const char *arp_file = "config/arp.conf";
 struct mtcp_manager *g_mtcp[MAX_CPUS] = {NULL};
 struct mtcp_config CONFIG = {0};
 addr_pool_t ap[ETH_NUM] = {NULL};
+/*----------------------------------------------------------------------------*/
+static inline int
+mystrtol(const char *nptr, int base)
+{
+	int rval;
+	char *endptr;
+
+	errno = 0;
+	rval = strtol(nptr, &endptr, 10);
+	/* check for strtol errors */
+	if ((errno == ERANGE && (rval == LONG_MAX ||
+				 rval == LONG_MIN))
+	    || (errno != 0 && rval == 0)) {
+		perror("strtol");
+		exit(EXIT_FAILURE);
+	}
+	if (endptr == nptr) {
+		TRACE_CONFIG("Parsing strtol error!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	return rval;
+}
 /*----------------------------------------------------------------------------*/
 static int 
 GetIntValue(char* value)
@@ -66,6 +90,7 @@ EnrollRouteTableEntry(char *optstr)
 	int i;
 	char * saveptr;
 
+	saveptr = NULL;
 	daddr_s = strtok_r(optstr, "/", &saveptr);
 	prefix = strtok_r(NULL, " ", &saveptr);
 	dev = strtok_r(NULL, "\n", &saveptr);
@@ -88,7 +113,8 @@ EnrollRouteTableEntry(char *optstr)
 			TRACE_CONFIG("Interface %s does not exist!\n", dev);
 			exit(4);
 		}
-	} else if (current_iomodule_func == &dpdk_module_func) {
+	} else if (current_iomodule_func == &dpdk_module_func ||
+		   current_iomodule_func == &onvm_module_func) {
 		for (i = 0; i < num_devices; i++) {
 			if (strcmp(CONFIG.eths[i].dev_name, dev))
 				continue;
@@ -99,7 +125,7 @@ EnrollRouteTableEntry(char *optstr)
 
 	ridx = CONFIG.routes++;
 	CONFIG.rtable[ridx].daddr = inet_addr(daddr_s);
-	CONFIG.rtable[ridx].prefix = atoi(prefix);
+	CONFIG.rtable[ridx].prefix = mystrtol(prefix, 10);
 	if (CONFIG.rtable[ridx].prefix > 32 || CONFIG.rtable[ridx].prefix < 0) {
 		TRACE_CONFIG("Prefix length should be between 0 - 32.\n");
 		exit(4);
@@ -200,6 +226,7 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str)
 	unsigned int temp;
 	char *saveptr = NULL;
 
+	saveptr = NULL;
 	str = strtok_r(haddr_str, ":", &saveptr);
 	i = 0;
 	while (str != NULL) {
@@ -207,7 +234,10 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str)
 			TRACE_CONFIG("MAC address length exceeds %d!\n", ETH_ALEN);
 			exit(4);
 		}
-		sscanf(str, "%x", &temp);
+		if (sscanf(str, "%x", &temp) < 1) {
+			TRACE_CONFIG("sscanf failed!\n");
+			exit(4);
+		}
 		haddr[i++] = temp;
 		str = strtok_r(NULL, ":", &saveptr);
 	}
@@ -315,7 +345,8 @@ EnrollARPTableEntry(char *optstr)
 	int idx;
 
 	char *saveptr;
-
+	
+	saveptr = NULL;
 	dip_s = strtok_r(optstr, "/", &saveptr);
 	prefix_s = strtok_r(NULL, " ", &saveptr);
 	daddr_s = strtok_r(NULL, "\n", &saveptr);
@@ -327,7 +358,7 @@ EnrollARPTableEntry(char *optstr)
 	if (prefix_s == NULL)
 		prefix = 32;
 	else
-		prefix = atoi(prefix_s);
+		prefix = mystrtol(prefix_s, 10);
 
 	if (prefix > 32 || prefix < 0) {
 		TRACE_CONFIG("Prefix length should be between 0 - 32.\n");
@@ -438,12 +469,13 @@ SetMultiProcessSupport(char *multiprocess_details)
 
 	TRACE_CONFIG("Loading multi-process configuration\n");
 
+	saveptr = NULL;
 	sample = strtok_r(multiprocess_details, token, &saveptr);
 	if (sample == NULL) {
 		TRACE_CONFIG("No option for multi-process support given!\n");
 		return -1;
 	}
-	CONFIG.multi_process_curr_core = atoi(sample);
+	CONFIG.multi_process_curr_core = mystrtol(sample, 10);
 	
 	sample = strtok_r(NULL, token, &saveptr);
 	if (sample != NULL && !strcmp(sample, "master"))
@@ -461,6 +493,7 @@ ParseConfiguration(char *line)
 	char *saveptr;
 
 	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
+	saveptr = NULL;
 
 	p = strtok_r(optstr, " \t=", &saveptr);
 	if (p == NULL) {
@@ -475,7 +508,7 @@ ParseConfiguration(char *line)
 	}
 
 	if (strcmp(p, "num_cores") == 0) {
-		CONFIG.num_cores = atoi(q);
+		CONFIG.num_cores = mystrtol(q, 10);
 		if (CONFIG.num_cores <= 0) {
 			TRACE_CONFIG("Number of cores should be larger than 0.\n");
 			return -1;
@@ -487,36 +520,36 @@ ParseConfiguration(char *line)
 		}
 		num_cpus = CONFIG.num_cores;
 	} else if (strcmp(p, "max_concurrency") == 0) {
-		CONFIG.max_concurrency = atoi(q);
+		CONFIG.max_concurrency = mystrtol(q, 10);
 		if (CONFIG.max_concurrency < 0) {
 			TRACE_CONFIG("The maximum concurrency should be larger than 0.\n");
 			return -1;
 		}
 	} else if (strcmp(p, "max_num_buffers") == 0) {
-		CONFIG.max_num_buffers = atoi(q);
+		CONFIG.max_num_buffers = mystrtol(q, 10);
 		if (CONFIG.max_num_buffers < 0) {
 			TRACE_CONFIG("The maximum # buffers should be larger than 0.\n");
 			return -1;
 		}
 	} else if (strcmp(p, "rcvbuf") == 0) {
-		CONFIG.rcvbuf_size = atoi(q);
+		CONFIG.rcvbuf_size = mystrtol(q, 10);
 		if (CONFIG.rcvbuf_size < 64) {
 			TRACE_CONFIG("Receive buffer size should be larger than 64.\n");
 			return -1;
 		}
 	} else if (strcmp(p, "sndbuf") == 0) {
-		CONFIG.sndbuf_size = atoi(q);
+		CONFIG.sndbuf_size = mystrtol(q, 10);
 		if (CONFIG.sndbuf_size < 64) {
 			TRACE_CONFIG("Send buffer size should be larger than 64.\n");
 			return -1;
 		}
 	} else if (strcmp(p, "tcp_timeout") == 0) {
-		CONFIG.tcp_timeout = atoi(q);
+		CONFIG.tcp_timeout = mystrtol(q, 10);
 		if (CONFIG.tcp_timeout > 0) {
 			CONFIG.tcp_timeout = SEC_TO_USEC(CONFIG.tcp_timeout) / TIME_TICK;
 		}
 	} else if (strcmp(p, "tcp_timewait") == 0) {
-		CONFIG.tcp_timewait = atoi(q);
+		CONFIG.tcp_timewait = mystrtol(q, 10);
 		if (CONFIG.tcp_timewait > 0) {
 			CONFIG.tcp_timewait = SEC_TO_USEC(CONFIG.tcp_timewait) / TIME_TICK;
 		}
@@ -537,7 +570,15 @@ ParseConfiguration(char *line)
 	} else if (strcmp(p, "io") == 0) {
 		AssignIOModule(q);
 	} else if (strcmp(p, "num_mem_ch") == 0) {
-		CONFIG.num_mem_ch = atoi(q);
+		CONFIG.num_mem_ch = mystrtol(q, 10);
+#ifdef ENABLE_ONVM
+	} else if (strcmp(p, "onvm_inst") == 0) {
+		CONFIG.onvm_inst = mystrtol(q, 10);
+	} else if (strcmp(p, "onvm_serv") == 0) {
+		CONFIG.onvm_serv = mystrtol(q, 10);
+	} else if (strcmp(p, "onvm_dest") == 0) {
+		CONFIG.onvm_dest = mystrtol(q, 10);
+#endif
 	} else if (strcmp(p, "multiprocess") == 0) {
 		CONFIG.multi_process = 1;
 		SetMultiProcessSupport(line + strlen(p) + 1);
@@ -575,7 +616,11 @@ LoadConfiguration(const char *fname)
 	CONFIG.tcp_timeout = TCP_TIMEOUT;
 	CONFIG.tcp_timewait = TCP_TIMEWAIT;
 	CONFIG.num_mem_ch = 0;
-
+#ifdef ENABLE_ONVM
+  	CONFIG.onvm_inst = (uint16_t) -1;
+  	CONFIG.onvm_dest = (uint16_t) -1;
+  	CONFIG.onvm_serv = (uint16_t) -1;
+#endif
 	while (1) {
 		char *p;
 		char *temp;
@@ -597,8 +642,10 @@ LoadConfiguration(const char *fname)
 		if (*p == 0) /* nothing more to process? */
 			continue;
 
-		if (ParseConfiguration(p) < 0)
+		if (ParseConfiguration(p) < 0) {
+			fclose(fp);
 			return -1;
+		}
 	}
 
 	fclose(fp);
@@ -637,9 +684,6 @@ PrintConfiguration()
 	}
 	TRACE_CONFIG("TCP timewait seconds: %d\n", 
 			USEC_TO_SEC(CONFIG.tcp_timewait * TIME_TICK));
-	TRACE_CONFIG("Instance ID: %d\n", CONFIG.instance_id);
-	TRACE_CONFIG("Service ID: %d\n", CONFIG.service_id);
-	TRACE_CONFIG("Destination ID: %d\n", CONFIG.dest_id);
 	TRACE_CONFIG("NICs to print statistics:");
 	for (i = 0; i < CONFIG.eths_num; i++) {
 		if (CONFIG.eths[i].stat_print) {

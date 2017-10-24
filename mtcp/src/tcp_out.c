@@ -365,6 +365,7 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 	int16_t sndlen;
 	uint32_t window;
 	int packets = 0;
+	uint8_t wack_sent = 0;
 
 	if (!sndvar->sndbuf) {
 		TRACE_ERROR("Stream %d: No send buffer available.\n", cur_stream->id);
@@ -410,6 +411,9 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 			len = buffered_len;
 		}
 		
+		if (len > window)
+			len = window;
+
 		if (len <= 0)
 			break;
 
@@ -426,9 +430,11 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 						"peer_wnd: %u, (snd_nxt-snd_una): %u\n", 
 						sndvar->peer_wnd, seq - sndvar->snd_una);
 #endif
-				if (TS_TO_MSEC(cur_ts - sndvar->ts_lastack_sent) > 500) {
+				if (!wack_sent && TS_TO_MSEC(cur_ts - sndvar->ts_lastack_sent) > 500) {
 					EnqueueACK(mtcp, cur_stream, cur_ts, ACK_OPT_WACK);
 				}
+				else
+					wack_sent = 1;
 			}
 			packets = -3;
 			goto out;
@@ -441,6 +447,8 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 			goto out;
 		}
 		packets++;
+
+		window -= len;
 	}
 
  out:
@@ -790,14 +798,15 @@ GetSender(mtcp_manager_t mtcp, tcp_stream *cur_stream)
 {
 	if (cur_stream->sndvar->nif_out < 0) {
 		return mtcp->g_sender;
+	}
 
-	} else if (cur_stream->sndvar->nif_out >= CONFIG.eths_num) {
+	int eidx = CONFIG.nif_to_eidx[cur_stream->sndvar->nif_out];
+	if (eidx < 0 || eidx >= CONFIG.eths_num) {
 		TRACE_ERROR("(NEVER HAPPEN) Failed to find appropriate sender.\n");
 		return NULL;
-
-	} else {
-		return mtcp->n_sender[cur_stream->sndvar->nif_out];
 	}
+
+	return mtcp->n_sender[eidx];
 }
 /*----------------------------------------------------------------------------*/
 inline void 

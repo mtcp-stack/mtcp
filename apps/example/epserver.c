@@ -14,12 +14,14 @@
 #include <time.h>
 #include <pthread.h>
 #include <signal.h>
+#include <limits.h>
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
 
 #include "cpu.h"
 #include "http_parsing.h"
+#include "netlib.h"
 #include "debug.h"
 
 #define MAX_FLOW_NUM  (10000)
@@ -32,11 +34,10 @@
 #define HTTP_HEADER_LEN 1024
 #define URL_LEN 128
 
-#define MAX_CPUS 16
 #define MAX_FILES 30
 
-#define MAX(a, b) ((a)>(b)?(a):(b))
-#define MIN(a, b) ((a)<(b)?(a):(b))
+#define NAME_LIMIT 128
+#define FULLNAME_LIMIT 256
 
 #ifndef TRUE
 #define TRUE (1)
@@ -52,11 +53,14 @@
 
 #define HT_SUPPORT FALSE
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 struct file_cache
 {
-	char name[128];
-	char fullname[256];
+	char name[NAME_LIMIT];
+	char fullname[FULLNAME_LIMIT];
 	uint64_t size;
 	char *file;
 };
@@ -72,7 +76,7 @@ struct server_vars
 	uint8_t keep_alive;
 
 	int fidx;						// file cache index
-	char fname[128];				// file name
+	char fname[NAME_LIMIT];				// file name
 	long int fsize;					// file size
 };
 /*----------------------------------------------------------------------------*/
@@ -88,6 +92,7 @@ static int core_limit;
 static pthread_t app_thread[MAX_CPUS];
 static int done[MAX_CPUS];
 static char *conf_file = NULL;
+static int backlog = -1;
 /*----------------------------------------------------------------------------*/
 const char *www_main;
 static struct file_cache fcache[MAX_FILES];
@@ -332,12 +337,15 @@ InitializeServerThread(int core)
 	ctx->mctx = mtcp_create_context(core);
 	if (!ctx->mctx) {
 		TRACE_ERROR("Failed to create mtcp context!\n");
+		free(ctx);
 		return NULL;
 	}
 
 	/* create epoll descriptor */
 	ctx->ep = mtcp_epoll_create(ctx->mctx, MAX_EVENTS);
 	if (ctx->ep < 0) {
+		mtcp_destroy_context(ctx->mctx);
+		free(ctx);
 		TRACE_ERROR("Failed to create epoll descriptor!\n");
 		return NULL;
 	}
@@ -346,6 +354,9 @@ InitializeServerThread(int core)
 	ctx->svars = (struct server_vars *)
 			calloc(MAX_FLOW_NUM, sizeof(struct server_vars));
 	if (!ctx->svars) {
+		mtcp_close(ctx->mctx, ctx->ep);
+		mtcp_destroy_context(ctx->mctx);
+		free(ctx);
 		TRACE_ERROR("Failed to create server_vars struct!\n");
 		return NULL;
 	}
@@ -384,8 +395,8 @@ CreateListeningSocket(struct thread_context *ctx)
 		return -1;
 	}
 
-	/* listen (backlog: 4K) */
-	ret = mtcp_listen(ctx->mctx, listener, 4096);
+	/* listen (backlog: can be configured) */
+	ret = mtcp_listen(ctx->mctx, listener, backlog);
 	if (ret < 0) {
 		TRACE_ERROR("mtcp_listen() failed!\n");
 		return -1;
@@ -537,15 +548,13 @@ static void
 printHelp(const char *prog_name)
 {
 	TRACE_CONFIG("%s -p <path_to_www/> -f <mtcp_conf_file> "
-		     "[-N num_cores] [-c <core_list>] [-h] "
-		     "-- [-n onvm_instance_id] [-r onvm_service_id] "
-		     "[-d onvm_dest_id]\n",
+		     "[-N num_cores] [-c <per-process core_id>] [-h]\n",
 		     prog_name);
 	exit(EXIT_SUCCESS);
 }
 /*----------------------------------------------------------------------------*/
 int 
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
 	DIR *dir;
 	struct dirent *ent;
@@ -553,26 +562,21 @@ main(int argc, char *argv[])
 	int ret;
 	uint64_t total_read;
 	struct mtcp_conf mcfg;
-	int core_list[MAX_CPUS];
+	int cores[MAX_CPUS];
 	int process_cpu;
-	int o;
-	int i, val;
-	char *core_list_tokens;
-	
+	int i, o;
+
 	num_cores = GetNumCPUs();
 	core_limit = num_cores;
 	process_cpu = -1;
 	dir = NULL;
-	i = 0;
 
 	if (argc < 2) {
 		TRACE_CONFIG("$%s directory_to_service\n", argv[0]);
 		return FALSE;
 	}
 
-	mtcp_getconf(&mcfg);
-
-	while (-1 != (o = getopt(argc, argv, "N:f:p:c:h"))) {
+	while (-1 != (o = getopt(argc, argv, "N:f:p:c:b:h"))) {
 		switch (o) {
 		case 'p':
 			/* open the directory to serve */
@@ -585,15 +589,10 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'N':
-			core_limit = atoi(optarg);
+			core_limit = mystrtol(optarg, 10);
 			if (core_limit > num_cores) {
 				TRACE_CONFIG("CPU limit should be smaller than the "
 					     "number of CPUs: %d\n", num_cores);
-				return FALSE;
-			}
-			if (core_limit != 1) {
-				TRACE_CONFIG("Multi core is currently NOT supported, "
-					     "use -N 1\n");
 				return FALSE;
 			}
 			/** 
@@ -601,43 +600,29 @@ main(int argc, char *argv[])
 			 * before mtcp_init() is called. You can
 			 * not set core_limit after mtcp_init()
 			 */
+			mtcp_getconf(&mcfg);
 			mcfg.num_cores = core_limit;
+			mtcp_setconf(&mcfg);
 			break;
 		case 'f':
 			conf_file = optarg;
 			break;
 		case 'c':
-			mcfg.core_list = optarg;
+			process_cpu = mystrtol(optarg, 10);
+			if (process_cpu > core_limit) {
+				TRACE_CONFIG("Starting CPU is way off limits!\n");
+				return FALSE;
+			}
+			break;
+		case 'b':
+			backlog = mystrtol(optarg, 10);
 			break;
 		case 'h':
 			printHelp(argv[0]);
 			break;
-		} 
-	}
-
-	mtcp_setconf(&mcfg);
-
-	/* Modify argc/argv to correctly pass arguments to mtcp_parse_args */
-	argv += optind-1;
-	argc -= optind-1;
- 
-	/* Check core_list was passed */
-	if (mcfg.core_list == NULL){
-		TRACE_CONFIG("You did not pass a valid core_list!\n");
-		exit(EXIT_FAILURE);
-	}
-	core_list_tokens = malloc(sizeof(char) * strlen(mcfg.core_list));
-	strcpy(core_list_tokens, mcfg.core_list);
-	if (core_list_tokens == NULL){
-		perror("core_list_tokens malloc");
+		}
 	}
 	
-	while (core_list_tokens !=NULL){
-		val = atoi(core_list_tokens);
-		core_list[i++]=val;
-		core_list_tokens = strtok(NULL, ",");
-	}
-	       
 	if (dir == NULL) {
 		TRACE_CONFIG("You did not pass a valid www_path!\n");
 		exit(EXIT_FAILURE);
@@ -650,8 +635,9 @@ main(int argc, char *argv[])
 		else if (strcmp(ent->d_name, "..") == 0)
 			continue;
 
-		strcpy(fcache[nfiles].name, ent->d_name);
-		sprintf(fcache[nfiles].fullname, "%s/%s", www_main, ent->d_name);
+		snprintf(fcache[nfiles].name, NAME_LIMIT, "%s", ent->d_name);
+		snprintf(fcache[nfiles].fullname, FULLNAME_LIMIT, "%s/%s",
+			 www_main, ent->d_name);
 		fd = open(fcache[nfiles].fullname, O_RDONLY);
 		if (fd < 0) {
 			perror("open");
@@ -701,22 +687,34 @@ main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	ret = mtcp_init(conf_file, argc, argv);
+	ret = mtcp_init(conf_file);
 	if (ret) {
 		TRACE_CONFIG("Failed to initialize mtcp\n");
 		exit(EXIT_FAILURE);
 	}
 
+	mtcp_getconf(&mcfg);
+	if (backlog > mcfg.max_concurrency) {
+		TRACE_CONFIG("backlog can not be set larger than CONFIG.max_concurrency\n");
+		return FALSE;
+	}
+
+	/* if backlog is not specified, set it to 4K */
+	if (backlog == -1) {
+		backlog = 4096;
+	}
+	
 	/* register signal handler to mtcp */
 	mtcp_register_signal(SIGINT, SignalHandler);
 
 	TRACE_INFO("Application initialization finished.\n");
-	
-	for (i = 0; i < core_limit; i++) {
-		done[core_list[i]] = FALSE;
+
+	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
+		cores[i] = i;
+		done[i] = FALSE;
 		
-		if (pthread_create(&app_thread[core_list[i]], 
-				   NULL, RunServerThread, (void *)&core_list[i])) {
+		if (pthread_create(&app_thread[i], 
+				   NULL, RunServerThread, (void *)&cores[i])) {
 			perror("pthread_create");
 			TRACE_CONFIG("Failed to create server thread.\n");
 				exit(EXIT_FAILURE);
@@ -725,8 +723,8 @@ main(int argc, char *argv[])
 			break;
 	}
 	
-	for (i = 0; i < core_limit; i++) {
-		pthread_join(app_thread[core_list[i]], NULL);
+	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
+		pthread_join(app_thread[i], NULL);
 
 		if (process_cpu != -1)
 			break;

@@ -9,7 +9,6 @@ inline int
 GetOutputInterface(uint32_t daddr)
 {
 	int nif = -1;
-	int nif_index = -1;
 	int i;
 	int prefix = 0;
 
@@ -30,22 +29,7 @@ GetOutputInterface(uint32_t daddr)
 		assert(0);
 	}
 	
-	/* match nif to eth nif_index */
-	for (i = 0; i < CONFIG.eths_num; i++) {
-		if (CONFIG.eths[i].ifindex == nif) {
-			nif_index = i;
-			break;
-		}
-	}
-
-	if (nif_index < 0) {
-		uint8_t *da = (uint8_t *)&daddr;
-		TRACE_ERROR("[WARNING] No eth id for route to %u.%u.%u.%u\n", 
-				da[0], da[1], da[2], da[3]);
-		assert(0);
-	}
-	
-	return nif_index;
+	return nif;
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
@@ -92,8 +76,16 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 	iph->check = 0;
 
 #ifndef DISABLE_HWCSUM	
-	if (mtcp->iom->dev_ioctl != NULL)
-		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+        if (mtcp->iom->dev_ioctl != NULL) {
+		switch(iph->protocol) {
+		case IPPROTO_TCP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+			break;
+		case IPPROTO_ICMP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_IP_CSUM, iph);
+			break;
+		}
+	}
 	/* otherwise calculate IP checksum in S/W */
 	if (rc == -1)
 		iph->check = ip_fast_csum(iph, iph->ihl);
@@ -154,8 +146,16 @@ IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 
 #ifndef DISABLE_HWCSUM
 	/* offload IP checkum if possible */
-	if (mtcp->iom->dev_ioctl != NULL)
-		rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+        if (mtcp->iom->dev_ioctl != NULL) {
+		switch (iph->protocol) {
+		case IPPROTO_TCP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_TCPIP_CSUM_PEEK, iph);
+			break;
+		case IPPROTO_ICMP:
+			rc = mtcp->iom->dev_ioctl(mtcp->ctx, nif, PKT_TX_IP_CSUM, iph);
+			break;
+		}
+	}
 	/* otherwise calculate IP checksum in S/W */
 	if (rc == -1)
 		iph->check = ip_fast_csum(iph, iph->ihl);

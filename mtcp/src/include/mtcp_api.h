@@ -36,8 +36,6 @@ struct mtcp_conf
 	int rcvbuf_size;
 	int sndbuf_size;
 
-	char * core_list;
-
 	int tcp_timewait;
 	int tcp_timeout;
 };
@@ -45,7 +43,7 @@ struct mtcp_conf
 typedef struct mtcp_context *mctx_t;
 
 int 
-mtcp_init(const char *config_file, int argc, char *argv[]);
+mtcp_init(const char *config_file);
 
 void 
 mtcp_destroy();
@@ -55,9 +53,6 @@ mtcp_getconf(struct mtcp_conf *conf);
 
 int 
 mtcp_setconf(const struct mtcp_conf *conf);
-
-int
-mtcp_parse_args(int argc, char *argv[]);
 
 int 
 mtcp_core_affinitize(int cpu);

@@ -31,6 +31,7 @@ int GetNumCPUCores(void);
 int AffinitizeThreadToCore(int core);
 int CreateServerSocket(int port, int isNonBlocking);
 int CreateConnectionSocket(in_addr_t addr, int port, int isNonBlocking);
+int mystrtol(const char *nptr, int base);
 
 /* processing options */
 struct Options {

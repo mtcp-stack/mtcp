@@ -1,6 +1,6 @@
 /* for io_module_func def'ns */
 #include "io_module.h"
-#ifndef DISABLE_DPDK
+#ifdef ENABLE_ONVM
 /* for mtcp related def'ns */
 #include "mtcp.h"
 /* for errno */
@@ -216,13 +216,13 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 			
 		for(i=0;i<cnt;i++){
 			meta = onvm_get_pkt_meta(pkts[i]);
-			if (CONFIG.dest_id == (uint16_t) -1){
+			if (CONFIG.onvm_dest == (uint16_t) -1){
 				meta->action = ONVM_NF_ACTION_OUT;
 				meta->destination = CONFIG.eths[nif].ifindex;
 			}
 			else {
 				meta->action = ONVM_NF_ACTION_TONF;
-				meta->destination = CONFIG.dest_id;
+				meta->destination = CONFIG.onvm_dest;
 			}
 		}
 		ret = rte_ring_enqueue_bulk(tx_ring, (void * const*)pkts ,cnt);
@@ -529,4 +529,4 @@ io_module_func onvm_module_func = {
 	.dev_ioctl		   = NULL
 };
 /*----------------------------------------------------------------------------*/
-#endif /* !DISABLE_DPDK */
+#endif /* ENABLE_ONVM */

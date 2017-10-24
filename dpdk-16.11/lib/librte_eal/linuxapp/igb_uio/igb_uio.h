@@ -32,8 +32,13 @@
 #include <linux/rtnetlink.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+
 #include "../kni/ethtool/ixgbe/ixgbe_type.h"
 #include "../kni/ethtool/igb/e1000_hw.h"
+#include <linux/hashtable.h>
+#include "i40e/i40e_type.h"
+#include "i40e/i40e_prototype.h"
+#include "i40e/i40e.h"
 #ifdef CONFIG_XEN_DOM0
 #include <xen/xen.h>
 #endif
@@ -44,10 +49,35 @@
  * struct to hold adapter-specific parameters 
  * it currently supports Intel 1/10 Gbps adapters
  */
-enum dev_type {IXGBE, IGB};
+enum dev_type {IXGBE, IGB, I40E};
 /*----------------------------------------------------------------------------*/
-/* list of 1 Gbps cards */
+/* list of 1 Gbps controllers */
 static struct pci_device_id e1000_pci_tbl[] = {
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82540EM)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82545EM_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82545EM_FIBER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82546EB_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82546EB_FIBER)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82546EB_QUAD_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_FIBER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES_DUAL)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_SERDES_QUAD)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571PT_QUAD_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_FIBER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82571EB_QUAD_COPPER_LP)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_FIBER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI_SERDES)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82572EI)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82573L)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82574L)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82574LA)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_FIBER_SERDES)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_82575GB_QUAD_COPPER)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82576)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_FIBER)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES)},
@@ -56,20 +86,17 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_NS)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_NS_SERDES)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES_QUAD)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_COPPER)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_FIBER_SERDES)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82575GB_QUAD_COPPER)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_COPPER)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_FIBER)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_SERDES)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_SGMII)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_COPPER_DUAL)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82580_QUAD_FIBER)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_COPPER)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_FIBER)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SERDES)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SGMII)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_DA4)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_82583V)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SGMII)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SERDES)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_BACKPLANE)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SFP)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER_OEM1)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER_IT)},
@@ -79,18 +106,28 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_COPPER_FLASHLESS)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I210_SERDES_FLASHLESS)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I211_COPPER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_COPPER)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_DA4)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_FIBER)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SERDES)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_SGMII)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I354_BACKPLANE_1GBPS)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I354_SGMII)},
 	{PCI_VDEVICE(INTEL, E1000_DEV_ID_I354_BACKPLANE_2_5GBPS)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SGMII)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SERDES)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_BACKPLANE)},
-	{PCI_VDEVICE(INTEL, E1000_DEV_ID_DH89XXCC_SFP)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_LM)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_LM)},
+	{PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_V)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM2)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V2)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM3)},
+        {PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V3)},
 	/* required last entry */
 	{0,}
 };
 /*----------------------------------------------------------------------------*/
-static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
+/* list of 10 Gbps controllers */
+static struct pci_device_id ixgbe_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598_BX)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82598AF_DUAL_PORT)},
@@ -109,9 +146,11 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE)},
 	{PCI_VDEVICE(INTEL, IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_CX4)},
+        {PCI_VDEVICE(INTEL, IXGBE_SUBDEV_ID_82599_RNDC)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP)},
 	{PCI_VDEVICE(INTEL, IXGBE_SUBDEV_ID_82599_SFP)},
 	{PCI_VDEVICE(INTEL, IXGBE_SUBDEV_ID_82599_560FLR)},
+        {PCI_VDEVICE(INTEL, IXGBE_SUBDEV_ID_82599_ECNA_DP)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_BACKPLANE_FCOE)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_FCOE)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_EM)},
@@ -122,9 +161,48 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_T3_LOM)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS)},
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T1)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_SFP)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_10G_T)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_1G_T)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550T1)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_KR)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_KR_L)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP_N)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SGMII_L)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_10G_T)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_QSFP)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_QSFP_N)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_SFP)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_1G_T)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_A_1G_T_L)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KX4)},
+        {PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_KR)},
 	/* required last entry */
 	{0, }
 };
+
+/* list of 40 Gbps controllers */
+static struct pci_device_id i40e_pci_tbl[] = {
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T4)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2_A)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_25G_B)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_25G_SFP28)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_B)},
+        {PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_C)},
+        {PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU)},
+        {PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C)},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710)},
+	/* required last entry */
+	{0, }
+};
+#define I40E_MAX_CSR_SPACE		(4 * 1024 * 1024 - 64 * 1024)
 /*----------------------------------------------------------------------------*/
 /**
  * net adapter private struct 
@@ -136,6 +214,7 @@ struct net_adapter {
 	union {
 		struct ixgbe_hw _ixgbe_hw;
 		struct e1000_hw _e1000_hw;
+		struct i40e_hw _i40e_hw;
 	} hw;
 	u16 bd_number;
 	bool netdev_registered;
@@ -154,8 +233,8 @@ struct stats_struct {
 	uint8_t dev;
 };
 /* max qid */
-#define MAX_QID			16
-#define MAX_DEVICES		16
+#define MAX_QID			128
+#define MAX_DEVICES		128
 /* ioctl# */
 #define SEND_STATS		 0
 /* major number */
@@ -406,6 +485,7 @@ retrieve_dev_addr(struct net_device *netdev, struct net_adapter *adapter)
 {
 	struct ixgbe_hw *hw_i;
 	struct e1000_hw *hw_e;
+	struct i40e_hw *hw_i4;
 	u32 rar_high;
 	u32 rar_low;
 	u16 i;
@@ -433,6 +513,22 @@ retrieve_dev_addr(struct net_device *netdev, struct net_adapter *adapter)
 		for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
 			netdev->dev_addr[i+4] = (u8)(rar_high >> (i*8));
 		break;
+	case I40E:
+		hw_i4 = &adapter->hw._i40e_hw;
+		(void) hw_i4;
+#if 0
+		rar_high = E1000_READ_REG(hw_e, E1000_RAH(0));
+		rar_low = E1000_READ_REG(hw_e, E1000_RAL(0));
+		
+		for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+			netdev->dev_addr[i] = (u8)(rar_low >> (i*8));
+
+		for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+			netdev->dev_addr[i+4] = (u8)(rar_high >> (i*8));
+#else
+		memcpy(netdev->dev_addr, hw_i4->mac.addr, ETH_ALEN);
+#endif
+		break;		
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -464,6 +560,15 @@ retrieve_dev_specs(const struct pci_device_id *id)
 		}
 			
 	}
+
+	no_of_elements = sizeof(i40e_pci_tbl)/sizeof(struct pci_device_id);
+	for (i = 0; i < no_of_elements; i++) {
+		if (i40e_pci_tbl[i].vendor == id->vendor &&
+		    i40e_pci_tbl[i].device == id->device) {
+			return I40E;
+		}
+			
+	}	
 
 	return res;
 }

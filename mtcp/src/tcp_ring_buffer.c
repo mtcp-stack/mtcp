@@ -197,6 +197,7 @@ RBInit(rb_manager_t rbm, uint32_t init_seq)
 	buff->data = MPAllocateChunk(rbm->mp);
 	if(!buff->data){
 		perror("rb_init MPAllocateChunk");
+		free(buff);
 		return NULL;
 	}
 

@@ -47,6 +47,8 @@ AC_SUBST(DPDK, 0)
 AC_SUBST(LRO, 0)
 # Reset PSIO to 0
 AC_SUBST(PSIO, 0)
+# Reset ONVM to 0
+AC_SUBST(ONVM, 0)
 # Reset NETMAP to 0
 AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
@@ -95,6 +97,14 @@ AC_ARG_ENABLE([netmap],
 AS_IF([test "x$enable_netmap" = "xyes"], [
 	    AC_SUBST(NETMAP, 1)
 ])
+
+# Check onvm lib path
+AC_ARG_WITH(stuff, [  --with-onvm-lib      path to the onvm install root])
+if test "$with_onvm_lib" != ""
+then
+        AC_SUBST(ONVMLIBPATH, $with_onvm_lib)
+	AC_SUBST(ONVM, 1)
+fi
 
 if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "x$enable_netmap" = "xno"
 then

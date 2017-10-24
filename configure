@@ -664,10 +664,12 @@ am__isrc
 INSTALL_DATA
 INSTALL_SCRIPT
 INSTALL_PROGRAM
+ONVMLIBPATH
 PSLIBPATH
 DPDKLIBPATH
 HWCSUM
 NETMAP
+ONVM
 PSIO
 LRO
 DPDK
@@ -1369,6 +1371,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-dpdk-lib      path to the dpdk-16.11 install root
   --with-psio-lib      path to the ioengine install root
+  --with-onvm-lib      path to the onvm install root
 
 Some influential environment variables:
   CC          C compiler command
@@ -4102,6 +4105,9 @@ LRO=0
 # Reset PSIO to 0
 PSIO=0
 
+# Reset ONVM to 0
+ONVM=0
+
 # Reset NETMAP to 0
 NETMAP=0
 
@@ -4175,6 +4181,21 @@ if test "x$enable_netmap" = "xyes"; then :
 
 	    NETMAP=1
 
+
+fi
+
+# Check onvm lib path
+
+# Check whether --with-stuff was given.
+if test "${with_stuff+set}" = set; then :
+  withval=$with_stuff;
+fi
+
+if test "$with_onvm_lib" != ""
+then
+        ONVMLIBPATH=$with_onvm_lib
+
+	ONVM=1
 
 fi
 

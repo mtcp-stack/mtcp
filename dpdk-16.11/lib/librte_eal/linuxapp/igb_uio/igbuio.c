@@ -341,6 +341,7 @@ igbuio_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct net_adapter *adapter = NULL;
 	struct ixgbe_hw *hw_i = NULL;
 	struct e1000_hw *hw_e = NULL;
+	struct i40e_hw *hw_i4 = NULL;	
 
 	udev = kzalloc(sizeof(struct rte_uio_pci_dev), GFP_KERNEL);
 	if (!udev)
@@ -461,6 +462,15 @@ igbuio_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
                         goto fail_ioremap;
                 }
                 break;
+	case I40E:
+		hw_i4 = &adapter->hw._i40e_hw;
+		hw_i4->back = adapter;
+
+		if (i40e_get_local_mac_addr(dev, id, hw_i4->mac.addr)) {
+			err = -EIO;
+			goto fail_ioremap;
+		}
+		break;
         }
 	
         netdev_assign_netdev_ops(netdev);
@@ -534,6 +544,9 @@ igbuio_pci_remove(struct pci_dev *dev)
 	case IGB:
 		iounmap(udev->adapter->hw._e1000_hw.hw_addr);
 		break;
+	case I40E:
+		/* do nothing */
+		break;
 	}
 	free_netdev(netdev);	
 
@@ -570,7 +583,7 @@ igbuio_config_intr_mode(char *intr_str)
 }
 
 static int
-update_stats(struct stats_struct __user *stats)
+update_stats(struct stats_struct *stats)
 {
 	uint8_t qid = stats->qid;
 	uint8_t device = stats->dev;
@@ -617,10 +630,17 @@ igb_net_ioctl(struct file *filp,
 	 unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
+	struct stats_struct ss;
+
+	ret = copy_from_user(&ss,
+			     (struct stats_struct __user *)arg,
+			     sizeof(struct stats_struct));
+	if (ret)
+		return -EFAULT;
 
 	switch (cmd) {
 	case SEND_STATS:
-		ret = update_stats((struct stats_struct __user *) arg);
+		ret = update_stats(&ss);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -657,7 +677,7 @@ igbuio_pci_init_module(void)
 		printk(KERN_ERR "register_chrdev failed\n");
 		return ret;
 	}
-
+	
 	return pci_register_driver(&igbuio_pci_driver);
 }
 

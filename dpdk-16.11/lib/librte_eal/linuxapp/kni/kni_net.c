@@ -35,6 +35,9 @@
 #include <linux/skbuff.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#include <linux/sched/signal.h>
+#endif
 
 #include <exec-env/rte_kni_common.h>
 #include <kni_fifo.h>

@@ -15,15 +15,15 @@
 #include <arpa/inet.h>
 #include <sys/queue.h>
 #include <assert.h>
+#include <limits.h>
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
 #include "cpu.h"
 #include "rss.h"
 #include "http_parsing.h"
+#include "netlib.h"
 #include "debug.h"
-
-#define MAX_CPUS 16
 
 #define MAX_URL_LEN 128
 #define MAX_FILE_LEN 128
@@ -40,9 +40,6 @@
 #define TIMEVAL_TO_USEC(t)		((t.tv_sec * 1000000) + (t.tv_usec))
 #define TS_GT(a,b)				((int64_t)((a)-(b)) > 0)
 
-#define MAX(a, b) ((a)>(b)?(a):(b))
-#define MIN(a, b) ((a)<(b)?(a):(b))
-
 #ifndef TRUE
 #define TRUE (1)
 #endif
@@ -55,6 +52,9 @@
 #define ERROR (-1)
 #endif
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 static pthread_t app_thread[MAX_CPUS];
 static mctx_t g_mctx[MAX_CPUS];
@@ -66,8 +66,8 @@ static int core_limit;
 static int fio = FALSE;
 static char outfile[MAX_FILE_LEN + 1];
 /*----------------------------------------------------------------------------*/
-static char host[MAX_IP_STR_LEN + 1];
-static char url[MAX_URL_LEN + 1];
+static char host[MAX_IP_STR_LEN + 1] = {'\0'};
+static char url[MAX_URL_LEN + 1] = {'\0'};
 static in_addr_t daddr;
 static in_port_t dport;
 static in_addr_t saddr;
@@ -132,8 +132,8 @@ struct wget_vars
 	int fd;
 };
 /*----------------------------------------------------------------------------*/
-static struct thread_context *g_ctx[MAX_CPUS];
-static struct wget_stat *g_stat[MAX_CPUS];
+static struct thread_context *g_ctx[MAX_CPUS] = {0};
+static struct wget_stat *g_stat[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 thread_context_t 
 CreateContext(int core)
@@ -151,6 +151,7 @@ CreateContext(int core)
 	ctx->mctx = mtcp_create_context(core);
 	if (!ctx->mctx) {
 		TRACE_ERROR("Failed to create mtcp context.\n");
+		free(ctx);
 		return NULL;
 	}
 	g_mctx[core] = ctx->mctx;
@@ -161,6 +162,7 @@ CreateContext(int core)
 void 
 DestroyContext(thread_context_t ctx) 
 {
+	g_stat[ctx->core] = NULL;
 	mtcp_destroy_context(ctx->mctx);
 	free(ctx);
 }
@@ -346,15 +348,23 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 				wv->response[wv->header_len] = '\0';
 				wv->file_len = http_header_long_val(wv->response, 
 						CONTENT_LENGTH_HDR, sizeof(CONTENT_LENGTH_HDR) - 1);
+				if (wv->file_len < 0) {
+					/* failed to find the Content-Length field */
+					wv->recv += rd;
+					rd = 0;
+					CloseConnection(ctx, sockid);
+					return 0;
+				}
+
 				TRACE_APP("Socket %d Parsed response header. "
 						"Header length: %u, File length: %lu (%luMB)\n", 
 						sockid, wv->header_len, 
 						wv->file_len, wv->file_len / 1024 / 1024);
 				wv->headerset = TRUE;
 				wv->recv += (rd - (wv->resp_len - wv->header_len));
-				rd = (wv->resp_len - wv->header_len);
 				
 				pbuf += (rd - (wv->resp_len - wv->header_len));
+				rd = (wv->resp_len - wv->header_len);
 				//printf("Successfully parse header.\n");
 				//fflush(stdout);
 
@@ -476,6 +486,8 @@ PrintStats()
 
 	for (i = 0; i < core_limit; i++) {
 		st = g_stat[i];
+
+		if (st == NULL) continue;
 		avg_resp_time = st->completes? st->sum_resp_time / st->completes : 0;
 #if 0
 		fprintf(stderr, "[CPU%2d] epoll_wait: %5lu, event: %7lu, "
@@ -500,7 +512,7 @@ PrintStats()
 		total.errors += st->errors;
 		total.timedout += st->timedout;
 
-		memset(st, 0, sizeof(struct wget_stat));
+		memset(st, 0, sizeof(struct wget_stat));		
 	}
 	fprintf(stderr, "[ ALL ] connect: %7lu, read: %4lu MB, write: %4lu MB, "
 			"completes: %7lu (resp_time avg: %4lu, max: %6lu us)\n", 
@@ -596,7 +608,7 @@ RunWgetMain(void *arg)
 
 		/* print statistics every second */
 		if (core == 0 && cur_tv.tv_sec > prev_tv.tv_sec) {
-			PrintStats();
+		  	PrintStats();
 			prev_tv = cur_tv;
 		}
 
@@ -711,14 +723,14 @@ main(int argc, char **argv)
 		strncpy(url, strchr(argv[1], '/'), MAX_URL_LEN);
 	} else {
 		strncpy(host, argv[1], MAX_IP_STR_LEN);
-		strncpy(url, "/", 1);
+		strncpy(url, "/", 2);
 	}
 
 	daddr = inet_addr(host);
 	dport = htons(80);
 	saddr = INADDR_ANY;
 
-	total_flows = atoi(argv[2]);
+	total_flows = mystrtol(argv[2], 10);
 	if (total_flows <= 0) {
 		TRACE_CONFIG("Number of flows should be large than 0.\n");
 		return FALSE;
@@ -729,10 +741,13 @@ main(int argc, char **argv)
 	concurrency = 100;
 	for (i = 3; i < argc - 1; i++) {
 		if (strcmp(argv[i], "-N") == 0) {
-			core_limit = atoi(argv[i + 1]);
+			core_limit = mystrtol(argv[i + 1], 10);
 			if (core_limit > num_cores) {
 				TRACE_CONFIG("CPU limit should be smaller than the "
 						"number of CPUS: %d\n", num_cores);
+				return FALSE;
+			} else if (core_limit < 1) {
+				TRACE_CONFIG("CPU limit should be greater than 0\n");
 				return FALSE;
 			}
 			/** 
@@ -744,7 +759,7 @@ main(int argc, char **argv)
 			mcfg.num_cores = core_limit;
 			mtcp_setconf(&mcfg);
 		} else if (strcmp(argv[i], "-c") == 0) {
-			total_concurrency = atoi(argv[i + 1]);
+			total_concurrency = mystrtol(argv[i + 1], 10);
 
 		} else if (strcmp(argv[i], "-o") == 0) {
 			if (strlen(argv[i + 1]) > MAX_FILE_LEN) {

@@ -1,17 +1,12 @@
+# TODO: Make this Makefile.in pretty
+
 TARGETS = epserver epwget
 CC=@CC@ -g -O3 -Wall -Werror -fgnu89-inline
 DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@
-
-### Check onvm related env vars ###
-ifeq ($(RTE_SDK),)
-$(error "Please define RTE_SDK environment variable")
-endif
-
-ifeq ($(ONVM),)
-$(error "Please define ONVM environment variable")
-endif
+ONVM=@ONVM@
+CFLAGS=@CFLAGS@
 
 # DPDK LIBRARY and HEADER
 DPDK_INC=@DPDKLIBPATH@/include
@@ -25,7 +20,7 @@ MTCP_TARGET = ${MTCP_LIB}/libmtcp.a
 
 UTIL_FLD = ../../util
 UTIL_INC = -I${UTIL_FLD}/include
-UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o
+UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o ${UTIL_FLD}/netlib.o
 
 
 PS_DIR = ../../io_engine/
@@ -48,6 +43,29 @@ DPDK_MACHINE_FLAGS = $(shell cat @DPDKLIBPATH@/include/cflags.txt)
 INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
 endif
 
+ifeq ($(shell uname -m),x86_64)
+LIBS += -m64
+endif
+
+ifeq ($(DPDK),1)
+DPDK_LIB_FLAGS = $(shell cat @DPDKLIBPATH@/lib/ldflags.txt)
+#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
+LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
+else
+#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
+LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
+endif
+
+ifeq ($(ONVM),1)
+ifeq ($(RTE_TARGET),)
+$(error "Please define RTE_TARGET environment variable")
+endif
+
+INC += -I@ONVMLIBPATH@/onvm_nflib
+INC += -DENABLE_ONVM
+LIBS += @ONVMLIBPATH@/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
+endif
+
 ifeq ($V,) # no echo
 	export MSG=@echo
 	export HIDE=@
@@ -56,25 +74,13 @@ else
 	export HIDE=
 endif
 
-ifeq ($(DPDK),1)
-DPDK_LIB_FLAGS = $(shell cat @DPDKLIBPATH@/lib/ldflags.txt)
-#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
-LIBS += -m64 -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
-else
-#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
-LIBS += -m64 -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
-endif
-
-INC += -I$(ONVM)/onvm_nflib
-LIBS += $(ONVM)/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
-
 all: epserver epwget
 
 epserver.o: epserver.c
 	$(MSG) "   CC $<"
 	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
 
-epserver: epserver.o
+epserver: epserver.o ${MTCP_FLD}/lib/libmtcp.a
 	$(MSG) "   LD $<"
 	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
 
@@ -82,7 +88,7 @@ epwget.o: epwget.c
 	$(MSG) "   CC $<"
 	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
 
-epwget: epwget.o
+epwget: epwget.o ${MTCP_FLD}/lib/libmtcp.a
 	$(MSG) "   LD $<"
 	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
 

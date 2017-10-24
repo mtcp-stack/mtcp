@@ -46,7 +46,7 @@ GetMTCPManager(mctx_t mctx)
 		return NULL;
 	}
 
-	if (mctx->cpu < 0) {
+	if (mctx->cpu < 0 || mctx->cpu >= num_cpus) {
 		errno = EINVAL;
 		return NULL;
 	}
@@ -395,7 +395,7 @@ mtcp_socket(mctx_t mctx, int domain, int type, int protocol)
 	}
 
 	if (type == SOCK_STREAM) {
-		type = MTCP_SOCK_STREAM;
+		type = (int)MTCP_SOCK_STREAM;
 	} else {
 		errno = EINVAL;
 		return -1;
@@ -525,16 +525,21 @@ mtcp_listen(mctx_t mctx, int sockid, int backlog)
 	listener->socket = &mtcp->smap[sockid];
 
 	if (pthread_cond_init(&listener->accept_cond, NULL)) {
+		/* errno set internally */
 		perror("pthread_cond_init of ctx->accept_cond\n");
+		free(listener);
 		return -1;
 	}
 	if (pthread_mutex_init(&listener->accept_lock, NULL)) {
+		/* errno set internally */
 		perror("pthread_mutex_init of ctx->accept_lock\n");
+		free(listener);
 		return -1;
 	}
 
 	listener->acceptq = CreateStreamQueue(backlog);
 	if (!listener->acceptq) {
+		free(listener);
 		errno = ENOMEM;
 		return -1;
 	}
@@ -644,16 +649,23 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
+		errno = EACCES;
 		return -1;
 	}
 
 	if (saddr_base == INADDR_ANY) {
-		int nif_out;
+		int nif_out, eidx;
 
 		/* for the INADDR_ANY, find the output interface for the destination
 		   and set the saddr_base as the ip address of the output interface */
 		nif_out = GetOutputInterface(daddr);
-		saddr_base = CONFIG.eths[nif_out].ip_addr;
+		if (nif_out < 0) {
+			errno = EINVAL;
+			TRACE_DBG("Could not determine nif idx!\n");
+			return -1;
+		}
+		eidx = CONFIG.nif_to_eidx[nif_out];
+		saddr_base = CONFIG.eths[eidx].ip_addr;
 	}
 
 	ap = CreateAddressPoolPerCore(mctx->cpu, num_cpus, 
@@ -679,7 +691,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 	in_addr_t dip;
 	in_port_t dport;
 	int is_dyn_bound = FALSE;
-	int ret;
+	int ret, nif;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -737,8 +749,12 @@ mtcp_connect(mctx_t mctx, int sockid,
 	    socket->saddr.sin_port != INPORT_ANY &&
 	    socket->saddr.sin_addr.s_addr != INADDR_ANY) {
 		int rss_core;
+#if 0
 		uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
 			0 : 1;
+#else
+		uint8_t endian_check = FetchEndianType();
+#endif
 		
 		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip, 
 					 socket->saddr.sin_port, dport, num_queues, endian_check);
@@ -749,10 +765,15 @@ mtcp_connect(mctx_t mctx, int sockid,
 		}
 	} else {
 		if (mtcp->ap) {
-			ret = FetchAddress(mtcp->ap, 
-					mctx->cpu, num_queues, addr_in, &socket->saddr);
+			ret = FetchAddressPerCore(mtcp->ap, 
+						  mctx->cpu, num_queues, addr_in, &socket->saddr);
 		} else {
-			ret = FetchAddress(ap[GetOutputInterface(dip)], 
+			nif = GetOutputInterface(dip);
+			if (nif < 0) {
+				errno = EINVAL;
+				return -1;
+			}
+			ret = FetchAddress(ap[nif], 
 					   mctx->cpu, num_queues, addr_in, &socket->saddr);
 		}
 		if (ret < 0) {

@@ -59,6 +59,11 @@
 2. Setup mtcp library:
    	   # ./configure --enable-netmap
    	   # make
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    	   # ./configure --enable-netmap CFLAGS="-DMAX_CPUS=32"
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).	   
   - In case `./configure' script prints an error, run the
     following command; and then re-do step-2 (configure again):
     	   # autoreconf -ivf

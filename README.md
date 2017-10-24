@@ -1,16 +1,7 @@
 [![Build Status](https://travis-ci.org/eunyoung14/mtcp.svg?branch=master)](https://travis-ci.org/eunyoung14/mtcp)
+[![Build Status](https://scan.coverity.com/projects/11896/badge.svg)](https://scan.coverity.com/projects/eunyoung14-mtcp)
 
 # README #
-
-### This application was modified to work with [ONVM][onvm] ###
-+ Currently only supports single core usage
-+ Tested with the provided application epserver
-
-
-#### INSTALL DIFFERENCES ####
-+ Follow the installation steps for dpdk version
-+ Make sure to set ONVM and RTE_SDK env path variable
-
 
 mTCP is a highly scalable user-level TCP stack for multicore systems. 
 mTCP source code is distributed under the Modified BSD License. For 
@@ -24,12 +15,16 @@ We require the following libraries to run mTCP.
  - ``libnuma``
  - ``libpthread``
  - ``librt``
- Compling PSIO/DPDK driver requires kernel headers.
+
+Compling PSIO/DPDK driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
 We have modified the dpdk-16.11 package to export net_device stat data 
-to the OS. To achieve this, the dpdk-16.11/lib/librte_eal/linuxapp/igb_uio/
-directory was updated. We recommend using our package for DPDK installation. 
+(for Intel-based Ethernet adapters only) to the OS. To achieve this, the
+dpdk-16.11/lib/librte_eal/linuxapp/igb_uio/ directory was updated. We also modified 
+``mk/rte.app.mk`` and ``rte_cpuflags.mk`` files to ease the compilation
+process of mTCP applications. We recommend using our package for DPDK
+installation. 
 
 ### INCLUDED DIRECTORIES ###
 
@@ -64,7 +59,7 @@ config: sample mTCP configuration files (may not be necessary)
 
 ### INSTALL GUIDES ###
 
-mTCP can be prepared in two ways.
+mTCP can be prepared in three ways.
 
 ***PSIO VERSION***
 
@@ -88,6 +83,14 @@ mTCP can be prepared in two ways.
    ## e.g. ./configure --with-psio-lib=`echo $PWD`/io_engine
    # make
    ```
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 8-core system, by using the following command:
+    ```bash
+    	   # ./configure --with-psio-lib=`echo $PWD`/io_engine CFLAGS="-DMAX_CPUS=8"
+    ```
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-3 (configure again):
 
@@ -107,13 +110,13 @@ mTCP can be prepared in two ways.
 ***DPDK VERSION***
 
 1. Set up Intel's DPDK driver. Please use our version of DPDK.
-   We have only changed the lib/igb_uio/ submodule. The best
-   method to compile DPDK package is to use DPDK's tools/setup.sh
-   script. Please compile your package based on your own hardware
-   configuration. We tested the mTCP stack on Intel Xeon E5-2690
-   (x86_64) machine with Intel 82599 Ethernet adapters (10G). We
-   used the following steps in the dpdk-setup.sh script for our
-   setup:
+   We have changed the lib/igb_uio/ submodule and a few makefiles
+   in DPDK's ``mk/`` subdirectory. The best method to compile DPDK
+   package is to use DPDK's tools/setup.sh script. Please compile
+   your package based on your own hardware configuration. We tested
+   the mTCP stack on Intel Xeon E5-2690 (x86_64) machine with Intel
+   82599 Ethernet adapters (10G). We used the following steps in
+   the dpdk-setup.sh script for our setup:
    
      - Press [13] to compile the package
      - Press [16] to install the driver
@@ -128,6 +131,18 @@ mTCP can be prepared in two ways.
    - only those devices will work with DPDK drivers that are listed
   on this page: http://dpdk.org/doc/nics. Please make sure that your
   NIC is compatible before moving on to the next step.
+
+   - recent Linux kernels tend to rename Ethernet interfaces based on
+  their PCI addresses. If you are using Intel based Ethernet adapters,
+  please rename the interface with a ``dpdk`` prefix. You can do so
+  using the following command:
+  
+    ```bash
+	# sudo ifconfig <iface> down
+	## where X is an integer value.
+	## e.g. sudo ip link set ens786f0 name dpdk0
+	# sudo ip link set <iface> name dpdkX
+    ```
 
 2. Next bring the dpdk-registered interfaces up. Please use the
    ``setup_iface_single_process.sh`` script file present in ``dpdk-16.11/tools/``
@@ -152,6 +167,15 @@ mTCP can be prepared in two ways.
 	 ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
    	 # make
     ```
+
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    ```bash
+    	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk CFLAGS="-DMAX_CPUS=32"
+    ```
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+    
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-4 (configure again):
     
@@ -169,6 +193,45 @@ mTCP can be prepared in two ways.
    - you may write your own configuration file for your application
 
 6. Run the applications!
+
+
+***ONVM VERSION***
+
+[Install openNetVM following these instructions](https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md)
+
+*ONVM uses DPDK so follow the dpdk installation up until step 4*
+
+4. Setup mtcp library
+    ```bash
+	# ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
+	# make
+    ```
+
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    ```bash
+    	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk --with-onvm-lib=$<path_to_onvm_lib> CFLAGS="-DMAX_CPUS=32"
+    ```
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+    
+   - In case `./configure' script prints an error, run the
+    following command; and then re-do step-4 (configure again):
+    
+       ```# autoreconf -ivf```
+   - checksum offloading in the NIC is now ENABLED (by default)!!!
+   - this only works for dpdk at the moment
+   - use ```./configure --with-dpdk-lib=`echo $PWD`/dpdk --with-onvm-lib=$<path_to_onvm_lib> --disable-hwcsum``` to disable checksum offloading.
+   - check libmtcp.a in mtcp/lib
+   - check header files in mtcp/include
+   - check example binary files in apps/example
+
+5. Check the configurations in apps/example
+   - epserver.conf for server-side configuration
+   - epwget.conf for client-side configuration
+   - you may write your own configuration file for your application
+
+6. Run the applications!  
 
 ***TESTED ENVIRONMENTS***
 
@@ -211,8 +274,9 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
 5. mTCP has been tested with the following Ethernet adapters:
 
    1. Intel-82598	     ixgbe	      	        (Max-queue-limit: 16)
-   2. Intel-82599								    ixgbe		(Max-queue-limit: 16)
-   3. Intel-I350								    					          igb   (Max-queue-limit: 08)
+   2. Intel-82599	     ixgbe			(Max-queue-limit: 16)
+   3. Intel-I350             igb   			(Max-queue-limit: 08)
+   4. Intel-X710	     i40e			(Max-queue-limit: ~)
  
 ***FREQUENTLY ASKED QUESTIONS***
 
@@ -243,6 +307,3 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
                              April 2, 2015. 
                     EunYoung Jeong <notav at ndsl.kaist.edu>
                     M. Asim Jamshed <ajamshed at ndsl.kaist.edu>
-	
-	
-[onvm]: http://sdnfv.github.io/onvm/

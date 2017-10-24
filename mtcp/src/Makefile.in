@@ -1,3 +1,4 @@
+# TODO: Make this Makefile.in pretty
 
 .PHONY: clean
 
@@ -5,6 +6,7 @@
 PS=@PSIO@
 DPDK=@DPDK@
 NETMAP=@NETMAP@
+ONVM=@ONVM@
 LRO=@LRO@
 HWCSUM=@HWCSUM@
 MTCP_LIB_DIR=../lib
@@ -12,29 +14,26 @@ MTCP_LIB=libmtcp.a
 MTCP_HDR_DIR=../include
 MTCP_HDR = mtcp_api.h mtcp_epoll.h
 
-
-### Check onvm related env vars ###
-ifeq ($(RTE_SDK),)
-$(error "Please define RTE_SDK environment variable")
-endif
-
-ifeq ($(ONVM),)
-$(error "Please define ONVM environment variable")
-endif
-
 ### GCC ###
 GCC=@CC@
 
 ### FLAGS ###
-GCC_OPT = -m64 -Wall -fPIC -fgnu89-inline -Werror
+ifeq ($(shell uname -m),x86_64)
+GCC_OPT = -m64
+else
+GCC_OPT =
+endif
+GCC_OPT += -Wall -fPIC -fgnu89-inline -Werror
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE -DTSTAT -DAPP -DEPOLL
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE
 #DBG_OPT += -DPKTDUMP
 #DBG_OPT += -DDUMP_STREAM
 #GCC_OPT += -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
-GCC_OPT += -DNDEBUG -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
+GCC_OPT += -DNDEBUG -g -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 #GCC_OPT += -DNDEBUG -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 GCC_OPT += $(DBG_OPT)
+
+CFLAGS=@CFLAGS@
 
 ifeq ($(LRO),1)
 GCC_OPT += -DENABLELRO
@@ -48,9 +47,6 @@ endif
 INC_DIR=./include
 INC= -I$(INC_DIR)
 
-INC += -I$(ONVM)/onvm_nflib
-LDFLAGS += $(ONVM)/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
-
 ifeq ($(PS),1)
 LIBS = -lps
 else
@@ -62,6 +58,16 @@ ifeq ($(NETMAP),1)
 else
 INC += -DDISABLE_NETMAP
 endif
+
+ifeq ($(ONVM),1)
+ifeq ($(RTE_TARGET),)
+$(error "Please define RTE_SDK environment variable")
+endif
+INC += -I@ONVMLIBPATH@/onvm_nflib
+INC += -DENABLE_ONVM
+LDFLAGS += @ONVMLIBPATH@/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
+endif
+
 
 # PacketShader LIBRARY and HEADER
 PS_DIR=../../io_engine
@@ -83,14 +89,6 @@ else
 	GCC_OPT += -DHUGEPAGE
 endif
 
-ifeq ($V,) # no echo
-	export MSG=@echo
-	export HIDE=@
-else
-	export MSG=@\#
-	export HIDE=
-endif
-
 ### SOURCE CODE ###
 SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 	   tcp_util.c eth_in.c ip_in.c tcp_in.c eth_out.c ip_out.c tcp_out.c \
@@ -101,6 +99,13 @@ SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 DEPS = $(patsubst %.c,.%.d,$(SRCS))
 
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
 
 ### GOALS ###
 all: default
@@ -111,7 +116,7 @@ default: $(OBJS) $(MTCP_HDR)
 
 $(OBJS): %.o: %.c Makefile
 	$(MSG) "   CC $<"
-	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -c $< -o $@
+	$(HIDE) $(GCC) $(CFLAGS) $(GCC_OPT) $(INC) -c $< -o $@
 $(DEPS): .%.d: %.c Makefile
 	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -MM $(CFLAGS) $< > $@
 

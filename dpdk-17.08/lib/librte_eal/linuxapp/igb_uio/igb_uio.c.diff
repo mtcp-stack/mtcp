@@ -1,0 +1,221 @@
+34a35
+> #include "igb_uio.h"
+49a51
+> 	struct net_adapter *adapter;
+53a56,57
+> struct stats_struct sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0}}};
+> struct stats_struct old_sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0}}};
+181a186
+> #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)
+182a188,190
+> #else
+> 	vma->vm_page_prot.pgprot |= _PAGE_SOFTW2;
+> #endif
+330a339,345
+> 	/* essential vars for configuring the device with net_device */
+> 	struct net_device *netdev;
+> 	struct net_adapter *adapter = NULL;
+> 	struct ixgbe_hw *hw_i = NULL;
+> 	struct e1000_hw *hw_e = NULL;
+> 	struct i40e_hw *hw_i4 = NULL;	
+> 
+383c398,403
+< 		if (pci_enable_msix(dev, &msix_entry, 1) == 0) {
+---
+> #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
+> 		if (pci_enable_msix(dev, &msix_entry, 1) == 0)
+> #else
+> 		if (pci_enable_msix_exact(dev, &msix_entry, 1) == 0)
+> #endif
+> 		{
+415a436,495
+> 	/* initialize the corresponding netdev */
+>         netdev = alloc_etherdev(sizeof(struct net_adapter));
+>         if (!netdev) {
+>                 err = -ENOMEM;
+>                 goto fail_alloc_etherdev;
+>         }
+>         SET_NETDEV_DEV(netdev, pci_dev_to_dev(dev));
+>         adapter = netdev_priv(netdev);
+>         adapter->netdev = netdev;
+>         adapter->pdev = dev;
+>         udev->adapter = adapter;
+>         adapter->type = retrieve_dev_specs(id);
+> 	/* recover device-specific mac address */
+>         switch (adapter->type) {
+>         case IXGBE:
+>                 hw_i = &adapter->hw._ixgbe_hw;
+>                 hw_i->back = adapter;
+>                 hw_i->hw_addr = ioremap(pci_resource_start(dev, 0),
+> 					pci_resource_len(dev, 0));
+>                 if (!hw_i->hw_addr) {
+>                         err = -EIO;
+>                         goto fail_ioremap;
+>                 }
+>                 break;
+>         case IGB:
+>                 hw_e = &adapter->hw._e1000_hw;
+>                 hw_e->back = adapter;
+>                 hw_e->hw_addr = ioremap(pci_resource_start(dev, 0),
+> 					pci_resource_len(dev, 0));
+>                 if (!hw_e->hw_addr) {
+>                         err = -EIO;
+>                         goto fail_ioremap;
+>                 }
+>                 break;
+> 	case I40E:
+> 		hw_i4 = &adapter->hw._i40e_hw;
+> 		hw_i4->back = adapter;
+> 
+> 		if (i40e_get_local_mac_addr(dev, id, hw_i4->mac.addr)) {
+> 			err = -EIO;
+> 			goto fail_ioremap;
+> 		}
+> 		break;
+>         }
+> 	
+>         netdev_assign_netdev_ops(netdev);
+>         strncpy(netdev->name, pci_name(dev), sizeof(netdev->name) - 1);
+>         retrieve_dev_addr(netdev, adapter);
+>         strcpy(netdev->name, "dpdk%d");
+>         err = register_netdev(netdev);
+>         if (err)
+>                 goto fail_ioremap;
+>         adapter->netdev_registered = true;
+> 
+> 	if (sscanf(netdev->name, "dpdk%hu", &adapter->bd_number) <= 0)
+>                 goto fail_bdnumber;
+> 
+>         //printk(KERN_DEBUG "ifindex picked: %hu\n", adapter->bd_number);                             
+>         dev_info(&dev->dev, "ifindex picked: %hu\n", adapter->bd_number);
+> 
+425a506,508
+>         /* reset nstats */
+> 	memset(&adapter->nstats, 0, sizeof(struct net_device_stats));
+> 
+428c511,517
+< fail_remove_group:
+---
+>  fail_bdnumber:
+>  fail_ioremap:
+> 	free_netdev(netdev);
+>  fail_alloc_etherdev:
+> 	pci_release_selected_regions(dev,
+>                                      pci_select_bars(dev, IORESOURCE_MEM));
+>  fail_remove_group:
+430c519
+< fail_release_iomem:
+---
+>  fail_release_iomem:
+435c524
+< fail_free:
+---
+>  fail_free:
+444a534,556
+> 	struct net_device *netdev;
+> 	struct net_adapter *adapter;
+> 
+> 	/* unregister device from netdev */
+> 	netdev = udev->adapter->netdev;
+> 	adapter = netdev_priv(netdev);
+> 
+> 	if (udev->adapter->netdev_registered) {
+> 		unregister_netdev(netdev);
+> 		udev->adapter->netdev_registered = false;
+> 	}
+> 	switch (udev->adapter->type) {
+> 	case IXGBE:
+> 		iounmap(udev->adapter->hw._ixgbe_hw.hw_addr);
+> 		break;
+> 	case IGB:
+> 		iounmap(udev->adapter->hw._e1000_hw.hw_addr);
+> 		break;
+> 	case I40E:
+> 		/* do nothing */
+> 		break;
+> 	}
+> 	free_netdev(netdev);	
+477a590,661
+> static int
+> update_stats(struct stats_struct *stats)
+> {
+> 	uint8_t qid = stats->qid;
+> 	uint8_t device = stats->dev;
+> 
+> 	if (unlikely(sarrays[device][qid].rx_bytes > stats->rx_bytes ||
+> 		     sarrays[device][qid].tx_bytes > stats->tx_bytes)) {
+> 		/* mTCP app restarted?? */
+> 		old_sarrays[device][qid].rx_bytes += sarrays[device][qid].rx_bytes;
+> 		old_sarrays[device][qid].rx_pkts += sarrays[device][qid].rx_pkts;
+> 		old_sarrays[device][qid].tx_bytes += sarrays[device][qid].tx_bytes;
+> 		old_sarrays[device][qid].tx_pkts += sarrays[device][qid].tx_pkts;
+> 	}
+> 
+> 	sarrays[device][qid].rx_bytes = stats->rx_bytes;
+> 	sarrays[device][qid].rx_pkts = stats->rx_pkts;
+> 	sarrays[device][qid].tx_bytes = stats->tx_bytes;
+> 	sarrays[device][qid].tx_pkts = stats->tx_pkts;
+> 
+> #if 0
+> 	printk(KERN_ALERT "Dev: %d, Qid: %d, RXP: %llu, RXB: %llu, TXP: %llu, TXB: %llu\n",
+> 	       device, qid,
+> 	       (long long unsigned int)sarrays[device][qid].rx_pkts,
+> 	       (long long unsigned int)sarrays[device][qid].rx_bytes,
+> 	       (long long unsigned int)sarrays[device][qid].tx_pkts,
+> 	       (long long unsigned int)sarrays[device][qid].tx_bytes);
+> #endif
+> 	return 0;
+> }
+> 
+> int
+> igb_net_open(struct inode *inode, struct file *filp)
+> {
+> 	return 0;
+> }
+> 
+> int
+> igb_net_release(struct inode *inode, struct file *filp)
+> {
+> 	return 0;
+> }
+> 
+> long
+> igb_net_ioctl(struct file *filp,
+> 	 unsigned int cmd, unsigned long arg)
+> {
+> 	int ret = 0;
+> 	struct stats_struct ss;
+> 
+> 	ret = copy_from_user(&ss,
+> 			     (struct stats_struct __user *)arg,
+> 			     sizeof(struct stats_struct));
+> 	if (ret)
+> 		return -EFAULT;
+> 
+> 	switch (cmd) {
+> 	case SEND_STATS:
+> 		ret = update_stats(&ss);
+> 		break;
+> 	default:
+> 		ret = -ENOTTY;
+> 	}
+> 	return ret;
+> }
+> 
+> static struct file_operations igb_net_fops = {
+> 	.open = igb_net_open,
+> 	.release = igb_net_release,
+> 	.unlocked_ioctl = igb_net_ioctl,
+> };
+> 
+493a678,685
+> 	ret = register_chrdev(MAJOR_NO/* MAJOR */,
+> 			      DEV_NAME /*NAME*/,
+> 			      &igb_net_fops);
+> 	if (ret < 0) {
+> 		printk(KERN_ERR "register_chrdev failed\n");
+> 		return ret;
+> 	}
+> 	
+499a692
+> 	unregister_chrdev(MAJOR_NO, DEV_NAME);

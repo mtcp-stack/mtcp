@@ -25,8 +25,6 @@
 #include "netlib.h"
 #include "debug.h"
 
-#define MAX_CPUS 16
-
 #define MAX_URL_LEN 128
 #define MAX_FILE_LEN 128
 #define HTTP_HEADER_LEN 1024
@@ -54,6 +52,9 @@
 #define ERROR (-1)
 #endif
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 static pthread_t app_thread[MAX_CPUS];
 static mctx_t g_mctx[MAX_CPUS];
@@ -131,8 +132,8 @@ struct wget_vars
 	int fd;
 };
 /*----------------------------------------------------------------------------*/
-static struct thread_context *g_ctx[MAX_CPUS];
-static struct wget_stat *g_stat[MAX_CPUS];
+static struct thread_context *g_ctx[MAX_CPUS] = {0};
+static struct wget_stat *g_stat[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 thread_context_t 
 CreateContext(int core)
@@ -161,6 +162,7 @@ CreateContext(int core)
 void 
 DestroyContext(thread_context_t ctx) 
 {
+	g_stat[ctx->core] = NULL;
 	mtcp_destroy_context(ctx->mctx);
 	free(ctx);
 }
@@ -346,6 +348,14 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 				wv->response[wv->header_len] = '\0';
 				wv->file_len = http_header_long_val(wv->response, 
 						CONTENT_LENGTH_HDR, sizeof(CONTENT_LENGTH_HDR) - 1);
+				if (wv->file_len < 0) {
+					/* failed to find the Content-Length field */
+					wv->recv += rd;
+					rd = 0;
+					CloseConnection(ctx, sockid);
+					return 0;
+				}
+
 				TRACE_APP("Socket %d Parsed response header. "
 						"Header length: %u, File length: %lu (%luMB)\n", 
 						sockid, wv->header_len, 
@@ -476,6 +486,8 @@ PrintStats()
 
 	for (i = 0; i < core_limit; i++) {
 		st = g_stat[i];
+
+		if (st == NULL) continue;
 		avg_resp_time = st->completes? st->sum_resp_time / st->completes : 0;
 #if 0
 		fprintf(stderr, "[CPU%2d] epoll_wait: %5lu, event: %7lu, "
@@ -500,7 +512,7 @@ PrintStats()
 		total.errors += st->errors;
 		total.timedout += st->timedout;
 
-		memset(st, 0, sizeof(struct wget_stat));
+		memset(st, 0, sizeof(struct wget_stat));		
 	}
 	fprintf(stderr, "[ ALL ] connect: %7lu, read: %4lu MB, write: %4lu MB, "
 			"completes: %7lu (resp_time avg: %4lu, max: %6lu us)\n", 
@@ -596,7 +608,7 @@ RunWgetMain(void *arg)
 
 		/* print statistics every second */
 		if (core == 0 && cur_tv.tv_sec > prev_tv.tv_sec) {
-			PrintStats();
+		  	PrintStats();
 			prev_tv = cur_tv;
 		}
 

@@ -33,6 +33,10 @@ FetchAddress(addr_pool_t ap, int core, int num_queues,
 		const struct sockaddr_in *daddr, struct sockaddr_in *saddr);
 /*----------------------------------------------------------------------------*/
 int 
+FetchAddressPerCore(addr_pool_t ap, int core, int num_queues, 
+		    const struct sockaddr_in *daddr, struct sockaddr_in *saddr);
+/*----------------------------------------------------------------------------*/
+int 
 FreeAddress(addr_pool_t ap, const struct sockaddr_in *addr);
 /*----------------------------------------------------------------------------*/
 

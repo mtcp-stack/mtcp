@@ -34,7 +34,6 @@
 #define HTTP_HEADER_LEN 1024
 #define URL_LEN 128
 
-#define MAX_CPUS 16
 #define MAX_FILES 30
 
 #define NAME_LIMIT 128
@@ -54,6 +53,9 @@
 
 #define HT_SUPPORT FALSE
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 struct file_cache
 {

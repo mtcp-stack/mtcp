@@ -765,8 +765,8 @@ mtcp_connect(mctx_t mctx, int sockid,
 		}
 	} else {
 		if (mtcp->ap) {
-			ret = FetchAddress(mtcp->ap, 
-					mctx->cpu, num_queues, addr_in, &socket->saddr);
+			ret = FetchAddressPerCore(mtcp->ap, 
+						  mctx->cpu, num_queues, addr_in, &socket->saddr);
 		} else {
 			nif = GetOutputInterface(dip);
 			if (nif < 0) {

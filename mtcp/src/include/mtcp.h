@@ -32,8 +32,6 @@
 #define ERROR (-1)
 #endif
 
-#define MAX_CPUS 16
-
 #define ETHERNET_HEADER_LEN		14	// sizeof(struct ethhdr)
 #define IP_HEADER_LEN			20	// sizeof(struct iphdr)
 #define TCP_HEADER_LEN			20	// sizeof(struct tcphdr)
@@ -55,6 +53,9 @@
 /* blocking api became obsolete */
 #define BLOCKING_SUPPORT	FALSE
 
+#ifndef MAX_CPUS
+#define MAX_CPUS		16
+#endif
 /*----------------------------------------------------------------------------*/
 /* Statistics */
 #ifdef NETSTAT

@@ -301,7 +301,13 @@ HandleRTO(mtcp_manager_t mtcp, uint32_t cur_ts, tcp_stream *cur_stream)
 		assert(0);
 		return ERROR;
 	}
-	
+
+	if (cur_stream->have_reset &&
+	    cur_stream->state == TCP_ST_SYN_RCVD) {
+		DestroyTCPStream(mtcp, cur_stream);
+		return 0;
+	}
+		
 	cur_stream->snd_nxt = cur_stream->sndvar->snd_una;
 	if (cur_stream->state == TCP_ST_ESTABLISHED || 
 			cur_stream->state == TCP_ST_CLOSE_WAIT) {

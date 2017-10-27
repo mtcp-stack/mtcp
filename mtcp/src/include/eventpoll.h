@@ -52,8 +52,9 @@ struct mtcp_epoll
 	struct mtcp_epoll_stat stat;
 
 	int efd;
-
+#ifndef USE_EVENT_FD
 	pthread_cond_t epoll_cond;
+#endif
 	pthread_mutex_t epoll_lock;
 };
 /*----------------------------------------------------------------------------*/

@@ -161,6 +161,7 @@ mtcp_epoll_create(mctx_t mctx, int size)
 		free(ep);
 		return -1;
 	}
+#ifndef USE_EVENT_FD
 	if (pthread_cond_init(&ep->epoll_cond, NULL)) {
 		DestroyEventQueue(ep->mtcp_queue);
 		DestroyEventQueue(ep->usr_shadow_queue);
@@ -169,7 +170,7 @@ mtcp_epoll_create(mctx_t mctx, int size)
 		free(ep);
 		return -1;
 	}
-
+#endif
 	return epsocket->id;
 }
 /*----------------------------------------------------------------------------*/

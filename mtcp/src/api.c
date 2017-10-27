@@ -1393,7 +1393,7 @@ mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 	SBUF_UNLOCK(&rcvvar->read_lock);
 
 	if(event_remaining) {
-		if (socket->epoll & MTCP_EPOLLIN && !(socket->epoll & MTCP_EPOLLET)) {
+		if ((socket->epoll & MTCP_EPOLLIN) && !(socket->epoll & MTCP_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
 					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLIN);
 #if BLOCKING_SUPPORT
@@ -1547,7 +1547,7 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 
 	/* if there are remaining sending buffer, generate write event */
 	if (sndvar->snd_wnd > 0) {
-		if (socket->epoll & MTCP_EPOLLOUT && !(socket->epoll & MTCP_EPOLLET)) {
+		if ((socket->epoll & MTCP_EPOLLOUT) && !(socket->epoll & MTCP_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
 					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);
 #if BLOCKING_SUPPORT
@@ -1657,7 +1657,7 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 
 	/* if there are remaining sending buffer, generate write event */
 	if (sndvar->snd_wnd > 0) {
-		if (socket->epoll & MTCP_EPOLLOUT && !(socket->epoll & MTCP_EPOLLET)) {
+		if ((socket->epoll & MTCP_EPOLLOUT) && !(socket->epoll & MTCP_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
 					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);
 #if BLOCKING_SUPPORT

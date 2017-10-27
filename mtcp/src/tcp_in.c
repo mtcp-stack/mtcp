@@ -337,6 +337,11 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		return;
 	}
 
+	/* If ack_seq is previously acked, return */
+	if (TCP_SEQ_GT(sndvar->snd_una, ack_seq)) {
+		return;
+	}
+	
 	/* Update window */
 	if (TCP_SEQ_LT(cur_stream->rcvvar->snd_wl1, seq) ||
 			(cur_stream->rcvvar->snd_wl1 == seq && 

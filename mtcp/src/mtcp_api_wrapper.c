@@ -98,11 +98,8 @@ mtcp_wrapper_socket(int sock_domain, int sock_type, int sock_protocol)
 	int stype = (sock_type & ~SOCK_NONBLOCK) & ~SOCK_CLOEXEC;
 	
 	mctx.cpu = current_core;
-	
-	if (g_mtcp[mctx.cpu] != NULL &&
-	    stype == SOCK_STREAM &&
-	    sock_domain == AF_INET) {
 
+	if (g_mtcp[mctx.cpu] != NULL) {
 		fd = mtcp_socket(&mctx, sock_domain, stype, sock_protocol);
 		if (fd >= 0) {
 			mtcp_setsock_nonblock(&mctx, fd);
@@ -110,9 +107,6 @@ mtcp_wrapper_socket(int sock_domain, int sock_type, int sock_protocol)
 		} else
 			return fd;
 	} else {
-		TRACE_ERROR("Creating normal socket g_mtcp = %p, "
-			    "sock_type: %d, sock_domain: %d\n\n\n",
-			    g_mtcp[mctx.cpu], sock_type, sock_domain);
 		fd = MTCP_KERNEL_CALL(socket)(sock_domain, sock_type, sock_protocol);
 		return fd;
 	}
@@ -153,7 +147,8 @@ mtcp_wrapper_shutdown(int sock_fd, int sock_how)
 #if 0
 	if (sock_how == SHUT_WR)
 		return mtcp_close(&mctx, mtcp_get_sockid_from_fd(sock_fd));
-#endif		
+#endif
+	abort();
 	/* not supported */
 	return -1;
 }
@@ -172,7 +167,8 @@ mtcp_wrapper_fcntl(int sock_fd, int sock_cmd, void *sock_arg)
 	mctx.cpu = current_core;
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(fcntl)(sock_fd, sock_cmd, sock_arg);
-	
+
+	abort();
 	/* not supported */
 	return -1;
 }
@@ -251,6 +247,7 @@ accept4(int sock_fd, struct sockaddr *sock_name,
 	int on = 1;
 	int ret = ioctl(sock_fd, FIONBIO, (char*)&on);
 	if (ret == -1) return ret;
+
 	return mtcp_wrapper_accept(sock_fd, sock_name, sock_namelen);
 }
 /*----------------------------------------------------------------------------*/
@@ -315,7 +312,6 @@ mtcp_wrapper_connect(int sock_fd, const struct sockaddr *sock_addr,
 	if (rc < 0)
 		mtcp_setsock_nonblock(&mctx, mtcp_get_sockid_from_fd(sock_fd));
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
 	return rc;
 }
 /*----------------------------------------------------------------------------*/
@@ -337,8 +333,8 @@ mtcp_wrapper_select(int sock_n, fd_set *sock_readfds, fd_set *sock_writefds,
 		return MTCP_KERNEL_CALL(select)(sock_n, sock_readfds,
 						sock_writefds, sock_exceptfds,
 						sock_timeout);
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
 	/* Not supported */
+	abort();
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
@@ -504,7 +500,8 @@ ssize_t mtcp_wrapper_sendto(int sock_fd, const void *sock_buf, size_t sock_len,
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(sendto)(sock_fd, sock_buf, sock_len,
 				sock_flags, sock_addr, sock_addrlen);
-	
+
+	abort();
 	/* Not supported yet */
 	return -1;
 }
@@ -530,6 +527,7 @@ mtcp_wrapper_recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 		return MTCP_KERNEL_CALL(recvfrom)(sock_fd, sock_buf, sock_len,
 						  sock_flags, sock_from, sock_fromlen);
 
+	abort();
 	/* Not supported yet */
 	return -1;
 }
@@ -577,7 +575,8 @@ recvmsg(int sock_fd, struct msghdr *sock_l_msg, int sock_flags)
 	mctx.cpu = current_core;
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return mtcp_wrapper_recvmsg(sock_fd, sock_l_msg, sock_flags);
-	
+
+	abort();
 	/*  Not supported */
 	return -1;
 }
@@ -591,7 +590,6 @@ mtcp_wrapper_read(int sock_fd, void *sock_buf, size_t sock_count)
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(read)(sock_fd, sock_buf, sock_count);
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);	
 	return mtcp_read(&mctx, mtcp_get_sockid_from_fd(sock_fd),
 			 sock_buf, sock_count);
 }
@@ -611,8 +609,6 @@ mtcp_wrapper_readv(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(readv)(sock_fd, sock_iov, sock_iovcnt);
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
-		
 	return mtcp_readv(&mctx, mtcp_get_sockid_from_fd(sock_fd),
 			  (struct iovec *)sock_iov, sock_iovcnt);
 }
@@ -632,8 +628,6 @@ mtcp_wrapper_write(int sock_fd, const void *sock_buf, size_t sock_count)
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(write)(sock_fd, sock_buf, sock_count);
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
-	
 	return mtcp_write(&mctx, mtcp_get_sockid_from_fd(sock_fd),
 			  (void *)sock_buf, sock_count);
 }
@@ -653,7 +647,6 @@ mtcp_wrapper_writev(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(writev)(sock_fd, sock_iov, sock_iovcnt);
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
 	return mtcp_writev(&mctx, mtcp_get_sockid_from_fd(sock_fd),
 			   (struct iovec *)sock_iov, sock_iovcnt);
 }
@@ -687,8 +680,11 @@ mtcp_wrapper_epoll_create(int sock_size)
 		return MTCP_KERNEL_CALL(epoll_create)(sock_size);
 	else {
 		g_mtcp[mctx.cpu]->ep_fd = MTCP_KERNEL_CALL(epoll_create)(sock_size);
-		if (g_mtcp[mctx.cpu]->ep_fd < 0)
+		if (g_mtcp[mctx.cpu]->ep_fd < 0) {
+			abort();
 			return -1;
+		}
+		
 		/* suppose all are mtcp epoll_create */
 		epoll_fd = mtcp_epoll_create(&mctx, sock_size);
 		if (epoll_fd >= 0)
@@ -718,10 +714,6 @@ mtcp_wrapper_epoll_ctl(int sock_epfd, int sock_op, int sock_fd,
 
 	if (!not_mtcp_socket_fd(&mctx, sock_epfd) &&
 	    !not_mtcp_socket_fd(&mctx, sock_fd)) {
-		
-		if (sock_event != NULL)
-			sock_event->data.fd = mtcp_get_sockid_from_fd(sock_event->data.fd);
-		
 		return mtcp_epoll_ctl(&mctx, mtcp_get_sockid_from_fd(sock_epfd),
 				      sock_op, mtcp_get_sockid_from_fd(sock_fd),
 				      (struct mtcp_epoll_event *)sock_event);
@@ -733,7 +725,6 @@ mtcp_wrapper_epoll_ctl(int sock_epfd, int sock_op, int sock_fd,
 	/* don't expect */
 	TRACE_ERROR("Something weird just happened: sock_epfd: %u, sock_fd: %u!\n",
 		    sock_epfd, sock_fd);
-	return -1; ///////////////////////////////////////////
 	abort();
 	return 0;
 }
@@ -765,7 +756,7 @@ mtcp_wrapper_epoll_wait(int sock_epfd, struct epoll_event *sock_events,
 		int i, fd;
 		for (i = 0; i < nevent; i++) {
 			fd = mtcp_get_fd_from_sockid(sock_events[i].data.fd);
-			sock_events[i].data.fd = fd;
+			(void)fd;
 		}
 	}
 
@@ -795,7 +786,7 @@ sendfile64(int sock_fd, int in_fd, off_t *offset, size_t count)
 		return MTCP_KERNEL_CALL(sendfile)(sock_fd, in_fd, offset, count);
 	}
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
+	abort();
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
@@ -814,8 +805,7 @@ sendfile(int sock_fd, int in_fd, off_t *offset, size_t count)
 		return MTCP_KERNEL_CALL(sendfile)(sock_fd, in_fd, offset, count);
 	}
 
-	//fprintf(stderr, "%s called!\n\n\n", __FUNCTION__);
-	
+	abort();
 	return -1;
 }
 /*----------------------------------------------------------------------------*/

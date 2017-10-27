@@ -98,7 +98,7 @@ the directories are created before running lighttpd.
 
 Please use the following command to run lighttpd:
   $ sudo ./lighttpd -D -f ${PATH_TO_CONFIG_FILE} -n ${NO_OF_CORES}
-  (e.g., $ sudo ./lighttpd -D -f ../docs/config/m-lighttpd.conf -n 8)
+  (e.g., $ sudo ./lighttpd -D -f ../doc/config/m-lighttpd.conf -n 8)
 
 Both PATH_OF_CONFIG_FILE and NO_OF_CORES options are required.
 

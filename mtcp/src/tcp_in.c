@@ -762,6 +762,7 @@ Handle_TCP_ST_SYN_SENT (mtcp_manager_t mtcp, uint32_t cur_ts,
 						NULL, 0, cur_ts, 0);
 				cur_stream->close_reason = TCP_ACTIVE_CLOSE;
 				DestroyTCPStream(mtcp, cur_stream);
+				return;
 			}
 			AddtoControlList(mtcp, cur_stream, cur_ts);
 			if (CONFIG.tcp_timeout > 0)

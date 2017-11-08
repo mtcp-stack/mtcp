@@ -653,6 +653,13 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 		return -1;
 	}
 
+	if (mtcp->ap) {
+		TRACE_DBG("Destroying already exsiting address pool.\n"
+		          "Are you calling mtcp_init_rss() multiple times?\n");
+		DestroyAddressPool(mtcp->ap);
+		mtcp->ap = NULL;
+	}
+
 	if (saddr_base == INADDR_ANY) {
 		int nif_out, eidx;
 

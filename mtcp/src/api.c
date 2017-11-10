@@ -646,6 +646,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 {
 	mtcp_manager_t mtcp;
 	addr_pool_t ap;
+	uint8_t is_external;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -665,7 +666,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 
 		/* for the INADDR_ANY, find the output interface for the destination
 		   and set the saddr_base as the ip address of the output interface */
-		nif_out = GetOutputInterface(daddr);
+		nif_out = GetOutputInterface(daddr, &is_external);
 		if (nif_out < 0) {
 			errno = EINVAL;
 			TRACE_DBG("Could not determine nif idx!\n");
@@ -683,7 +684,8 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 	}
 
 	mtcp->ap = ap;
-
+	UNUSED(is_external);
+	
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -775,13 +777,15 @@ mtcp_connect(mctx_t mctx, int sockid,
 			ret = FetchAddressPerCore(mtcp->ap, 
 						  mctx->cpu, num_queues, addr_in, &socket->saddr);
 		} else {
-			nif = GetOutputInterface(dip);
+			uint8_t is_external;
+			nif = GetOutputInterface(dip, &is_external);
 			if (nif < 0) {
 				errno = EINVAL;
 				return -1;
 			}
 			ret = FetchAddress(ap[nif], 
 					   mctx->cpu, num_queues, addr_in, &socket->saddr);
+			UNUSED(is_external);
 		}
 		if (ret < 0) {
 			errno = EAGAIN;

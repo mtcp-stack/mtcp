@@ -6,18 +6,22 @@
 
 /*----------------------------------------------------------------------------*/
 inline int
-GetOutputInterface(uint32_t daddr)
+GetOutputInterface(uint32_t daddr, uint8_t *is_external)
 {
 	int nif = -1;
 	int i;
 	int prefix = 0;
 
+	*is_external = 0;
 	/* Longest prefix matching */
 	for (i = 0; i < CONFIG.routes; i++) {
 		if ((daddr & CONFIG.rtable[i].mask) == CONFIG.rtable[i].masked) {
 			if (CONFIG.rtable[i].prefix > prefix) {
 				nif = CONFIG.rtable[i].nif;
 				prefix = CONFIG.rtable[i].prefix;
+			} else if (CONFIG.gateway) {
+				*is_external = 1;
+				nif = (CONFIG.gateway)->nif;
 			}
 		}
 	}
@@ -38,14 +42,14 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 {
 	struct iphdr *iph;
 	int nif;
-	unsigned char * haddr;
+	unsigned char * haddr, is_external;
 	int rc = -1;
 
-	nif = GetOutputInterface(daddr);
+	nif = GetOutputInterface(daddr, &is_external);
 	if (nif < 0)
 		return NULL;
 
-	haddr = GetDestinationHWaddr(daddr);
+	haddr = GetDestinationHWaddr(daddr, is_external);
 	if (!haddr) {
 #if 0
 		uint8_t *da = (uint8_t *)&daddr;
@@ -53,7 +57,8 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 				"is not in ARP table!\n",
 				da[0], da[1], da[2], da[3]);
 #endif
-		RequestARP(mtcp, daddr, nif, mtcp->cur_ts);
+		RequestARP(mtcp, (is_external) ? ((CONFIG.gateway)->daddr) : daddr,
+			   nif, mtcp->cur_ts);
 		return NULL;
 	}
 	
@@ -102,17 +107,18 @@ IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 {
 	struct iphdr *iph;
 	int nif;
-	unsigned char *haddr;
+	unsigned char *haddr, is_external = 0;
 	int rc = -1;
 
 	if (stream->sndvar->nif_out >= 0) {
 		nif = stream->sndvar->nif_out;
 	} else {
-		nif = GetOutputInterface(stream->daddr);
+		nif = GetOutputInterface(stream->daddr, &is_external);
 		stream->sndvar->nif_out = nif;
+		stream->is_external = is_external;
 	}
 
-	haddr = GetDestinationHWaddr(stream->daddr);
+	haddr = GetDestinationHWaddr(stream->daddr, stream->is_external);
 	if (!haddr) {
 #if 0
 		uint8_t *da = (uint8_t *)&stream->daddr;
@@ -122,7 +128,8 @@ IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 #endif
 		/* if not found in the arp table, send arp request and return NULL */
 		/* tcp will retry sending the packet later */
-		RequestARP(mtcp, stream->daddr, stream->sndvar->nif_out, mtcp->cur_ts);
+		RequestARP(mtcp, (stream->is_external) ? (CONFIG.gateway)->daddr : stream->daddr,
+			   stream->sndvar->nif_out, mtcp->cur_ts);
 		return NULL;
 	}
 	

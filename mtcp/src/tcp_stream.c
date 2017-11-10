@@ -207,6 +207,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	tcp_stream *stream = NULL;
 	int ret;
 
+	uint8_t is_external;
 	uint8_t *sa;
 	uint8_t *da;
 	
@@ -271,7 +272,8 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->sndvar->mss = TCP_DEFAULT_MSS;
 	stream->sndvar->wscale_mine = TCP_DEFAULT_WSCALE;
 	stream->sndvar->wscale_peer = 0;
-	stream->sndvar->nif_out = GetOutputInterface(stream->daddr);
+	stream->sndvar->nif_out = GetOutputInterface(stream->daddr, &is_external);
+	stream->is_external = is_external;
 
 	stream->sndvar->iss = rand_r(&next_seed) % TCP_MAX_SEQ;
 	//stream->sndvar->iss = 0;
@@ -500,7 +502,8 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 		if (mtcp->ap) {
 			ret = FreeAddress(mtcp->ap, &addr);
 		} else {
-			int nif = GetOutputInterface(addr.sin_addr.s_addr);
+			uint8_t is_external;
+			int nif = GetOutputInterface(addr.sin_addr.s_addr, &is_external);
 			if (nif < 0) {
 				TRACE_ERROR("nif is negative!\n");
 				ret = -1;
@@ -508,6 +511,7 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 			        int eidx = CONFIG.nif_to_eidx[nif];
 				ret = FreeAddress(ap[eidx], &addr);
 			}
+			UNUSED(is_external);
 		}
 		if (ret < 0) {
 			TRACE_ERROR("(NEVER HAPPEN) Failed to free address.\n");

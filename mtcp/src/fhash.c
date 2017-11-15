@@ -73,7 +73,6 @@ StreamHTInsert(struct hashtable *ht, void *it)
 	tcp_stream *item = (tcp_stream *)it;
 
 	assert(ht);
-	assert(ht->ht_count <= 65535); // uint16_t ht_count 
 
 	idx = ht->hashfn(item);
 	assert(idx >=0 && idx < NUM_BINS_FLOWS);
@@ -81,7 +80,6 @@ StreamHTInsert(struct hashtable *ht, void *it)
 	TAILQ_INSERT_TAIL(&ht->ht_table[idx], item, rcvvar->he_link);
 
 	item->ht_idx = TCP_AR_CNT;
-	ht->ht_count++;
 	
 	return 0;
 }
@@ -96,7 +94,6 @@ StreamHTRemove(struct hashtable *ht, void *it)
 	head = &ht->ht_table[idx];
 	TAILQ_REMOVE(head, item, rcvvar->he_link);	
 
-	ht->ht_count--;
 	return (item);
 }	
 /*----------------------------------------------------------------------------*/
@@ -145,13 +142,11 @@ ListenerHTInsert(struct hashtable *ht, void *it)
 	struct tcp_listener *item = (struct tcp_listener *)it;
 
 	assert(ht);
-	assert(ht->ht_count <= 65535); // uint16_t ht_count 
 
 	idx = ht->hashfn(item);
 	assert(idx >=0 && idx < NUM_BINS_LISTENERS);
 
 	TAILQ_INSERT_TAIL(&ht->lt_table[idx], item, he_link);
-	ht->ht_count++;
 	
 	return 0;
 }
@@ -166,7 +161,6 @@ ListenerHTRemove(struct hashtable *ht, void *it)
 	head = &ht->lt_table[idx];
 	TAILQ_REMOVE(head, item, he_link);	
 
-	ht->ht_count--;
 	return (item);
 }	
 /*----------------------------------------------------------------------------*/

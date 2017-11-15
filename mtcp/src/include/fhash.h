@@ -20,7 +20,6 @@ typedef struct list_bucket_head {
 
 /* hashtable structure */
 struct hashtable {
-	uint8_t ht_count ;                    // count for # entry
 	uint32_t bins;
 
 	union {

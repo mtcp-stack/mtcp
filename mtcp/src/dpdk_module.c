@@ -170,6 +170,7 @@ struct dpdk_private_context {
 #endif
 #ifdef ENABLE_STATS_IOCTL
 	int fd;
+	uint32_t cur_ts;
 #endif /* !ENABLE_STATS_IOCTL */
 } __rte_cache_aligned;
 
@@ -183,6 +184,9 @@ struct stats_struct {
 	uint64_t tx_pkts;
 	uint64_t rx_bytes;
 	uint64_t rx_pkts;
+	uint64_t rmiss;
+	uint64_t rerr;
+	uint64_t terr;
 	uint8_t qid;
 	uint8_t dev;
 };
@@ -294,20 +298,36 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 		struct rte_mbuf **pkts;
 #ifdef ENABLE_STATS_IOCTL
 		struct stats_struct ss;
+		struct rte_eth_stats stats;
 #endif /* !ENABLE_STATS_IOCTL */
 		int cnt = dpc->wmbufs[ifidx].len;
 		pkts = dpc->wmbufs[ifidx].m_table;
 #ifdef NETSTAT
 		mtcp->nstat.tx_packets[ifidx] += cnt;
 #ifdef ENABLE_STATS_IOCTL
-		if (likely(dpc->fd >= 0)) {
+		/* only pass stats after >= 1 sec interval */
+		if (abs(mtcp->cur_ts - dpc->cur_ts) >= 1000 &&
+		    likely(dpc->fd >= 0)) {
+			/* rte_get_stats is global func, use only for 1 core */
+			if (ctxt->cpu == 0) {
+				rte_eth_stats_get(portid, &stats);
+				ss.rmiss = stats.imissed;
+				ss.rerr = stats.ierrors;
+				ss.terr = stats.oerrors;
+			} else 
+				ss.rmiss = ss.rerr = ss.terr = 0;
+			
 			ss.tx_pkts = mtcp->nstat.tx_packets[ifidx];
 			ss.tx_bytes = mtcp->nstat.tx_bytes[ifidx];
 			ss.rx_pkts = mtcp->nstat.rx_packets[ifidx];
 			ss.rx_bytes = mtcp->nstat.rx_bytes[ifidx];
 			ss.qid = ctxt->cpu;
 			ss.dev = portid;
+			/* pass the info now */
 			ioctl(dpc->fd, 0, &ss);
+			dpc->cur_ts = mtcp->cur_ts;
+			if (ctxt->cpu == 0)
+				rte_eth_stats_reset(portid);
 		}
 #endif /* !ENABLE_STATS_IOCTL */
 #endif

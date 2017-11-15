@@ -497,9 +497,31 @@ SetInterfaceInfo(char* dev_name_list)
 			}
 			iter_if = iter_if->ifa_next;
 		} while (iter_if != NULL);
-		
+
 		freeifaddrs(ifap);
 #endif /* ENABLE_ONVM */
+	}
+
+	CONFIG.nif_to_eidx = (int*)calloc(MAX_DEVICES, sizeof(int));
+
+	if (!CONFIG.nif_to_eidx) {
+	        exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < MAX_DEVICES; ++i) {
+	        CONFIG.nif_to_eidx[i] = -1;
+	}
+
+	for (i = 0; i < CONFIG.eths_num; ++i) {
+
+		j = CONFIG.eths[i].ifindex;
+		if (j >= MAX_DEVICES) {
+		        TRACE_ERROR("ifindex of eths_%d exceed the limit: %d\n", i, j);
+		        exit(EXIT_FAILURE);
+		}
+
+		/* the physic port index of the i-th port listed in the config file is j*/
+		CONFIG.nif_to_eidx[j] = i;
 	}
 
 	CONFIG.nif_to_eidx = (int*)calloc(MAX_DEVICES, sizeof(int));

@@ -19,9 +19,9 @@ We require the following libraries to run mTCP.
 Compling PSIO/DPDK driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
-We have modified the dpdk-16.11 package to export net_device stat data 
+We have modified the dpdk-17.08 package to export net_device stat data 
 (for Intel-based Ethernet adapters only) to the OS. To achieve this, the
-dpdk-16.11/lib/librte_eal/linuxapp/igb_uio/ directory was updated. We also modified 
+dpdk-17.08/lib/librte_eal/linuxapp/igb_uio/ directory was updated. We also modified 
 ``mk/rte.app.mk`` and ``rte_cpuflags.mk`` files to ease the compilation
 process of mTCP applications. We recommend using our package for DPDK
 installation. 
@@ -40,10 +40,10 @@ io_engine: event-driven packet I/O engine (io_engine)
 - io_engine/include - io_engine header files
 - io_engine/samples - sample io_engine applications (not mTCP’s)
 
-dpdk-16.11: Intel's Data Plane Development Kit* (modified)
-- dpdk-16.11/...
+dpdk-17.08: Intel's Data Plane Development Kit* (modified)
+- dpdk-17.08/...
 
-dpdk: Holds soft links to the compiled dpdk-16.11 include/ and lib/ paths
+dpdk: Holds soft links to the compiled dpdk-17.08 include/ and lib/ paths
 - dpdk/include - the header files
 - dpdk/lib - the libraries that need to be linked
 
@@ -126,7 +126,7 @@ mTCP can be prepared in three ways.
 
    - check that DPDK package creates a new directory of compiled
   libraries. For x86_64 machines, the new subdirectory should be
-  *dpdk-16.11/x86_64-native-linuxapp-gcc*
+  *dpdk-17.08/x86_64-native-linuxapp-gcc*
 
    - only those devices will work with DPDK drivers that are listed
   on this page: http://dpdk.org/doc/nics. Please make sure that your
@@ -145,7 +145,7 @@ mTCP can be prepared in three ways.
     ```
 
 2. Next bring the dpdk-registered interfaces up. Please use the
-   ``setup_iface_single_process.sh`` script file present in ``dpdk-16.11/tools/``
+   ``setup_iface_single_process.sh`` script file present in ``dpdk-17.08/tools/``
    directory for this purpose. Please change lines 49-51 to change the IP	
    address. Under default settings, run the script as:
 
@@ -157,13 +157,13 @@ mTCP can be prepared in three ways.
    empty ``dpdk/`` directory:
    ```bash
       # cd dpdk/
-      # ln -s <path_to_dpdk_16_11_directory>/x86_64-native-linuxapp-gcc/lib lib
-      # ln -s <path_to_dpdk_16_11_directory>/x86_64-native-linuxapp-gcc/include include
+      # ln -s <path_to_dpdk_17_08_directory>/x86_64-native-linuxapp-gcc/lib lib
+      # ln -s <path_to_dpdk_17_08_directory>/x86_64-native-linuxapp-gcc/include include
    ```
 4. Setup mtcp library:
    ```bash
          # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
-	 ## And not dpdk-16.11!
+	 ## And not dpdk-17.08!
 	 ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
    	 # make
     ```

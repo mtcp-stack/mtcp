@@ -21,6 +21,7 @@
 /* for if_nametoindex */
 #include <net/if.h>
 
+#define MAX_ROUTE_ENTRY 64
 #define MAX_OPTLINE_LEN 1024
 #define ALL_STRING "all"
 
@@ -88,8 +89,8 @@ EnrollRouteTableEntry(char *optstr)
 	int ifidx;
 	int ridx;
 	int i;
-	char * saveptr;
-
+	char *saveptr;
+ 
 	saveptr = NULL;
 	daddr_s = strtok_r(optstr, "/", &saveptr);
 	prefix = strtok_r(NULL, " ", &saveptr);
@@ -124,6 +125,12 @@ EnrollRouteTableEntry(char *optstr)
 	}
 
 	ridx = CONFIG.routes++;
+	if (ridx == MAX_ROUTE_ENTRY) {
+		TRACE_CONFIG("Maximum routing entry limit (%d) has been reached."
+		             "Consider increasing MAX_ROUTE_ENTRY.\n", MAX_ROUTE_ENTRY);
+		exit(4);
+	}
+
 	CONFIG.rtable[ridx].daddr = inet_addr(daddr_s);
 	CONFIG.rtable[ridx].prefix = mystrtol(prefix, 10);
 	if (CONFIG.rtable[ridx].prefix > 32 || CONFIG.rtable[ridx].prefix < 0) {
@@ -158,7 +165,7 @@ SetRoutingTableFromFile()
 	while (1) {
 		char *iscomment;
 		int num;
-
+  
 		if (fgets(optstr, MAX_OPTLINE_LEN, fc) == NULL)
 			break;
 
@@ -273,7 +280,7 @@ SetRoutingTable()
 
 	CONFIG.routes = 0;
 	CONFIG.rtable = (struct route_table *)
-			calloc(MAX_DEVICES, sizeof(struct route_table));
+			calloc(MAX_ROUTE_ENTRY, sizeof(struct route_table));
 	if (!CONFIG.rtable) 
 		exit(EXIT_FAILURE);
 

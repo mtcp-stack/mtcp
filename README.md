@@ -195,6 +195,7 @@ mTCP can be prepared in two ways.
 6. Run the applications!
 
 ***NETMAP VERSION***
+
 See README.netmap for details.
 
 ***TESTED ENVIRONMENTS***

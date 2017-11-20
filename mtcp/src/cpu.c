@@ -11,6 +11,12 @@
 #include <sys/syscall.h>
 #include <assert.h>
 #include "mtcp_api.h"
+#ifndef DISABLE_DPDK
+#include <rte_per_lcore.h>
+#include <rte_eal.h>
+#include <rte_launch.h>
+#include <rte_lcore.h>
+#endif
 
 #define MAX_FILE_NAME 1024
 
@@ -31,13 +37,8 @@ int
 mtcp_core_affinitize(int cpu)
 {
 	cpu_set_t cpus;
-	struct bitmask *bmask;
-	FILE *fp;
-	char sysfname[MAX_FILE_NAME];
-	int phy_id;
 	size_t n;
 	int ret;
-	int unused;
 
 	n = GetNumCPUs();
 
@@ -49,6 +50,14 @@ mtcp_core_affinitize(int cpu)
 	CPU_ZERO(&cpus);
 	CPU_SET((unsigned)cpu, &cpus);
 
+#ifndef DISABLE_DPDK
+	return rte_thread_set_affinity(&cpus);
+#else
+	struct bitmask *bmask;
+	FILE *fp;
+	char sysfname[MAX_FILE_NAME];
+	int phy_id;
+	
 	ret = sched_setaffinity(Gettid(), sizeof(cpus), &cpus);
 
 	if (numa_max_node() == 0)
@@ -79,7 +88,6 @@ mtcp_core_affinitize(int cpu)
 	numa_bitmask_free(bmask);
 
 	fclose(fp);
-
-	UNUSED(unused);
+#endif
 	return ret;
 }

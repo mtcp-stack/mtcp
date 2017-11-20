@@ -1,5 +1,9 @@
 #include <stdint.h>
 #include <sys/types.h>
+/* for inet_ntoa() */
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "mtcp.h"
 #include "arp.h"
@@ -91,31 +95,35 @@ GetHWaddr(uint32_t ip)
 }
 /*----------------------------------------------------------------------------*/
 unsigned char *
-GetDestinationHWaddr(uint32_t dip)
+GetDestinationHWaddr(uint32_t dip, uint8_t is_gateway)
 {
 	unsigned char *d_haddr = NULL;
 	int prefix = 0;
 	int i;
 
-	/* Longest prefix matching */
-	for (i = 0; i < CONFIG.arp.entries; i++) {
-		if (CONFIG.arp.entry[i].prefix == 1) {
-			if (CONFIG.arp.entry[i].ip == dip) {
-				d_haddr = CONFIG.arp.entry[i].haddr;
-				break;
-			}	
-		} else {
-			if ((dip & CONFIG.arp.entry[i].ip_mask) ==
-					CONFIG.arp.entry[i].ip_masked) {
-				
-				if (CONFIG.arp.entry[i].prefix > prefix) {
+	if (is_gateway == 1 && CONFIG.arp.gateway)
+		d_haddr = (CONFIG.arp.gateway)->haddr;
+	else {	
+		/* Longest prefix matching */
+		for (i = 0; i < CONFIG.arp.entries; i++) {
+			if (CONFIG.arp.entry[i].prefix == 1) {
+				if (CONFIG.arp.entry[i].ip == dip) {
 					d_haddr = CONFIG.arp.entry[i].haddr;
-					prefix = CONFIG.arp.entry[i].prefix;
+					break;
+				}	
+			} else {
+				if ((dip & CONFIG.arp.entry[i].ip_mask) ==
+				    CONFIG.arp.entry[i].ip_masked) {
+					
+					if (CONFIG.arp.entry[i].prefix > prefix) {
+						d_haddr = CONFIG.arp.entry[i].haddr;
+						prefix = CONFIG.arp.entry[i].prefix;
+					}
 				}
 			}
 		}
 	}
-
+	
 	return d_haddr;
 }
 /*----------------------------------------------------------------------------*/
@@ -170,6 +178,13 @@ RegisterARPEntry(uint32_t ip, const unsigned char *haddr)
 	CONFIG.arp.entry[idx].ip_mask = -1;
 	CONFIG.arp.entry[idx].ip_masked = ip;
 
+	if (CONFIG.gateway && ((CONFIG.gateway)->daddr &
+			       CONFIG.arp.entry[idx].ip_mask) ==
+	    CONFIG.arp.entry[idx].ip_masked) {
+		CONFIG.arp.gateway = &CONFIG.arp.entry[idx];
+		TRACE_CONFIG("ARP Gateway SET!\n");
+	}
+	
 	CONFIG.arp.entries = idx + 1;
 
 	TRACE_CONFIG("Learned new arp entry.\n");
@@ -214,7 +229,7 @@ ProcessARPRequest(mtcp_manager_t mtcp,
 	unsigned char *temp;
 
 	/* register the arp entry if not exist */
-	temp = GetDestinationHWaddr(arph->ar_sip);
+	temp = GetDestinationHWaddr(arph->ar_sip, 0);
 	if (!temp) {
 		RegisterARPEntry(arph->ar_sip, arph->ar_sha);
 	}
@@ -232,7 +247,7 @@ ProcessARPReply(mtcp_manager_t mtcp, struct arphdr *arph, uint32_t cur_ts)
 	struct arp_queue_entry *ent;
 
 	/* register the arp entry if not exist */
-	temp = GetDestinationHWaddr(arph->ar_sip);
+	temp = GetDestinationHWaddr(arph->ar_sip, 0);
 	if (!temp) {
 		RegisterARPEntry(arph->ar_sip, arph->ar_sha);
 	}
@@ -302,8 +317,10 @@ ARPTimer(mtcp_manager_t mtcp, uint32_t cur_ts)
 	pthread_mutex_lock(&g_arpm.lock);
 	TAILQ_FOREACH_SAFE(ent, &g_arpm.list, arp_link, ent_tmp) {
 		if (TCP_SEQ_GT(cur_ts, ent->ts_out + SEC_TO_TS(ARP_TIMEOUT_SEC))) {
-			TRACE_INFO("[CPU%2d] ARP request timed out.\n", 
-					mtcp->ctx->cpu);
+			struct in_addr ina;
+			ina.s_addr = ent->ip;
+			TRACE_INFO("[CPU%2d] ARP request for %s timed out.\n", 
+				   mtcp->ctx->cpu, inet_ntoa(ina));
 			TAILQ_REMOVE(&g_arpm.list, ent, arp_link);
 			free(ent);
 		}

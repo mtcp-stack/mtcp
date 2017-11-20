@@ -12,11 +12,11 @@ driver and ported applications may differ from the mTCP’s.
 ========================================================================
 
 We require the following libraries to run mTCP.
- - libps (PacketShader I/O engine library) OR libdpdk (Intel's DPDK package*)
+ - libps (PacketShader I/O engine library) OR libdpdk (Intel's DPDK package*) OR netmap driver
  - libnuma
  - libpthread
  - librt
- Compling PSIO/DPDK driver requires kernel headers.
+ Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
   - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
 
 
@@ -179,16 +179,24 @@ mTCP can be prepared in three ways.
 
 6. Run the applications!
 
+
 - ONVM VERSION -
 ----------------
-Install openNetVM following these instructions 
-  https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md
+1. Install openNetVM following these instructions 
+           https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md
 
-1-3. ONVM uses DPDK so follow the dpdk installation up until step 4
+2. Next bring the dpdk-registered interfaces up. This can be setup using:
+	   # sudo $RTE_SDK/tools/dpdk-setup-iface.sh
+
+3. Create soft links for include/ and lib/ directories inside
+   empty dpdk/ directory:
+   	   # cd dpdk/
+	   # ln -s $RTE_SDK/$RTE_TARGET/lib lib
+	   # ln -s $RTE_SDK/$RTE_TARGET/include include
 
 4. Setup mtcp library
-      # ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
-      # make
+	   # ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
+	   # make
 
   - By default, mTCP assumes that there are 16 CPUs in your system.
     You can set the CPU limit, e.g. on a 32-core system, by using the following command:
@@ -214,6 +222,12 @@ Install openNetVM following these instructions
   - you may write your own configuration file for your application
 
 6. Run the applications!
+
+
+- NETMAP VERSION -
+------------------
+See README.netmap for details.
+
 ========================================================================
  TESTED ENVIRONMENTS
 ========================================================================
@@ -297,4 +311,4 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
                    Contact: mtcp-user at list.ndsl.kaist.edu
                              April 2, 2015. 
                  EunYoung Jeong <notav at ndsl.kaist.edu>
-		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>
+                 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

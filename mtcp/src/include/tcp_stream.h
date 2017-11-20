@@ -181,7 +181,8 @@ typedef struct tcp_stream
 			saw_timestamp:1,	/* whether peer sends timestamp */
 			sack_permit:1,		/* whether peer permits SACK */
 			control_list_waiting:1, 
-			have_reset:1;
+			have_reset:1,
+			is_external:1;		/* the peer node is locate outside of lan */
 	
 	uint32_t snd_nxt;		/* send next */
 	uint32_t rcv_nxt;		/* receive next */

@@ -142,6 +142,11 @@ EnrollRouteTableEntry(char *optstr)
 	CONFIG.rtable[ridx].masked = 
 			CONFIG.rtable[ridx].daddr & CONFIG.rtable[ridx].mask;
 	CONFIG.rtable[ridx].nif = ifidx;
+
+	if (CONFIG.rtable[ridx].mask == 0) {
+		TRACE_CONFIG("Default Route GW set!\n");
+		CONFIG.gateway = &CONFIG.rtable[ridx];
+	}	
 }
 /*----------------------------------------------------------------------------*/
 int 
@@ -371,8 +376,9 @@ EnrollARPTableEntry(char *optstr)
 		TRACE_CONFIG("Prefix length should be between 0 - 32.\n");
 		return;
 	}
-	
+
 	idx = CONFIG.arp.entries++;
+
 	CONFIG.arp.entry[idx].prefix = prefix;
 	ParseIPAddress(&CONFIG.arp.entry[idx].ip, dip_s);
 	ParseMACAddress(CONFIG.arp.entry[idx].haddr, daddr_s);
@@ -380,7 +386,13 @@ EnrollARPTableEntry(char *optstr)
 	dip_mask = MaskFromPrefix(prefix);
 	CONFIG.arp.entry[idx].ip_mask = dip_mask;
 	CONFIG.arp.entry[idx].ip_masked = CONFIG.arp.entry[idx].ip & dip_mask;
-	
+	if (CONFIG.gateway && ((CONFIG.gateway)->daddr &
+			       CONFIG.arp.entry[idx].ip_mask) ==
+	    CONFIG.arp.entry[idx].ip_masked) {
+		CONFIG.arp.gateway = &CONFIG.arp.entry[idx];
+		TRACE_CONFIG("ARP Gateway SET!\n");
+	}
+
 /*
 	int i, cnt;
 	cnt = 1;

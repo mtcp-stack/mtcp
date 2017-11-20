@@ -11,12 +11,12 @@ driver and ported applications may differ from the mTCP’s.
 ### PREREQUISITE ###
 
 We require the following libraries to run mTCP.
- - ``libps`` (PacketShader I/O engine library) OR libdpdk (Intel's DPDK package*)
+ - ``libps`` (PacketShader I/O engine library) OR ``libdpdk`` (Intel's DPDK package*) or ``netmap`` driver 
  - ``libnuma``
  - ``libpthread``
  - ``librt``
 
-Compling PSIO/DPDK driver requires kernel headers.
+Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
 We have modified the dpdk-17.08 package to export net_device stat data 
@@ -197,9 +197,19 @@ mTCP can be prepared in three ways.
 
 ***ONVM VERSION***
 
-[Install openNetVM following these instructions](https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md)
+1. [Install openNetVM following these instructions](https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md)
 
-*ONVM uses DPDK so follow the dpdk installation up until step 4*
+2. Next bring the dpdk-registered interfaces up. This can be setup using:  
+
+     ```# sudo $RTE_SDK/tools/dpdk-setup-iface.sh```
+
+3. Create soft links for ``include/`` and ``lib/`` directories inside
+   empty ``dpdk/`` directory:
+   ```bash
+      # cd dpdk/
+      # ln -s $RTE_SDK/$RTE_TARGET/lib lib
+      # ln -s $RTE_SDK/$RTE_TARGET/include include
+   ```
 
 4. Setup mtcp library
     ```bash
@@ -232,6 +242,11 @@ mTCP can be prepared in three ways.
    - you may write your own configuration file for your application
 
 6. Run the applications!  
+
+
+***NETMAP VERSION***
+
+See README.netmap for details.
 
 ***TESTED ENVIRONMENTS***
 

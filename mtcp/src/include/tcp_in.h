@@ -9,6 +9,7 @@
 #include "mtcp.h"
 #include "fhash.h"
 
+#define TCP_FLAGS
 #define TCP_FLAG_FIN	0x01	// 0000 0001
 #define TCP_FLAG_SYN	0x02	// 0000 0010
 #define TCP_FLAG_RST	0x04	// 0000 0100

@@ -11,12 +11,12 @@ driver and ported applications may differ from the mTCP’s.
 ### PREREQUISITE ###
 
 We require the following libraries to run mTCP.
- - ``libps`` (PacketShader I/O engine library) OR libdpdk (Intel's DPDK package*)
+ - ``libps`` (PacketShader I/O engine library) OR ``libdpdk`` (Intel's DPDK package*) or ``netmap`` driver 
  - ``libnuma``
  - ``libpthread``
  - ``librt``
 
-Compling PSIO/DPDK driver requires kernel headers.
+Compling PSIO/DPDK/NETMAP driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
 We have modified the dpdk-17.08 package to export net_device stat data 
@@ -193,6 +193,10 @@ mTCP can be prepared in two ways.
    - you may write your own configuration file for your application
 
 6. Run the applications!
+
+***NETMAP VERSION***
+
+See README.netmap for details.
 
 ***TESTED ENVIRONMENTS***
 

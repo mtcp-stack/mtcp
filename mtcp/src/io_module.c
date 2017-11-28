@@ -555,8 +555,8 @@ FetchEndianType()
 #ifndef DISABLE_DPDK
 	char *argv;
 	char **argp = &argv;
-	/* dpdk_module_func logic down below */
-	dpdk_module_func.dev_ioctl(NULL, CONFIG.eths[0].ifindex, DRV_NAME, (void *)argp);
+	/* dpdk_module_func/onvm_module_func logic down below */
+	(*current_iomodule_func).dev_ioctl(NULL, CONFIG.eths[0].ifindex, DRV_NAME, (void *)argp);
 	if (!strcmp(*argp, "net_i40e"))
 		return 1;
 

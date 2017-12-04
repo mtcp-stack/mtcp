@@ -1056,7 +1056,12 @@ MTCPRunThread(void *arg)
 	struct mtcp_thread_context *ctx;
 
 	/* affinitize the thread to this core first */
-	mtcp_core_affinitize(cpu);
+#ifndef DISABLE_DPDK
+	if (rte_lcore_id() == LCORE_ID_ANY)
+#endif
+	{
+		mtcp_core_affinitize(cpu);
+	}
 
 	/* memory alloc after core affinitization would use local memory
 	   most time */

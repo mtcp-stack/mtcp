@@ -396,11 +396,19 @@ onvm_destroy_handle(struct mtcp_thread_context *ctxt)
 void
 onvm_load_module(void)
 {
+	int i, portid;
+
 	pktmbuf_pool=rte_mempool_lookup(PKTMBUF_POOL_NAME);
 	if (pktmbuf_pool == NULL){
 		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool, errno: %d\n",
-			 rte_errno);
+			 rte_errno);	
+	}
 	
+	for (i = 0; i < num_devices_attached; ++i) {
+		/* get portid form the index of attached devices */
+		portid = devices_attached[i];
+		/* check port capabilities */
+		rte_eth_dev_info_get(portid, &dev_info[portid]);
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -412,19 +420,28 @@ onvm_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 	int len_of_mbuf;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
+	void **argpptr = (void **)argp;
 #ifdef ENABLELRO
 	uint8_t *payload, *to;
 	int seg_off;
 #endif
+
+	if (cmd == DRV_NAME) {
+		*argpptr = (void *)dev_info[nif].driver_name;
+		return 0;
+	}
+
+	int eidx = CONFIG.nif_to_eidx[nif];
+
 	iph = (struct iphdr *)argp;
 	dpc = (struct dpdk_private_context *)ctx->io_private_context;
-	len_of_mbuf = dpc->wmbufs[nif].len;
-	
+	len_of_mbuf = dpc->wmbufs[eidx].len;
+
 	switch (cmd) {
 	case PKT_TX_IP_CSUM:
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
 			goto dev_ioctl_err;
-		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		m->ol_flags = PKT_TX_IP_CKSUM | PKT_TX_IPV4;
 		m->l2_len = sizeof(struct ether_hdr);
 		m->l3_len = (iph->ihl<<2);
@@ -432,7 +449,7 @@ onvm_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 	case PKT_TX_TCP_CSUM:
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
 			goto dev_ioctl_err;
-		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		tcph = (struct tcphdr *)((unsigned char *)iph + (iph->ihl<<2));
 		m->ol_flags |= PKT_TX_TCP_CKSUM;
 		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
@@ -469,7 +486,7 @@ onvm_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 			goto dev_ioctl_err;
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
 			goto dev_ioctl_err;
-		m = dpc->wmbufs[nif].m_table[len_of_mbuf - 1];
+		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct ether_hdr));
 		tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl<<2));
 		m->l2_len = sizeof(struct ether_hdr);
@@ -480,7 +497,7 @@ onvm_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		break;
 	case PKT_RX_IP_CSUM:
 		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_IPV4_CKSUM) == 0)
-			goto dev_ioctl_err;		
+			goto dev_ioctl_err;
 		break;
 	case PKT_RX_TCP_CSUM:
 		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_TCP_CKSUM) == 0)
@@ -490,7 +507,7 @@ onvm_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) == 0)
 			goto dev_ioctl_err;
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
-			goto dev_ioctl_err;		
+			goto dev_ioctl_err;
 		break;
 	default:
 		goto dev_ioctl_err;

@@ -353,7 +353,7 @@ mtcp_wrapper_poll(struct pollfd *sock_fds, unsigned long sock_nfds,
 	return MTCP_KERNEL_CALL(poll)(sock_fds, sock_nfds, sock_timeout);
 }
 /*----------------------------------------------------------------------------*/
-__attribute__((gnu_inline)) inline int
+inline int
 poll(struct pollfd *sock_fds, unsigned long sock_nfds,
      int sock_timeout)
 {
@@ -532,7 +532,7 @@ mtcp_wrapper_recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
-__attribute__((gnu_inline)) inline ssize_t
+inline ssize_t
 recvfrom(int sock_fd, void *sock_buf, size_t sock_len,
 	 int sock_flags, struct sockaddr *sock_from,
 	 socklen_t *sock_fromlen)
@@ -555,7 +555,7 @@ mtcp_wrapper_recv(int sock_fd, void *sock_buf, size_t sock_len, int sock_flags)
 			 sock_buf, sock_len, sock_flags);
 }
 /*----------------------------------------------------------------------------*/
-__attribute__((gnu_inline)) inline ssize_t
+inline ssize_t
 recv(int sock_fd, void *sock_buf, size_t sock_len, int sock_flags)
 {
 	return mtcp_wrapper_recv(sock_fd, sock_buf, sock_len, sock_flags);
@@ -594,7 +594,7 @@ mtcp_wrapper_read(int sock_fd, void *sock_buf, size_t sock_count)
 			 sock_buf, sock_count);
 }
 /*----------------------------------------------------------------------------*/
-__attribute__((gnu_inline)) inline ssize_t
+inline ssize_t
 read(int sock_fd, void *sock_buf, size_t sock_count)
 {
 	return mtcp_wrapper_read(sock_fd, sock_buf, sock_count);

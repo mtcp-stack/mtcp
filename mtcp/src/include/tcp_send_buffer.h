@@ -6,6 +6,7 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct sb_manager* sb_manager_t;
+typedef struct mtcp_manager* mtcp_manager_t;
 /*----------------------------------------------------------------------------*/
 struct tcp_send_buffer
 {
@@ -26,7 +27,7 @@ uint32_t
 SBGetCurnum(sb_manager_t sbm);
 /*----------------------------------------------------------------------------*/
 sb_manager_t 
-SBManagerCreate(size_t chunk_size, uint32_t cnum);
+SBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum);
 /*----------------------------------------------------------------------------*/
 struct tcp_send_buffer *
 SBInit(sb_manager_t sbm, uint32_t init_seq);

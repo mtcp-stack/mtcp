@@ -15,6 +15,8 @@
 #define PS_CHUNK_SIZE 			64
 #define PS_SELECT_TIMEOUT 		100		/* in us */
 /*----------------------------------------------------------------------------*/
+struct ps_device devices[MAX_DEVICES];
+/*----------------------------------------------------------------------------*/
 struct psio_private_context {
 	struct ps_handle handle;
 	struct ps_chunk_buf w_chunk_buf[ETH_NUM];

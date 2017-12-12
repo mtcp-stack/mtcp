@@ -75,11 +75,7 @@ RBPrintHex(struct tcp_ring_buffer* buff)
 }
 /*----------------------------------------------------------------------------*/
 rb_manager_t
-#ifdef ENABLELRO
 RBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum)
-#else
-RBManagerCreate(size_t chunk_size, uint32_t cnum)
-#endif
 {
 	rb_manager_t rbm = (rb_manager_t) calloc(1, sizeof(rb_manager));
 
@@ -90,15 +86,26 @@ RBManagerCreate(size_t chunk_size, uint32_t cnum)
 
 	rbm->chunk_size = chunk_size;
 	rbm->cnum = cnum;
-	rbm->mp = (mem_pool_t)MPCreate(chunk_size, (uint64_t)chunk_size * cnum, 0);
+#ifndef DISABLE_DPDK
+	char pool_name[RTE_MEMPOOL_NAMESIZE];
+	sprintf(pool_name, "rbm_pool_%u", mtcp->ctx->cpu);
+	rbm->mp = (mem_pool_t)MPCreate(pool_name, chunk_size, (uint64_t)chunk_size * cnum);	
+#else
+	rbm->mp = (mem_pool_t)MPCreate(chunk_size, (uint64_t)chunk_size * cnum);
+#endif
 	if (!rbm->mp) {
 		TRACE_ERROR("Failed to allocate mp pool.\n");
 		free(rbm);
 		return NULL;
 	}
-
+#ifndef DISABLE_DPDK
+	sprintf(pool_name, "frag_mp_%u", mtcp->ctx->cpu);
+	rbm->frag_mp = (mem_pool_t)MPCreate(pool_name, sizeof(struct fragment_ctx), 
+					    sizeof(struct fragment_ctx) * cnum);	
+#else
 	rbm->frag_mp = (mem_pool_t)MPCreate(sizeof(struct fragment_ctx), 
-									sizeof(struct fragment_ctx) * cnum, 0);
+					    sizeof(struct fragment_ctx) * cnum);
+#endif
 	if (!rbm->frag_mp) {
 		TRACE_ERROR("Failed to allocate frag_mp pool.\n");
 		MPDestroy(rbm->mp);

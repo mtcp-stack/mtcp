@@ -910,41 +910,57 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 		return NULL;
 	}
 
-#ifdef HUGEPAGE
-#define	IS_HUGEPAGE 1
+	mtcp->ctx = ctx;
+#ifndef DISABLE_DPDK
+	char pool_name[RTE_MEMPOOL_NAMESIZE];
+	sprintf(pool_name, "flow_pool_%d", ctx->cpu);
+	mtcp->flow_pool = MPCreate(pool_name, sizeof(tcp_stream),
+				   sizeof(tcp_stream) * CONFIG.max_concurrency);
+	if (!mtcp->flow_pool) {
+		CTRACE_ERROR("Failed to allocate tcp flow pool.\n");
+		return NULL;
+	}
+	sprintf(pool_name, "rv_pool_%d", ctx->cpu);	
+	mtcp->rv_pool = MPCreate(pool_name, sizeof(struct tcp_recv_vars), 
+			sizeof(struct tcp_recv_vars) * CONFIG.max_concurrency);
+	if (!mtcp->rv_pool) {
+		CTRACE_ERROR("Failed to allocate tcp recv variable pool.\n");
+		return NULL;
+	}
+	sprintf(pool_name, "sv_pool_%d", ctx->cpu);
+	mtcp->sv_pool = MPCreate(pool_name, sizeof(struct tcp_send_vars), 
+			sizeof(struct tcp_send_vars) * CONFIG.max_concurrency);
+	if (!mtcp->sv_pool) {
+		CTRACE_ERROR("Failed to allocate tcp send variable pool.\n");
+		return NULL;
+	}
 #else
-#define	IS_HUGEPAGE 0
-#endif
-
 	mtcp->flow_pool = MPCreate(sizeof(tcp_stream),
-								sizeof(tcp_stream) * CONFIG.max_concurrency, IS_HUGEPAGE);
+				   sizeof(tcp_stream) * CONFIG.max_concurrency);
 	if (!mtcp->flow_pool) {
 		CTRACE_ERROR("Failed to allocate tcp flow pool.\n");
 		return NULL;
 	}
 	mtcp->rv_pool = MPCreate(sizeof(struct tcp_recv_vars), 
-			sizeof(struct tcp_recv_vars) * CONFIG.max_concurrency, IS_HUGEPAGE);
+			sizeof(struct tcp_recv_vars) * CONFIG.max_concurrency);
 	if (!mtcp->rv_pool) {
 		CTRACE_ERROR("Failed to allocate tcp recv variable pool.\n");
 		return NULL;
 	}
 	mtcp->sv_pool = MPCreate(sizeof(struct tcp_send_vars), 
-			sizeof(struct tcp_send_vars) * CONFIG.max_concurrency, IS_HUGEPAGE);
+			sizeof(struct tcp_send_vars) * CONFIG.max_concurrency);
 	if (!mtcp->sv_pool) {
 		CTRACE_ERROR("Failed to allocate tcp send variable pool.\n");
 		return NULL;
-	}
-
-	mtcp->rbm_snd = SBManagerCreate(CONFIG.sndbuf_size, CONFIG.max_num_buffers);
+	}	
+#endif
+	mtcp->rbm_snd = SBManagerCreate(mtcp, CONFIG.sndbuf_size, CONFIG.max_num_buffers);
 	if (!mtcp->rbm_snd) {
 		CTRACE_ERROR("Failed to create send ring buffer.\n");
 		return NULL;
 	}
-#ifdef ENABLELRO
+
 	mtcp->rbm_rcv = RBManagerCreate(mtcp, CONFIG.rcvbuf_size, CONFIG.max_num_buffers);
-#else
-	mtcp->rbm_rcv = RBManagerCreate(CONFIG.rcvbuf_size, CONFIG.max_num_buffers);
-#endif
 	if (!mtcp->rbm_rcv) {
 		CTRACE_ERROR("Failed to create recv ring buffer.\n");
 		return NULL;
@@ -967,7 +983,6 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 		TAILQ_INSERT_TAIL(&mtcp->free_smap, &mtcp->smap[i], free_smap_link);
 	}
 
-	mtcp->ctx = ctx;
 	mtcp->ep = NULL;
 
 	snprintf(log_name, MAX_FILE_NAME, LOG_FILE_NAME"_%d", ctx->cpu);
@@ -1056,7 +1071,12 @@ MTCPRunThread(void *arg)
 	struct mtcp_thread_context *ctx;
 
 	/* affinitize the thread to this core first */
-	mtcp_core_affinitize(cpu);
+#ifndef DISABLE_DPDK
+	if (rte_lcore_id() == LCORE_ID_ANY)
+#endif
+	{
+		mtcp_core_affinitize(cpu);
+	}
 
 	/* memory alloc after core affinitization would use local memory
 	   most time */
@@ -1134,6 +1154,14 @@ MTCPRunThread(void *arg)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+#ifndef DISABLE_DPDK
+int MTCPDPDKRunThread(void *arg)
+{
+	MTCPRunThread(arg);
+	return 0;
+}
+#endif
+/*----------------------------------------------------------------------------*/
 mctx_t 
 mtcp_create_context(int cpu)
 {
@@ -1185,12 +1213,32 @@ mtcp_create_context(int cpu)
 		free(mctx);
 		return NULL;
 	}
-
-	if (pthread_create(&g_thread[cpu], 
-			   NULL, MTCPRunThread, (void *)mctx) != 0) {
-	  	TRACE_ERROR("pthread_create of mtcp thread failed!\n");
-	  	return NULL;
-	}
+#ifndef DISABLE_DPDK
+	/* Wake up mTCP threads (wake up I/O threads) */
+	if (current_iomodule_func == &dpdk_module_func) {
+		int master;
+		master = rte_get_master_lcore();
+		
+		if (master == cpu) {
+			lcore_config[master].ret = 0;
+			lcore_config[master].state = FINISHED;
+			
+			if (pthread_create(&g_thread[cpu], 
+					   NULL, MTCPRunThread, (void *)mctx) != 0) {
+				TRACE_ERROR("pthread_create of mtcp thread failed!\n");
+				return NULL;
+			}
+		} else
+			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, cpu);
+	} else
+#endif
+		{
+			if (pthread_create(&g_thread[cpu], 
+					   NULL, MTCPRunThread, (void *)mctx) != 0) {
+				TRACE_ERROR("pthread_create of mtcp thread failed!\n");
+				return NULL;
+			}
+		}
 
 	sem_wait(&g_init_sem[cpu]);
 	sem_destroy(&g_init_sem[cpu]);
@@ -1243,22 +1291,6 @@ mtcp_free_context(mctx_t mctx)
 	ctx->done = 1;
 
 	//pthread_kill(g_thread[mctx->cpu], SIGINT);
-#if 0
-	/* XXX - dpdk logic changes */
-	if (current_iomodule_func == &dpdk_module_func) {
-#ifndef DISABLE_DPDK
-		int master = rte_get_master_lcore();
-		if (master == mctx->cpu)
-			pthread_join(g_thread[mctx->cpu], NULL);
-		else
-			rte_eal_wait_lcore(mctx->cpu);
-#endif /* !DISABLE_DPDK */
-	} else
-#endif
-	{
-	  	pthread_join(g_thread[mctx->cpu], NULL);
-	}
-
 	TRACE_INFO("MTCP thread %d joined.\n", mctx->cpu);
 	running[mctx->cpu] = FALSE;
 
@@ -1487,11 +1519,20 @@ void
 mtcp_destroy()
 {
 	int i;
-
+#ifndef DISABLE_DPDK
+	int master = rte_get_master_lcore();
+#endif
 	/* wait until all threads are closed */
 	for (i = 0; i < num_cpus; i++) {
 		if (running[i]) {
-			pthread_join(g_thread[i], NULL);
+#ifndef DISABLE_DPDK
+			if (master != i)
+				rte_eal_wait_lcore(i);
+			else
+#endif
+			{
+				pthread_join(g_thread[i], NULL);
+			}
 		}
 	}
 

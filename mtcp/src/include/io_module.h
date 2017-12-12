@@ -91,7 +91,7 @@ extern io_module_func *current_iomodule_func;
 #define ps_list_devices(x) 		0
 #endif
 extern io_module_func ps_module_func;
-struct ps_device devices[MAX_DEVICES];
+extern struct ps_device devices[MAX_DEVICES];
 
 /* registered dpdk context */
 extern io_module_func dpdk_module_func;

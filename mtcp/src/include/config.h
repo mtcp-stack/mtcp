@@ -3,12 +3,12 @@
 
 #include "ps.h"
 
-int num_cpus;
-int num_queues;
-int num_devices;
+extern int num_cpus;
+extern int num_queues;
+extern int num_devices;
 
-int num_devices_attached;
-int devices_attached[MAX_DEVICES];
+extern int num_devices_attached;
+extern int devices_attached[MAX_DEVICES];
 
 int 
 LoadConfiguration(const char *fname);

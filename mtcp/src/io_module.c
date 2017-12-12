@@ -34,6 +34,7 @@ io_module_func *current_iomodule_func = &dpdk_module_func;
 #define MAX(a, b) 			((a)>(b)?(a):(b))
 #define MIN(a, b) 			((a)<(b)?(a):(b))
 /*----------------------------------------------------------------------------*/
+#ifndef DISABLE_PSIO
 static int
 GetNumQueues()
 {
@@ -62,11 +63,11 @@ GetNumQueues()
 
 	return queue_cnt;
 }
+#endif /* !PSIO */
 /*----------------------------------------------------------------------------*/
 int
 SetInterfaceInfo(char* dev_name_list)
 {
-	struct ifreq ifr;
 	int eidx = 0;
 	int i, j;
 
@@ -82,6 +83,8 @@ SetInterfaceInfo(char* dev_name_list)
 	}
 
 	if (current_iomodule_func == &ps_module_func) {
+#ifndef DISABLE_PSIO
+		struct ifreq ifr;		
 		/* calculate num_devices now! */
 		num_devices = ps_list_devices(devices);
 		if (num_devices == -1) {
@@ -154,6 +157,7 @@ SetInterfaceInfo(char* dev_name_list)
 			return -1;
 		}
 		close(sock);
+#endif /* !PSIO_MODULE */
 	} else if (current_iomodule_func == &dpdk_module_func) {
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;

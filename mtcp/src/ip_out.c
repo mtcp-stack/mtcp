@@ -23,6 +23,7 @@ GetOutputInterface(uint32_t daddr, uint8_t *is_external)
 				*is_external = 1;
 				nif = (CONFIG.gateway)->nif;
 			}
+			break;
 		}
 	}
 

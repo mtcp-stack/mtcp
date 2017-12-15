@@ -209,7 +209,14 @@ SetRoutingTableFromFile()
 					i -= 1;
 					continue;
 				}
-				EnrollRouteTableEntry(optstr);
+				if (!CONFIG.gateway)
+					EnrollRouteTableEntry(optstr);
+				else {
+					TRACE_ERROR("Default gateway settings in %s should "
+						    "always come as last entry!\n",
+						    route_file);
+					exit(EXIT_FAILURE);
+				}	
 			}
 		}
 	}

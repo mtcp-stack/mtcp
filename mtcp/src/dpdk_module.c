@@ -740,6 +740,15 @@ dpdk_load_module(void)
                         if (pktmbuf_pool[rxlcore_id] == NULL)
                                 rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
                 }
+
+		int i;
+		/* initializing dev_info struct */
+		for (i = 0; i < num_devices_attached; i++) {
+		        /* get portid form the index of attached devices */
+		        portid = devices_attached[i];			
+			/* check port capabilities */
+			rte_eth_dev_info_get(i, &dev_info[portid]);
+		}
 	}
 }
 /*----------------------------------------------------------------------------*/

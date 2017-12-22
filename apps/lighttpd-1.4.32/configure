@@ -635,6 +635,8 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+LIBONVM_LIBS
+LIBONVM_CFLAGS
 LIBDPDK_LIBS
 LIBDPDK_CFLAGS
 LIBPSIO_LIBS
@@ -832,6 +834,7 @@ enable_multithreading
 with_libmtcp
 with_libpsio
 with_libdpdk
+with_libonvm
 enable_netmap
 '
       ac_precious_vars='build_alias
@@ -1526,6 +1529,7 @@ Optional Packages:
   --with-libmtcp[=PATH]   Include libmtcp support in PATH/include and PATH/lib
   --with-libpsio[=PATH]   Include libpsio support in PATH/include and PATH/lib
   --with-libdpdk[=PATH]   Include libdpdk support in PATH/include and PATH/lib
+  --with-libonvm[=PATH]   Include libonvm support in PATH
 
 Some influential environment variables:
   CC          C compiler command
@@ -16553,6 +16557,37 @@ if test "$WITH_LIBDPDK" != "no"; then
 	CFLAGS="${CFLAGS} ${LIBDPDK_CFLAGS}"
 
 $as_echo "#define HAVE_LIBDPDK 1" >>confdefs.h
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for onvm support" >&5
+$as_echo_n "checking for onvm support... " >&6; }
+
+# Check whether --with-libonvm was given.
+if test "${with_libonvm+set}" = set; then :
+  withval=$with_libonvm; WITH_LIBONVM=$withval
+else
+  WITH_LIBONVM=no
+fi
+
+
+LIBONVM_CFLAGS=""
+LIBONVM_LIBS=""
+
+if test "$WITH_LIBONVM" != "no"; then
+	LIBONVM_CFLAGS="-I$WITH_LIBONVM/onvm_nflib"
+	LIBONVM_LIBS="$WITH_LIBONVM/onvm_nflib/onvm_nflib/$RTE_TARGET/libonvm.a"
+	CFLAGS="${CFLAGS} ${LIBONVM_CFLAGS}"
+
+$as_echo "#define HAVE_LIBONVM 1" >>confdefs.h
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }

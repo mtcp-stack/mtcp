@@ -702,6 +702,27 @@ fi
 AC_SUBST(LIBDPDK_CFLAGS)
 AC_SUBST(LIBDPDK_LIBS)
 
+AC_MSG_CHECKING(for onvm support)
+AC_ARG_WITH(libonvm,
+    AC_HELP_STRING([--with-libonvm@<:@=PATH@:>@],[Include libonvm support in PATH]),
+    [WITH_LIBONVM=$withval],[WITH_LIBONVM=no])
+
+LIBONVM_CFLAGS=""
+LIBONVM_LIBS=""
+
+if test "$WITH_LIBONVM" != "no"; then
+	LIBONVM_CFLAGS="-I$WITH_LIBONVM/onvm_nflib"
+	LIBONVM_LIBS="$WITH_LIBONVM/onvm_nflib/onvm_nflib/$RTE_TARGET/libonvm.a"
+	CFLAGS="${CFLAGS} ${LIBONVM_CFLAGS}"
+	AC_DEFINE([HAVE_LIBONVM], [1], [libonvm support])
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+fi
+
+AC_SUBST(LIBONVM_CFLAGS)
+AC_SUBST(LIBONVM_LIBS)
+
 
 AC_MSG_CHECKING(for netmap support)
 AC_ARG_ENABLE(netmap,

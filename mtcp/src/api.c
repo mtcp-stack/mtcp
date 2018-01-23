@@ -700,7 +700,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 	in_addr_t dip;
 	in_port_t dport;
 	int is_dyn_bound = FALSE;
-	int ret;//, nif;
+	int ret, nif;
 
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
@@ -758,12 +758,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 	    socket->saddr.sin_port != INPORT_ANY &&
 	    socket->saddr.sin_addr.s_addr != INADDR_ANY) {
 		int rss_core;
-#if 0
-		uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
-			0 : 1;
-#else
 		uint8_t endian_check = FetchEndianType();
-#endif
 		
 		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip, 
 					 socket->saddr.sin_port, dport, num_queues, endian_check);
@@ -773,12 +768,6 @@ mtcp_connect(mctx_t mctx, int sockid,
 			return -1;
 		}
 	} else {
-		if (!mtcp->ap) {
-			mtcp_init_rss(mctx, socket->saddr.sin_addr.s_addr, 1, dip, dport);
-		}
-		ret = FetchAddressPerCore(mtcp->ap, 
-					  mctx->cpu, num_queues, addr_in, &socket->saddr);		
-#if 0		
 		if (mtcp->ap) {
 			ret = FetchAddressPerCore(mtcp->ap, 
 						  mctx->cpu, num_queues, addr_in, &socket->saddr);
@@ -793,7 +782,6 @@ mtcp_connect(mctx_t mctx, int sockid,
 					   mctx->cpu, num_queues, addr_in, &socket->saddr);
 			UNUSED(is_external);
 		}
-#endif
 		if (ret < 0) {
 			errno = EAGAIN;
 			return -1;

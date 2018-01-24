@@ -758,12 +758,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 	    socket->saddr.sin_port != INPORT_ANY &&
 	    socket->saddr.sin_addr.s_addr != INADDR_ANY) {
 		int rss_core;
-#if 0
-		uint8_t endian_check = (current_iomodule_func == &dpdk_module_func) ?
-			0 : 1;
-#else
 		uint8_t endian_check = FetchEndianType();
-#endif
 		
 		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip, 
 					 socket->saddr.sin_port, dport, num_queues, endian_check);

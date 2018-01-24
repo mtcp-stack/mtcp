@@ -161,7 +161,6 @@ struct mtcp_config
 	/* adding multi-process support */
 	uint8_t multi_process;
 	uint8_t multi_process_is_master;
-	uint8_t multi_process_curr_core;
 };
 /*----------------------------------------------------------------------------*/
 struct mtcp_context

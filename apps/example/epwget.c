@@ -699,12 +699,14 @@ int
 main(int argc, char **argv)
 {
 	struct mtcp_conf mcfg;
+	char *conf_file;
 	int cores[MAX_CPUS];
 	int flow_per_thread;
 	int flow_remainder_cnt;
 	int total_concurrency = 0;
 	int ret;
-	int i;
+	int i, o;
+	int process_cpu;
 
 	if (argc < 3) {
 		TRACE_CONFIG("Too few arguments!\n");
@@ -726,6 +728,8 @@ main(int argc, char **argv)
 		strncpy(url, "/", 2);
 	}
 
+	conf_file = NULL;
+	process_cpu = -1;
 	daddr = inet_addr(host);
 	dport = htons(80);
 	saddr = INADDR_ANY;
@@ -739,12 +743,14 @@ main(int argc, char **argv)
 	num_cores = GetNumCPUs();
 	core_limit = num_cores;
 	concurrency = 100;
-	for (i = 3; i < argc - 1; i++) {
-		if (strcmp(argv[i], "-N") == 0) {
-			core_limit = mystrtol(argv[i + 1], 10);
+
+	while (-1 != (o = getopt(argc, argv, "N:c:o:n:f:"))) {
+		switch(o) {
+		case 'N':
+			core_limit = mystrtol(optarg, 10);
 			if (core_limit > num_cores) {
 				TRACE_CONFIG("CPU limit should be smaller than the "
-						"number of CPUS: %d\n", num_cores);
+					     "number of CPUS: %d\n", num_cores);
 				return FALSE;
 			} else if (core_limit < 1) {
 				TRACE_CONFIG("CPU limit should be greater than 0\n");
@@ -758,17 +764,29 @@ main(int argc, char **argv)
 			mtcp_getconf(&mcfg);
 			mcfg.num_cores = core_limit;
 			mtcp_setconf(&mcfg);
-		} else if (strcmp(argv[i], "-c") == 0) {
-			total_concurrency = mystrtol(argv[i + 1], 10);
-
-		} else if (strcmp(argv[i], "-o") == 0) {
-			if (strlen(argv[i + 1]) > MAX_FILE_LEN) {
+			break;
+		case 'c':
+			total_concurrency = mystrtol(optarg, 10);
+			break;
+		case 'o':
+			if (strlen(optarg) > MAX_FILE_LEN) {
 				TRACE_CONFIG("Output file length should be smaller than %d!\n", 
-						MAX_FILE_LEN);
+					     MAX_FILE_LEN);
 				return FALSE;
 			}
 			fio = TRUE;
-			strncpy(outfile, argv[i + 1], MAX_FILE_LEN);
+			strncpy(outfile, optarg, MAX_FILE_LEN);
+			break;
+		case 'n':
+			process_cpu = mystrtol(optarg, 10);
+			if (process_cpu > core_limit) {
+				TRACE_CONFIG("Starting CPU is way off limits!\n");
+				return FALSE;
+			}
+			break;
+		case 'f':
+			conf_file = optarg;
+			break;
 		}
 	}
 
@@ -792,7 +810,12 @@ main(int argc, char **argv)
 		TRACE_CONFIG("Output file: %s\n", outfile);
 	}
 
-	ret = mtcp_init("epwget.conf");
+	if (conf_file == NULL) {
+		TRACE_ERROR("mTCP configuration file is not set!\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	ret = mtcp_init(conf_file);
 	if (ret) {
 		TRACE_ERROR("Failed to initialize mtcp.\n");
 		exit(EXIT_FAILURE);
@@ -806,7 +829,7 @@ main(int argc, char **argv)
 
 	flow_per_thread = total_flows / core_limit;
 	flow_remainder_cnt = total_flows % core_limit;
-	for (i = 0; i < core_limit; i++) {
+	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
 		cores[i] = i;
 		done[i] = FALSE;
 		flows[i] = flow_per_thread;
@@ -823,11 +846,17 @@ main(int argc, char **argv)
 			TRACE_ERROR("Failed to create wget thread.\n");
 			exit(-1);
 		}
+
+		if (process_cpu != -1)
+			break;
 	}
 
-	for (i = 0; i < core_limit; i++) {
+	for (i = ((process_cpu == -1) ? 0 : process_cpu); i < core_limit; i++) {
 		pthread_join(app_thread[i], NULL);
 		TRACE_INFO("Wget thread %d joined.\n", i);
+
+		if (process_cpu != -1)
+			break;
 	}
 
 	mtcp_destroy();

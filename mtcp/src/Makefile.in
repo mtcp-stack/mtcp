@@ -84,11 +84,6 @@ else
 INC += -DDISABLE_DPDK
 endif
 
-ifeq ($(wildcard /usr/lib/libhugetlbfs.so),) 
-else
-	GCC_OPT += -DHUGEPAGE
-endif
-
 ### SOURCE CODE ###
 SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 	   tcp_util.c eth_in.c ip_in.c tcp_in.c eth_out.c ip_out.c tcp_out.c \

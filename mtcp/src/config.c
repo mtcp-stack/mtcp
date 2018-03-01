@@ -30,6 +30,14 @@ static const char *arp_file = "config/arp.conf";
 struct mtcp_manager *g_mtcp[MAX_CPUS] = {NULL};
 struct mtcp_config CONFIG = {0};
 addr_pool_t ap[ETH_NUM] = {NULL};
+/* total cpus detected in the mTCP stack*/
+int num_cpus;
+/* this should be equal to num_cpus */
+int num_queues;
+int num_devices;
+
+int num_devices_attached;
+int devices_attached[MAX_DEVICES];
 /*----------------------------------------------------------------------------*/
 static inline int
 mystrtol(const char *nptr, int base)
@@ -85,24 +93,29 @@ EnrollRouteTableEntry(char *optstr)
 {
 	char *daddr_s;
 	char *prefix;
+#ifdef DISABLE_NETMAP 
 	char *dev;
+	int i;
+#endif
 	int ifidx;
 	int ridx;
-	int i;
 	char *saveptr;
  
 	saveptr = NULL;
 	daddr_s = strtok_r(optstr, "/", &saveptr);
 	prefix = strtok_r(NULL, " ", &saveptr);
+#ifdef DISABLE_NETMAP
 	dev = strtok_r(NULL, "\n", &saveptr);
-
+#endif
 	assert(daddr_s != NULL);
 	assert(prefix != NULL);
+#ifdef DISABLE_NETMAP	
 	assert(dev != NULL);
+#endif
 
 	ifidx = -1;
-	/* XXX - This needs to be revised */
 	if (current_iomodule_func == &ps_module_func) {
+#ifndef DISABLE_PSIO		
 		for (i = 0; i < num_devices; i++) {
 			if (strcmp(dev, devices[i].name) != 0)
 				continue;
@@ -114,14 +127,17 @@ EnrollRouteTableEntry(char *optstr)
 			TRACE_CONFIG("Interface %s does not exist!\n", dev);
 			exit(4);
 		}
+#endif
 	} else if (current_iomodule_func == &dpdk_module_func ||
 		   current_iomodule_func == &onvm_module_func) {
+#ifndef DISABLE_DPDK
 		for (i = 0; i < num_devices; i++) {
 			if (strcmp(CONFIG.eths[i].dev_name, dev))
 				continue;
 			ifidx = CONFIG.eths[i].ifindex;
 			break;
 		}
+#endif
 	}
 
 	ridx = CONFIG.routes++;
@@ -194,7 +210,14 @@ SetRoutingTableFromFile()
 					i -= 1;
 					continue;
 				}
-				EnrollRouteTableEntry(optstr);
+				if (!CONFIG.gateway)
+					EnrollRouteTableEntry(optstr);
+				else {
+					TRACE_ERROR("Default gateway settings in %s should "
+						    "always come as last entry!\n",
+						    route_file);
+					exit(EXIT_FAILURE);
+				}	
 			}
 		}
 	}
@@ -478,7 +501,7 @@ LoadARPTable()
 	fclose(fc);
 	return 0;
 }
-/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/	
 static int
 SetMultiProcessSupport(char *multiprocess_details)
 {
@@ -486,20 +509,15 @@ SetMultiProcessSupport(char *multiprocess_details)
 	char *sample;
 	char *saveptr;
 
-	TRACE_CONFIG("Loading multi-process configuration\n");
-
 	saveptr = NULL;
 	sample = strtok_r(multiprocess_details, token, &saveptr);
 	if (sample == NULL) {
 		TRACE_CONFIG("No option for multi-process support given!\n");
 		return -1;
 	}
-	CONFIG.multi_process_curr_core = mystrtol(sample, 10);
-	
-	sample = strtok_r(NULL, token, &saveptr);
-	if (sample != NULL && !strcmp(sample, "master"))
-		CONFIG.multi_process_is_master = 1;
-	
+	CONFIG.multi_process = mystrtol(sample, 10);
+	TRACE_CONFIG("Loading multi-process configuration: %d\n",
+		     CONFIG.multi_process);	
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
@@ -599,7 +617,6 @@ ParseConfiguration(char *line)
 		CONFIG.onvm_dest = mystrtol(q, 10);
 #endif
 	} else if (strcmp(p, "multiprocess") == 0) {
-		CONFIG.multi_process = 1;
 		SetMultiProcessSupport(line + strlen(p) + 1);
 	} else {
 		TRACE_CONFIG("Unknown option type: %s\n", line);
@@ -683,8 +700,7 @@ PrintConfiguration()
 	TRACE_CONFIG("Maximum number of concurrency per core: %d\n", 
 			CONFIG.max_concurrency);
 	if (CONFIG.multi_process == 1) {
-		TRACE_CONFIG("Multi-process support is enabled and current core is: %d\n",
-			     CONFIG.multi_process_curr_core);
+		TRACE_CONFIG("Multi-process support is enabled\n");
 		if (CONFIG.multi_process_is_master == 1)
 			TRACE_CONFIG("Current core is master (for multi-process)\n");
 		else

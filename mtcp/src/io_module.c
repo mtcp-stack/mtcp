@@ -34,6 +34,10 @@
 #endif
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
+#ifndef DISABLE_DPDK
+enum rte_proc_type_t eal_proc_type_detect(void);
+#endif
+/*----------------------------------------------------------------------------*/
 #define ALL_STRING			"all"
 #define MAX_PROCLINE_LEN		1024
 #define MAX(a, b) 			((a)>(b)?(a):(b))
@@ -43,6 +47,7 @@ io_module_func *current_iomodule_func = &dpdk_module_func;
 /* onvm struct for port info lookup */
 extern struct port_info *ports;
 
+#ifndef DISABLE_PSIO
 static int
 GetNumQueues()
 {
@@ -71,11 +76,11 @@ GetNumQueues()
 
 	return queue_cnt;
 }
+#endif /* !PSIO */
 /*----------------------------------------------------------------------------*/
 int
 SetInterfaceInfo(char* dev_name_list)
 {
-	struct ifreq ifr;
 	int eidx = 0;
 	int i, j;
 
@@ -91,6 +96,8 @@ SetInterfaceInfo(char* dev_name_list)
 	}
 
 	if (current_iomodule_func == &ps_module_func) {
+#ifndef DISABLE_PSIO
+		struct ifreq ifr;		
 		/* calculate num_devices now! */
 		num_devices = ps_list_devices(devices);
 		if (num_devices == -1) {
@@ -163,6 +170,7 @@ SetInterfaceInfo(char* dev_name_list)
 			return -1;
 		}
 		close(sock);
+#endif /* !PSIO_MODULE */
 	} else if (current_iomodule_func == &dpdk_module_func) {
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;
@@ -184,7 +192,7 @@ SetInterfaceInfo(char* dev_name_list)
 			exit(EXIT_FAILURE);
 		}
 		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
-
+		
 		/* initialize the rte env first, what a waste of implementation effort!  */
 		char *argv[] = {"",
 				"-c",
@@ -295,6 +303,11 @@ SetInterfaceInfo(char* dev_name_list)
 		} while (iter_if != NULL);
 
 		freeifaddrs(ifap);
+
+		/* check if process is primary or secondary */
+		CONFIG.multi_process_is_master = (eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
+			1 : 0;
+		
 #endif /* !DISABLE_DPDK */
 	} else if (current_iomodule_func == &netmap_module_func) {
 #ifndef DISABLE_NETMAP

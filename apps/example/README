@@ -9,10 +9,10 @@ epserver: a simple mtcp-epoll-based web server
 
    Multi-Process, Single-threaded Usage [DPDK-only]
       (Master runs on core 0 by default, Slave processes on core 1~N)
-      ex) ./epserver -p /home/notav/www -f epserver-master.conf -c 0
+      ex) ./epserver -p /home/notav/www -f epserver-multiprocess.conf -c 0
       	  for i in {1..7}
 	  do
-	     ./epserver -p /home/notav/www -f epserver-slave.conf -c $i
+	     ./epserver -p /home/notav/www -f epserver-mutliprocess.conf -c $i
 	  done
 
 
@@ -28,14 +28,27 @@ options:
 ========================================================================
 
 epwget: simple mtcp-epoll-based http request generator
- usage: ./epwget URL #requests [-N #cores] [-c concurrency]
+ Single-Process, Multi-threaded Usage:
+ usage: ./epwget URL #requests [-N #cores] [-c concurrency] -f $mtcp_conf
     ex) ./epwget 10.0.0.43/example.txt 10000000 -N 8 -c 8000
+
+ Multi-Process, Single-threaded Usage [DPDK-only]
+    (Master runs on core 0 by default, Slave processes on core 1~N)
+ usage: ./epwget URL #requests -n $core [-c concurrency] -f $mtcp_conf
+    ex) ./epwget 10.0.0.43/example.txt 10000000 -n 0 -c 1000 -f epwget-multiprocess.conf
+        for i in {1..7}
+	do
+	   ./epwget 10.0.0.43/example.txt 1000000 -n $i -c 1000 -f epwget-multiprocess.conf
+	done
 
 options:
   URL: url of the content to download.
   #requests: number of requests to generate
   -N: number of CPU cores to use. default: min(# cores, # requests)
   -c: number of maximum concurrent connections. default: 100
+  -f: path to mtcp configuration file
+  -n: the core_id on which the process should run
+      [only works for multi-process mode]
 
 notes:
   - epwget can use a range of IP addresses for larger concurrent 
@@ -49,3 +62,4 @@ notes:
                    Contact: mtcp-user at list.ndsl.kaist.edu
                              April 2, 2014. 
                  EunYoung Jeong <notav at ndsl.kaist.edu>
+		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

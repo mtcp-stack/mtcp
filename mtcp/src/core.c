@@ -920,7 +920,7 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 	}
 
 	mtcp->ctx = ctx;
-#ifndef DISABLE_DPDK
+#if !defined(DISABLE_DPDK) && !ENABLE_ONVM
 	char pool_name[RTE_MEMPOOL_NAMESIZE];
 	sprintf(pool_name, "flow_pool_%d", ctx->cpu);
 	mtcp->flow_pool = MPCreate(pool_name, sizeof(tcp_stream),

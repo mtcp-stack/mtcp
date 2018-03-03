@@ -63,7 +63,7 @@ endif
 
 INC += -I@ONVMLIBPATH@/onvm_nflib
 INC += -DENABLE_ONVM
-LIBS += @ONVMLIBPATH@/onvm_nflib/onvm_nflib/$(RTE_TARGET)/libonvm.a
+LIBS += @ONVMLIBPATH@/onvm_nflib/$(RTE_TARGET)/libonvm.a
 endif
 
 ifeq ($V,) # no echo

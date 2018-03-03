@@ -86,6 +86,7 @@ struct dpdk_private_context {
 #endif
 #ifdef ENABLE_STATS_IOCTL
 	int fd;
+        uint32_t cur_ts;
 #endif /* !ENABLE_STATS_IOCTL */
 } __rte_cache_aligned;
 
@@ -104,8 +105,12 @@ struct stats_struct {
 	uint64_t tx_pkts;
 	uint64_t rx_bytes;
 	uint64_t rx_pkts;
+        uint64_t rmiss;
+        uint64_t rerr;
+        uint64_t terr;
 	uint8_t qid;
 	uint8_t dev;
+
 };
 #endif /* !ENABLE_STATS_IOCTL */
 /*----------------------------------------------------------------------------*/
@@ -175,7 +180,7 @@ onvm_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *pkt
 	/* 
 	 * do nothing over here - memory reclamation
 	 * will take place in onvm_recv_pkts 
-	 */
+	        */
 }
 /*----------------------------------------------------------------------------*/
 int
@@ -185,7 +190,9 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 	mtcp_manager_t mtcp;
 	int ret, i;
 	struct onvm_pkt_meta* meta;
-	
+        int ifidx;
+
+        ifidx = nif;	
 	dpc = (struct dpdk_private_context *)ctxt->io_private_context;
 	mtcp = ctxt->mtcp_manager;
 	ret = 0;
@@ -194,6 +201,7 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 	if (dpc->wmbufs[nif].len >/*= MAX_PKT_BURST*/ 0) {
 		struct rte_mbuf **pkts;
 #ifdef ENABLE_STATS_IOCTL
+                struct rte_eth_stats stats;
 		struct stats_struct ss;
 #endif /* !ENABLE_STATS_IOCTL */
 		int cnt = dpc->wmbufs[nif].len;
@@ -201,15 +209,30 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 #ifdef NETSTAT
 		mtcp->nstat.tx_packets[nif] += cnt;
 #ifdef ENABLE_STATS_IOCTL
-		if (likely(dpc->fd >= 0)) {
-			ss.tx_pkts = mtcp->nstat.tx_packets[nif];
-			ss.tx_bytes = mtcp->nstat.tx_bytes[nif];
-			ss.rx_pkts = mtcp->nstat.rx_packets[nif];
-			ss.rx_bytes = mtcp->nstat.rx_bytes[nif];
-			ss.qid = ctxt->cpu;
-			ss.dev = nif;
-			ioctl(dpc->fd, 0, &ss);
-		}
+        /* only pass stats after >= 1 sec interval */
+        if (abs(mtcp->cur_ts - dpc->cur_ts) >= 1000 &&
+            likely(dpc->fd >= 0)) {
+                /* rte_get_stats is global func, use only for 1 core */
+                if (ctxt->cpu == 0) {
+                        rte_eth_stats_get(CONFIG.eths[ifidx].ifindex, &stats);
+                        ss.rmiss = stats.imissed;
+                        ss.rerr = stats.ierrors;
+                        ss.terr = stats.oerrors;
+                } else 
+                        ss.rmiss = ss.rerr = ss.terr = 0;
+
+                ss.tx_pkts = mtcp->nstat.tx_packets[ifidx];
+                ss.tx_bytes = mtcp->nstat.tx_bytes[ifidx];
+                ss.rx_pkts = mtcp->nstat.rx_packets[ifidx];
+                ss.rx_bytes = mtcp->nstat.rx_bytes[ifidx];
+                ss.qid = ctxt->cpu;
+                ss.dev = CONFIG.eths[ifidx].ifindex;
+                /* pass the info now */
+                ioctl(dpc->fd, 0, &ss);
+                dpc->cur_ts = mtcp->cur_ts;
+                if (ctxt->cpu == 0)
+                        rte_eth_stats_reset(CONFIG.eths[ifidx].ifindex);
+        }
 #endif /* !ENABLE_STATS_IOCTL */
 #endif
 		
@@ -225,8 +248,8 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 				meta->destination = CONFIG.onvm_dest;
 			}
 		}
-		ret = rte_ring_enqueue_bulk(tx_ring, (void * const*)pkts ,cnt);
-		if(cnt>0 && ret== -ENOBUFS) {
+		ret = rte_ring_enqueue_bulk(tx_ring, (void * const*)pkts ,cnt, NULL);
+		if(cnt>0 && ret== 0) {
 			TRACE_ERROR("Dropped %d packets", cnt);
 			nf->stats.tx_drop += cnt;
 		}
@@ -311,7 +334,7 @@ onvm_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 		dpc->rmbufs[ifidx].len = 0;
 	}
 
-	ret = rte_ring_dequeue_burst(rx_ring, pkts, MAX_PKT_BURST);
+	ret = rte_ring_dequeue_burst(rx_ring, pkts, MAX_PKT_BURST, NULL);
 	
 	for(i=0;i<ret;i++) {
 		dpc->pkts_burst[i]=(struct rte_mbuf*)pkts[i];

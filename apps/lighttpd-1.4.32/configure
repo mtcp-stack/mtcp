@@ -16584,7 +16584,7 @@ LIBONVM_LIBS=""
 
 if test "$WITH_LIBONVM" != "no"; then
 	LIBONVM_CFLAGS="-I$WITH_LIBONVM/onvm_nflib"
-	LIBONVM_LIBS="$WITH_LIBONVM/onvm_nflib/onvm_nflib/$RTE_TARGET/libonvm.a"
+	LIBONVM_LIBS="$WITH_LIBONVM/onvm_nflib/$RTE_TARGET/libonvm.a"
 	CFLAGS="${CFLAGS} ${LIBONVM_CFLAGS}"
 
 $as_echo "#define HAVE_LIBONVM 1" >>confdefs.h

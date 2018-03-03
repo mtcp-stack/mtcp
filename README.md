@@ -253,6 +253,14 @@ If 2 cores (0,1) are available it is possible to run 2 instances of epserver. To
 
 6. Run the applications!
 
+**Notes**  
+When running applications the secondary process can fail to launch (```EAL: FATAL: Cannot init memory```, or ``` Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option```)  
+To prevent this use the base virtual address parameter for the ONVM manager.  
+Example launch options for onvm_mgr with the provided -v argument.   
+```
+cd openNetVM/onvm  
+./go.sh 1,2,3 1 -s stdout -v 0x7f000000000 
+```
 
 ***NETMAP VERSION***
 

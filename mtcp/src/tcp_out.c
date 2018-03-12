@@ -460,9 +460,10 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 #else
 	struct tcp_send_vars *sndvar = cur_stream->sndvar;
 	uint8_t *data;
+	uint32_t pkt_len;
 	uint32_t len;
 	uint32_t seq;
-	uint32_t remaining_window;
+	int remaining_window;
 	int sndlen;
 	int packets = 0;
 	uint8_t wack_sent = 0;
@@ -516,7 +517,9 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		remaining_window = MIN(sndvar->cwnd, sndvar->peer_wnd)
 			               - (seq - sndvar->snd_una);
 		/* if there is no space in the window */
-		if (remaining_window < sndvar->mss) {
+		if (remaining_window <= 0 ||
+		    (remaining_window < sndvar->mss && seq - sndvar->snd_una > 0)) {
+			/* if peer window is full, send ACK and let its peer advertises new one */
 			if (sndvar->peer_wnd <= sndvar->cwnd) {
 #if 0
 				TRACE_CLWND("Full peer window. "
@@ -532,16 +535,15 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 			goto out;
 		}
 		
-		/* determining TCP payload size */
-		len = MIN(len, remaining_window);  /* limited by remaining window space */
-
-		/* limited by MSS */
-		len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
+		/* payload size limited by remaining window space */
+		len = MIN(len, remaining_window);
+		/* payload size limited by TCP MSS */
+		pkt_len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
 
 		if ((sndlen = SendTCPPacket(mtcp, cur_stream, cur_ts,
-					    TCP_FLAG_ACK, data, len)) < 0) {
+					    TCP_FLAG_ACK, data, pkt_len)) < 0) {
 			/* there is no available tx buf */
-			packets = sndlen;
+			packets = -3;
 			goto out;
 		}
 		packets++;

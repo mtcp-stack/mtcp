@@ -638,8 +638,8 @@ LoadConfiguration(const char *fname)
 	CONFIG.num_cores = num_cpus;
 	CONFIG.max_concurrency = 100000;
 	CONFIG.max_num_buffers = 100000;
-	CONFIG.rcvbuf_size = 8192;
-	CONFIG.sndbuf_size = 8192;
+	CONFIG.rcvbuf_size = -1;
+	CONFIG.sndbuf_size = -1;
 	CONFIG.tcp_timeout = TCP_TIMEOUT;
 	CONFIG.tcp_timewait = TCP_TIMEWAIT;
 	CONFIG.num_mem_ch = 0;
@@ -673,6 +673,16 @@ LoadConfiguration(const char *fname)
 
 	fclose(fp);
 
+	/* if rcvbuf is set but sndbuf is not, sndbuf = rcvbuf */
+	if (CONFIG.sndbuf_size == -1 && CONFIG.rcvbuf_size != -1)
+		CONFIG.sndbuf_size = CONFIG.rcvbuf_size;
+	/* if sndbuf is set but rcvbuf is not, rcvbuf = sndbuf */
+	if (CONFIG.rcvbuf_size == -1 && CONFIG.sndbuf_size != -1)
+		CONFIG.rcvbuf_size = CONFIG.sndbuf_size;
+	/* if sndbuf & rcvbuf are not set, rcvbuf = sndbuf = 8192 */
+	if (CONFIG.rcvbuf_size == -1 && CONFIG.sndbuf_size == -1)
+		CONFIG.sndbuf_size = CONFIG.rcvbuf_size = 8192;
+	
 	return 0;
 }
 /*----------------------------------------------------------------------------*/

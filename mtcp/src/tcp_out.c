@@ -146,7 +146,7 @@ SendTCPPacketStandalone(struct mtcp_manager *mtcp,
 	int rc = -1;
 
 	optlen = CalculateOptionLength(flags);
-	if (payloadlen > TCP_DEFAULT_MSS + optlen) {
+	if (payloadlen + optlen > TCP_DEFAULT_MSS) {
 		TRACE_ERROR("Payload size exceeds MSS.\n");
 		assert(0);
 		return ERROR;
@@ -230,7 +230,7 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	int rc = -1;
 
 	optlen = CalculateOptionLength(flags);
-	if (payloadlen > cur_stream->sndvar->mss + optlen) {
+	if (payloadlen + optlen > cur_stream->sndvar->mss) {
 		TRACE_ERROR("Payload size exceeds MSS\n");
 		return ERROR;
 	}
@@ -358,6 +358,7 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 static int
 FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 {
+#if 0
 	struct tcp_send_vars *sndvar = cur_stream->sndvar;
 	const uint32_t maxlen = sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK);
 	uint8_t *data;
@@ -456,6 +457,102 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
  out:
 	SBUF_UNLOCK(&sndvar->write_lock);
 	return packets;
+#else
+	struct tcp_send_vars *sndvar = cur_stream->sndvar;
+	uint8_t *data;
+	uint32_t pkt_len;
+	uint32_t len;
+	uint32_t seq;
+	int remaining_window;
+	int sndlen;
+	int packets = 0;
+	uint8_t wack_sent = 0;
+	
+	if (!sndvar->sndbuf) {
+		TRACE_ERROR("Stream %d: No send buffer available.\n", cur_stream->id);
+		assert(0);
+		return 0;
+	}
+	
+	SBUF_LOCK(&sndvar->write_lock);
+
+	if (sndvar->sndbuf->len == 0) {
+		packets = 0;
+		goto out;
+	}
+	
+	while (1) {
+		seq = cur_stream->snd_nxt;
+		data = sndvar->sndbuf->head + (seq - sndvar->sndbuf->head_seq);
+		len = sndvar->sndbuf->len - (seq - sndvar->sndbuf->head_seq);
+		
+		/* sanity check */
+		if (TCP_SEQ_LT(seq, sndvar->sndbuf->head_seq)) {
+			TRACE_ERROR("Stream %d: Invalid sequence to send. "
+						"state: %s, seq: %u, head_seq: %u.\n",
+						cur_stream->id, TCPStateToString(cur_stream),
+						seq, sndvar->sndbuf->head_seq);
+			assert(0);
+			break;
+		}
+		if (TCP_SEQ_LT(seq, sndvar->snd_una)) {
+			TRACE_ERROR("Stream %d: Invalid sequence to send. "
+						"state: %s, seq: %u, snd_una: %u.\n",
+						cur_stream->id, TCPStateToString(cur_stream),
+						seq, sndvar->snd_una);
+			assert(0);
+			break;
+		}
+		if (sndvar->sndbuf->len < (seq - sndvar->sndbuf->head_seq)) {
+			TRACE_ERROR("Stream %d: len < 0\n",
+						cur_stream->id);
+			assert(0);
+			break;
+		}
+
+		/* if there is no buffered data */
+		if (len == 0)
+			break;
+
+		remaining_window = MIN(sndvar->cwnd, sndvar->peer_wnd)
+			               - (seq - sndvar->snd_una);
+		/* if there is no space in the window */
+		if (remaining_window <= 0 ||
+		    (remaining_window < sndvar->mss && seq - sndvar->snd_una > 0)) {
+			/* if peer window is full, send ACK and let its peer advertises new one */
+			if (sndvar->peer_wnd <= sndvar->cwnd) {
+#if 0
+				TRACE_CLWND("Full peer window. "
+							"peer_wnd: %u, (snd_nxt-snd_una): %u\n",
+							sndvar->peer_wnd, seq - sndvar->snd_una);
+#endif
+				if (!wack_sent && TS_TO_MSEC(cur_ts - sndvar->ts_lastack_sent) > 500)
+					EnqueueACK(mtcp, cur_stream, cur_ts, ACK_OPT_WACK);
+				else
+					wack_sent = 1;
+			}
+			packets = -3;
+			goto out;
+		}
+		
+		/* payload size limited by remaining window space */
+		len = MIN(len, remaining_window);
+		/* payload size limited by TCP MSS */
+		pkt_len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
+
+		if ((sndlen = SendTCPPacket(mtcp, cur_stream, cur_ts,
+					    TCP_FLAG_ACK, data, pkt_len)) < 0) {
+			/* there is no available tx buf */
+			packets = -3;
+			goto out;
+		}
+		packets++;
+	}
+
+ out:
+	SBUF_UNLOCK(&sndvar->write_lock);	
+	return packets;	
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static inline int 

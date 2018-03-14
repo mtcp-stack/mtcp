@@ -16,7 +16,7 @@ We require the following libraries to run mTCP.
  - libnuma
  - libpthread
  - librt
- Compling PSIO/DPDK/NETMAP driver requires kernel headers.
+ Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
   - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
 
 
@@ -62,7 +62,7 @@ config - sample mTCP configuration files (may not be necessary)
 ========================================================================
  INSTALL GUIDES
 ========================================================================
-mTCP can be prepared in two ways.
+mTCP can be prepared in three ways.
 
 - PSIO VERSION -
 ----------------
@@ -178,6 +178,79 @@ mTCP can be prepared in two ways.
   - you may write your own configuration file for your application
 
 6. Run the applications!
+
+
+- ONVM VERSION -
+----------------
+
+Using onvm when running mTCP allows for single node (local) as well as multi-node setups. 
+A local setup is useful when only 1 machine is available for the experiment. 
+The onvm configurations are placed in the `.conf` files for mTCP applications. 
+Example configurations are provided. 
+
+**Multicore support**
+To use multiple cores launch multiple instances of the application.  
+If 2 cores (0,1) are available it is possible to run 2 instances of epserver. 
+To achieve this use the same `onvm_serv` value for both applications.
+This way onvm will split the packets between the 2 epservers based on the RSS hash of the packet.   
+
+**Before running the applications make sure than onvm_mgr is running.**
+No core overlap between applications and onvm_mgr is allowed
+
+1. Install openNetVM following these instructions 
+           https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md
+
+2. Next bring the dpdk-registered interfaces up. This can be setup using:
+	   # sudo $RTE_SDK/tools/dpdk-setup-iface.sh
+
+3. Create soft links for include/ and lib/ directories inside
+   empty dpdk/ directory:
+   	   # cd dpdk/
+	   # ln -s $RTE_SDK/$RTE_TARGET/lib lib
+	   # ln -s $RTE_SDK/$RTE_TARGET/include include
+
+4. Setup mtcp library
+	   # ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
+	   # e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk --with-onvm-lib=`echo $ONVM_HOME`/onvm
+	   # make
+
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+      # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk --with-onvm-lib=$<path_to_onvm_lib> CFLAGS="-DMAX_CPUS=32"
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+    
+  - In case `./configure' script prints an error, run the
+    following command; and then re-do step-4 (configure again):
+         # autoreconf -ivf
+  - checksum offloading in the NIC is now ENABLED (by default)!!!
+           - this only works for dpdk at the moment
+       - use 
+         ./configure --with-dpdk-lib=`echo $PWD`/dpdk --disable-hwcsum
+         to disable checksum offloading.
+  - check libmtcp.a in mtcp/lib
+  - check header files in mtcp/include
+  - check example binary files in apps/example
+
+5. Check the configurations in apps/example
+  - epserver.conf for server-side configuration
+  - epwget.conf for client-side configuration
+  - you may write your own configuration file for your application
+
+6. Run the applications!
+
+
+ - Notes -
+When running applications the secondary process can fail to launch 
+  # EAL: FATAL: Cannot init memory 
+    OR
+  # Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option
+To prevent this use the base virtual address parameter for the ONVM manager.
+Example launch options for onvm_mgr with the provided -v argument.
+
+cd openNetVM/onvm
+./go.sh 1,2,3 1 -s stdout -v 0x7f000000000
+
 
 - NETMAP VERSION -
 ------------------

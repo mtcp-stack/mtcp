@@ -5,6 +5,7 @@ CC=@CC@ -g -O3 -Wall -Werror -fgnu89-inline
 DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@
+ONVM=@ONVM@
 CFLAGS=@CFLAGS@
 
 # DPDK LIBRARY and HEADER
@@ -53,6 +54,16 @@ LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmt
 else
 #LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
 LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
+endif
+
+ifeq ($(ONVM),1)
+ifeq ($(RTE_TARGET),)
+$(error "Please define RTE_TARGET environment variable")
+endif
+
+INC += -I@ONVMLIBPATH@/onvm_nflib
+INC += -DENABLE_ONVM
+LIBS += @ONVMLIBPATH@/onvm_nflib/$(RTE_TARGET)/libonvm.a
 endif
 
 ifeq ($V,) # no echo

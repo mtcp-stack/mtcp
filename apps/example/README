@@ -57,6 +57,29 @@ notes:
     mtcp_setconf() internally to apply the input arguments to the 
     configuration.
 
+
+ONVM setups:
+The config file provides simple onvm mtcp setups such as:
+  - simple endpoint server
+  - local client/server setup
+  
+For running multiple servers with different IPs run
+  - onvm nf_router with the route.conf having entries in form of
+    mtcp_server_IP1 onvm_serv_id1
+    mtcp_server_IP2 onvm_serv_id2
+  - epserver with IP1, onvm_serv_id1
+  - epserver with IP2, onvm_serv_id2
+ 
+This will function as an endpoint with multiple IPs.
+
+To setup local epwget clients:
+  - set the epserver onvm_dest to onvm nf_router
+  - set the epwgets  onvm_dest to onvm nf_router
+  - set all the onvm nf_router config epservers/epwget IP->id combinations
+  
+To deal with route errors provide a fake config/route.conf, if an
+onvm_dest is provided the config route won't be used but will fix errors
+
 ========================================================================
 
                    Contact: mtcp-user at list.ndsl.kaist.edu

@@ -36,7 +36,7 @@ SBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum)
 
 	sbm->chunk_size = chunk_size;
 	sbm->cnum = cnum;
-#ifndef DISABLE_DPDK
+#if !defined(DISABLE_DPDK) && !defined(ENABLE_ONVM)
 	char pool_name[RTE_MEMPOOL_NAMESIZE];
 	sprintf(pool_name, "sbm_pool_%d", mtcp->ctx->cpu);
 	sbm->mp = (mem_pool_t)MPCreate(pool_name, chunk_size, (uint64_t)chunk_size * cnum);	

@@ -51,6 +51,7 @@ Configure the program with the following arguments:
     --with-libmtcp=${PATH_TO_LIBMTCP} \
     --with-libpsio=${PATH_TO_LIBPSIO} \
     --with-libdpdk=${PATH_TO_LIBDPDK} \
+    --with-libonvm=${PATH_TO_LIBONVM} \
     --enable-netmap
     
   (e.g.
@@ -58,6 +59,7 @@ Configure the program with the following arguments:
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
 	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
 	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/" \
+	--with-libonvm="<$PATH_TO_ONVM>" \
 	--enable-netmap
   )
 
@@ -66,13 +68,15 @@ The path should be absolute.
   ## For debugging
   $ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
     --with-libmtcp=${PATH_TO_LIBMTCP} --with-libpsio=${PATH_TO_LIBPSIO} \
-    --with-libdpdk=${PATH_TO_LIBDPDK} --enable-netmap
+    --with-libdpdk=${PATH_TO_LIBDPDK} --with-libonvm=${PATH_TO_LIBONVM} \
+    --enable-netmap
 
   (e.g.
 	$ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
 	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
 	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/" \
+	--with-libonvm="<$PATH_TO_ONVM>" \
 	--enable-netmap
   )
 

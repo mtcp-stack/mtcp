@@ -194,8 +194,8 @@ If 2 cores (0,1) are available it is possible to run 2 instances of epserver.
 To achieve this use the same `onvm_serv` value for both applications.
 This way onvm will split the packets between the 2 epservers based on the RSS hash of the packet.   
 
-**Before running the applications make sure than onvm_mgr is running.**
-No core overlap between applications and onvm_mgr is allowed
+**Before running the applications make sure that onvm_mgr is running.**
+No core overlap between applications and onvm_mgr is allowed.
 
 1. Install openNetVM following these instructions 
            https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md
@@ -241,7 +241,7 @@ No core overlap between applications and onvm_mgr is allowed
 
 
  - Notes -
-When running applications the secondary process can fail to launch 
+When running applications the secondary process may fail to launch 
   # EAL: FATAL: Cannot init memory 
     OR
   # Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option

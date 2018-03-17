@@ -86,7 +86,7 @@ RBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum)
 
 	rbm->chunk_size = chunk_size;
 	rbm->cnum = cnum;
-#ifndef DISABLE_DPDK
+#if ! defined(DISABLE_DPDK) && ! defined(ENABLE_ONVM)
 	char pool_name[RTE_MEMPOOL_NAMESIZE];
 	sprintf(pool_name, "rbm_pool_%u", mtcp->ctx->cpu);
 	rbm->mp = (mem_pool_t)MPCreate(pool_name, chunk_size, (uint64_t)chunk_size * cnum);	
@@ -98,7 +98,7 @@ RBManagerCreate(mtcp_manager_t mtcp, size_t chunk_size, uint32_t cnum)
 		free(rbm);
 		return NULL;
 	}
-#ifndef DISABLE_DPDK
+#if ! defined(DISABLE_DPDK) && ! defined(ENABLE_ONVM)
 	sprintf(pool_name, "frag_mp_%u", mtcp->ctx->cpu);
 	rbm->frag_mp = (mem_pool_t)MPCreate(pool_name, sizeof(struct fragment_ctx), 
 					    sizeof(struct fragment_ctx) * cnum);	

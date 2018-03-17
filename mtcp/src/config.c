@@ -128,7 +128,8 @@ EnrollRouteTableEntry(char *optstr)
 			exit(4);
 		}
 #endif
-	} else if (current_iomodule_func == &dpdk_module_func) {
+	} else if (current_iomodule_func == &dpdk_module_func ||
+		   current_iomodule_func == &onvm_module_func) {
 #ifndef DISABLE_DPDK
 		for (i = 0; i < num_devices; i++) {
 			if (strcmp(CONFIG.eths[i].dev_name, dev))
@@ -607,6 +608,14 @@ ParseConfiguration(char *line)
 		AssignIOModule(q);
 	} else if (strcmp(p, "num_mem_ch") == 0) {
 		CONFIG.num_mem_ch = mystrtol(q, 10);
+#ifdef ENABLE_ONVM
+	} else if (strcmp(p, "onvm_inst") == 0) {
+		CONFIG.onvm_inst = mystrtol(q, 10);
+	} else if (strcmp(p, "onvm_serv") == 0) {
+		CONFIG.onvm_serv = mystrtol(q, 10);
+	} else if (strcmp(p, "onvm_dest") == 0) {
+		CONFIG.onvm_dest = mystrtol(q, 10);
+#endif
 	} else if (strcmp(p, "multiprocess") == 0) {
 		SetMultiProcessSupport(line + strlen(p) + 1);
 	} else {
@@ -643,7 +652,11 @@ LoadConfiguration(const char *fname)
 	CONFIG.tcp_timeout = TCP_TIMEOUT;
 	CONFIG.tcp_timewait = TCP_TIMEWAIT;
 	CONFIG.num_mem_ch = 0;
-
+#ifdef ENABLE_ONVM
+  	CONFIG.onvm_inst = (uint16_t) -1;
+  	CONFIG.onvm_dest = (uint16_t) -1;
+  	CONFIG.onvm_serv = (uint16_t) -1;
+#endif
 	while (1) {
 		char *p;
 		char *temp;

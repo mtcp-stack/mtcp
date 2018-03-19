@@ -8,10 +8,12 @@ AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_RANLIB
 AC_LANG(C)
 AC_DISABLE_OPTION_CHECKING
 
 # Checks for header files.
+AC_HEADER_STDC
 AC_CHECK_HEADERS([linux/sched.h pthread.h numa.h arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
 
 # Check for AC_PTHREAD [FC is preventing this to be enabled..]
@@ -47,8 +49,6 @@ AC_SUBST(DPDK, 0)
 AC_SUBST(LRO, 0)
 # Reset PSIO to 0
 AC_SUBST(PSIO, 0)
-# Reset ONVM to 0
-AC_SUBST(ONVM, 0)
 # Reset NETMAP to 0
 AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
@@ -61,6 +61,8 @@ then
         AC_SUBST(DPDKLIBPATH, $with_dpdk_lib)
 	AC_SUBST(DPDK, 1)
 fi
+AM_CONDITIONAL([DPDK], [test x$DPDK = x1])
+
 dnl Example of default-disabled feature
 AC_ARG_ENABLE([lro],
 	AS_HELP_STRING([--enable-lro], [Enable dpdk lro (for relevant NICs)]))
@@ -102,7 +104,7 @@ AS_IF([test "x$enable_netmap" = "xyes"], [
 AC_ARG_WITH(stuff, [  --with-onvm-lib      path to the onvm install root])
 if test "$with_onvm_lib" != ""
 then
-        AC_SUBST(ONVMLIBPATH, $with_onvm_lib)
+	AC_SUBST(ONVMLIBPATH, $with_onvm_lib)
 	AC_SUBST(ONVM, 1)
 fi
 
@@ -115,5 +117,6 @@ AM_INIT_AUTOMAKE(mtcp, 3)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT(mtcp/src/Makefile)
 AC_OUTPUT(apps/example/Makefile)
+AC_OUTPUT(apps/example/Makefile.new)
 AC_OUTPUT(util/Makefile)
 AC_OUTPUT(io_engine/lib/Makefile)

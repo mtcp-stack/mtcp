@@ -80,10 +80,9 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
 	$(srcdir)/config.h.in $(top_srcdir)/mtcp/src/Makefile.in \
 	$(top_srcdir)/apps/example/Makefile.in \
-	$(top_srcdir)/apps/example/Makefile.new.in \
 	$(top_srcdir)/util/Makefile.in \
 	$(top_srcdir)/io_engine/lib/Makefile.in README compile \
-	config.guess config.sub depcomp install-sh missing
+	config.guess config.sub install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -93,7 +92,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES = mtcp/src/Makefile apps/example/Makefile \
-	apps/example/Makefile.new util/Makefile io_engine/lib/Makefile
+	util/Makefile io_engine/lib/Makefile
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -349,8 +348,6 @@ distclean-hdr:
 mtcp/src/Makefile: $(top_builddir)/config.status $(top_srcdir)/mtcp/src/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 apps/example/Makefile: $(top_builddir)/config.status $(top_srcdir)/apps/example/Makefile.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-apps/example/Makefile.new: $(top_builddir)/config.status $(top_srcdir)/apps/example/Makefile.new.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 util/Makefile: $(top_builddir)/config.status $(top_srcdir)/util/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
@@ -656,8 +653,10 @@ check: check-recursive
 all-am: Makefile config.h
 installdirs: installdirs-recursive
 installdirs-am:
+install: install-recursive
 install-exec: install-exec-recursive
 install-data: install-data-recursive
+uninstall: uninstall-recursive
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
@@ -721,6 +720,8 @@ install-info: install-info-recursive
 
 install-info-am:
 
+install-man:
+
 install-pdf: install-pdf-recursive
 
 install-pdf-am:
@@ -769,44 +770,6 @@ uninstall-am:
 	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
 	uninstall-am
 
-
-install-man:
-	@echo -e "\e[1;34mPlacing the man pages in the $(prefix)/man/man3/ directory $<\e[0m"
-	@ mkdir -p $(prefix)/man/
-	@ mkdir -p $(prefix)/man/man3/
-	@ cp docs/man/* $(prefix)/man/man3/
-	@echo -e "\e[1;34mUpdating man pages cache $<\e[0m"
-	@ mandb > /dev/null 2> /dev/null
-
-uninstall:
-	@echo -e "\e[1;34mCleaning up... $<\e[0m"
-	@ rm -rf $(prefix)/mtcp
-	@ rm -rf $(prefix)/man/man3/mtcp_*
-	@echo -e "\e[1;34mUpdating man pages cache $<\e[0m"
-	@ mandb > /dev/null 2> /dev/null
-
-@DPDK_TRUE@install: all install-man
-@DPDK_TRUE@	@echo -e "\e[1;34mPlacing the libraries in the $(prefix)/mtcp/lib directory $<\e[0m"
-@DPDK_TRUE@	@ mkdir -p $(prefix)/mtcp/
-@DPDK_TRUE@	@ mkdir -p $(prefix)/mtcp/lib
-@DPDK_TRUE@	@ mkdir -p $(prefix)/mtcp/bin
-@DPDK_TRUE@	@ mkdir -p $(prefix)/mtcp/include
-@DPDK_TRUE@	@ cp mtcp/lib/libmtcp.a $(prefix)/mtcp/lib/
-@DPDK_TRUE@	@ cp dpdk/lib/* $(prefix)/mtcp/lib/
-@DPDK_TRUE@	@ cp -rL dpdk/include/* $(prefix)/mtcp/include/
-@DPDK_TRUE@	@ cp mtcp/include/* $(prefix)/mtcp/include/
-@DPDK_TRUE@	@echo -e "\e[1;34mPlacing the binaries in the $(prefix)/mtcp/bin directory $<\e[0m"
-@DPDK_TRUE@	@ cp `find apps/example/ -type f -executable -perm /a+x` $(prefix)/mtcp/bin/
-@DPDK_FALSE@install: all install-man
-@DPDK_FALSE@	@echo -e "\e[1;34mPlacing the libraries in the $(prefix)/mtcp/lib directory $<\e[0m"
-@DPDK_FALSE@	@ mkdir -p $(prefix)/mtcp/
-@DPDK_FALSE@	@ mkdir -p $(prefix)/mtcp/lib
-@DPDK_FALSE@	@ mkdir -p $(prefix)/mtcp/bin
-@DPDK_FALSE@	@ mkdir -p $(prefix)/mtcp/include
-@DPDK_FALSE@	@ cp mtcp/lib/libmtcp.a $(prefix)/mtcp/lib/
-@DPDK_FALSE@	@ cp mtcp/include/* $(prefix)/mtcp/include/
-@DPDK_FALSE@	@echo -e "\e[1;34mPlacing the binaries in the $(prefix)/mtcp/bin directory $<\e[0m"
-@DPDK_FALSE@	@ cp `find apps/example/ -type f -executable -perm /a+x` $(prefix)/mtcp/bin/
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

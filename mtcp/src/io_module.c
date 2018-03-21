@@ -453,6 +453,8 @@ SetInterfaceInfo(char* dev_name_list)
 		if (num_devices == 0) {
 			rte_exit(EXIT_FAILURE, "No Ethernet port!\n");
 		}
+
+		num_queues = MIN(CONFIG.num_cores, MAX_CPUS);
 		
 		struct ifaddrs *ifap;
 		struct ifaddrs *iter_if;

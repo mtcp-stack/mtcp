@@ -34,7 +34,7 @@
 
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
-//#define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
+//#define MAX_RX_QUEUE_PER_LCORE	MAX_CPUS
 //#define MAX_TX_QUEUE_PER_PORT		MAX_CPUS
 #define PKTMBUF_POOL_NAME "MProc_pktmbuf_pool"
 
@@ -180,7 +180,7 @@ onvm_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *pkt
 	/* 
 	 * do nothing over here - memory reclamation
 	 * will take place in onvm_recv_pkts 
-	        */
+	 */
 }
 /*----------------------------------------------------------------------------*/
 int
@@ -209,52 +209,50 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 #ifdef NETSTAT
 		mtcp->nstat.tx_packets[nif] += cnt;
 #ifdef ENABLE_STATS_IOCTL
-        /* only pass stats after >= 1 sec interval */
-        if (abs(mtcp->cur_ts - dpc->cur_ts) >= 1000 &&
-            likely(dpc->fd >= 0)) {
-                /* rte_get_stats is global func, use only for 1 core */
-                if (ctxt->cpu == 0) {
-                        rte_eth_stats_get(CONFIG.eths[ifidx].ifindex, &stats);
-                        ss.rmiss = stats.imissed;
-                        ss.rerr = stats.ierrors;
-                        ss.terr = stats.oerrors;
-                } else 
-                        ss.rmiss = ss.rerr = ss.terr = 0;
-
-                ss.tx_pkts = mtcp->nstat.tx_packets[ifidx];
-                ss.tx_bytes = mtcp->nstat.tx_bytes[ifidx];
-                ss.rx_pkts = mtcp->nstat.rx_packets[ifidx];
-                ss.rx_bytes = mtcp->nstat.rx_bytes[ifidx];
-                ss.qid = ctxt->cpu;
-                ss.dev = CONFIG.eths[ifidx].ifindex;
-                /* pass the info now */
-                ioctl(dpc->fd, 0, &ss);
-                dpc->cur_ts = mtcp->cur_ts;
-                if (ctxt->cpu == 0)
-                        rte_eth_stats_reset(CONFIG.eths[ifidx].ifindex);
-        }
+		/* only pass stats after >= 1 sec interval */
+		if (abs(mtcp->cur_ts - dpc->cur_ts) >= 1000 &&
+		    likely(dpc->fd >= 0)) {
+			/* rte_get_stats is global func, use only for 1 core */
+			if (ctxt->cpu == 0) {
+				rte_eth_stats_get(CONFIG.eths[ifidx].ifindex, &stats);
+				ss.rmiss = stats.imissed;
+				ss.rerr = stats.ierrors;
+				ss.terr = stats.oerrors;
+			} else 
+				ss.rmiss = ss.rerr = ss.terr = 0;
+			
+			ss.tx_pkts = mtcp->nstat.tx_packets[ifidx];
+			ss.tx_bytes = mtcp->nstat.tx_bytes[ifidx];
+			ss.rx_pkts = mtcp->nstat.rx_packets[ifidx];
+			ss.rx_bytes = mtcp->nstat.rx_bytes[ifidx];
+			ss.qid = ctxt->cpu;
+			ss.dev = CONFIG.eths[ifidx].ifindex;
+			/* pass the info now */
+			ioctl(dpc->fd, 0, &ss);
+			dpc->cur_ts = mtcp->cur_ts;
+			if (ctxt->cpu == 0)
+				rte_eth_stats_reset(CONFIG.eths[ifidx].ifindex);
+		}
 #endif /* !ENABLE_STATS_IOCTL */
 #endif
 		
-			
-		for(i=0;i<cnt;i++){
+		for (i = 0; i < cnt; i++) {
 			meta = onvm_get_pkt_meta(pkts[i]);
-			if (CONFIG.onvm_dest == (uint16_t) -1){
+			if (CONFIG.onvm_dest == (uint16_t) -1) {
 				meta->action = ONVM_NF_ACTION_OUT;
 				meta->destination = CONFIG.eths[nif].ifindex;
-			}
-			else {
+			} else {
 				meta->action = ONVM_NF_ACTION_TONF;
 				meta->destination = CONFIG.onvm_dest;
 			}
 		}
 		ret = rte_ring_enqueue_bulk(tx_ring, (void * const*)pkts ,cnt, NULL);
-		if(cnt>0 && ret== 0) {
+		if (cnt > 0 && ret == 0) {
 			TRACE_ERROR("Dropped %d packets", cnt);
 			nf->stats.tx_drop += cnt;
 		}
 		nf->stats.tx += cnt;
-			
+		
 		/* time to allocate fresh mbufs for the queue */
 		for (i = 0; i < dpc->wmbufs[nif].len; i++) {
 			dpc->wmbufs[nif].m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool);
@@ -336,8 +334,8 @@ onvm_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 
 	ret = rte_ring_dequeue_burst(rx_ring, pkts, MAX_PKT_BURST, NULL);
 	
-	for(i=0;i<ret;i++) {
-		dpc->pkts_burst[i]=(struct rte_mbuf*)pkts[i];
+	for (i = 0; i < ret; i++) {
+		dpc->pkts_burst[i] = (struct rte_mbuf*)pkts[i];
 	}
 	
 #ifdef RX_IDLE_ENABLE	

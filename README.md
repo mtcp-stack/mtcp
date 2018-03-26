@@ -253,6 +253,7 @@ ONVM basics are explained in https://github.com/sdnfv/openNetVM.
 6. Run the applications!
 
 **Notes**
+
 Once you have started onvm_mgr, sometimes an mTCP application may fail to get launched due
 to an error resembling the one mentioned below:
 

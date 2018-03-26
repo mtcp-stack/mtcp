@@ -197,7 +197,7 @@ mTCP can be prepared in three ways.
 
 ***ONVM VERSION***
 
-~NEW~: Now you can run mTCP applications (server + client) locally.
+***NEW***: Now you can run mTCP applications (server + client) locally.
 A local setup is useful when only 1 machine is available for the experiment. 
 ONVM configurations are placed as `.conf` files in apps/example directory.
 ONVM basics are explained in https://github.com/sdnfv/openNetVM.

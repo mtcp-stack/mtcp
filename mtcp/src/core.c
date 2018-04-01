@@ -1474,13 +1474,6 @@ mtcp_init(const char *config_file)
 		exit(EXIT_FAILURE);
 	}
 
-#ifdef ENABLE_ONVM
-	if (num_cpus > 1) {
-		TRACE_ERROR("You cannot run mTCP application with more than 1 "
-			    "core when you are using ONVM driver\n");
-		exit(EXIT_FAILURE);
-	}
-#endif
 	for (i = 0; i < num_cpus; i++) {
 		g_mtcp[i] = NULL;
 		running[i] = FALSE;

@@ -49,6 +49,8 @@ AC_SUBST(DPDK, 0)
 AC_SUBST(LRO, 0)
 # Reset PSIO to 0
 AC_SUBST(PSIO, 0)
+# Reset ONVM to 0
+AC_SUBST(ONVM, 0)
 # Reset NETMAP to 0
 AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1

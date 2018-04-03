@@ -197,18 +197,13 @@ mTCP can be prepared in three ways.
 
 ***ONVM VERSION***
 
-Using onvm when running mTCP allows for single node (local) as well as multi-node setups. A local
-setup is useful when only 1 machine is available for the experiment. The onvm configurations are placed
-in the `.conf` files for mTCP applications. Example configurations are provided.
-
-**Multicore support**  
-To use multiple cores launch multiple instances of the application.  
-If 2 cores (0,1) are available it is possible to run 2 instances of epserver. To achieve this use the same
-`onvm_serv` value for both applications. This way onvm will split the packets between the 2 epservers based
-on the RSS hash of the packet.   
+***NEW***: Now you can run mTCP applications (server + client) locally.
+A local setup is useful when only 1 machine is available for the experiment. 
+ONVM configurations are placed as `.conf` files in apps/example directory.
+ONVM basics are explained in https://github.com/sdnfv/openNetVM.
 
 **Before running the applications make sure that onvm_mgr is running.**  
-*No core overlap between applications and onvm_mgr is allowed*
+*Also, no core overlap between applications and onvm_mgr is allowed.*
 
 1. [Install openNetVM following these instructions](https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md)
 
@@ -257,12 +252,18 @@ on the RSS hash of the packet.
 
 6. Run the applications!
 
-**Notes**  
-When running applications the secondary process can fail to launch (```EAL: FATAL: Cannot init memory```, or
+**Notes**
+
+Once you have started onvm_mgr, sometimes an mTCP application may fail to get launched due
+to an error resembling the one mentioned below:
+
+(```EAL: FATAL: Cannot init memory```, or
 ``` Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option```)  
-To prevent this use the base virtual address parameter for the ONVM manager.  
-Also solves this startup error ```EAL: Cannot mmap device resource file /sys/bus/pci/devices/0000:06:00.0/resource3 to address: 0x7ffff7ff1000```  
-Example launch options for onvm_mgr with the provided -v argument.   
+
+Also solves this startup error ```EAL: Cannot mmap device resource file /sys/bus/pci/devices/0000:06:00.0/resource3 to address: 0x7ffff7ff1000```   
+
+To prevent this, use the base virtual address parameter to run the ONVM manager, e.g.:
+
 ```
 cd openNetVM/onvm  
 ./go.sh 1,2,3 1 -s stdout -v 0x7f000000000 

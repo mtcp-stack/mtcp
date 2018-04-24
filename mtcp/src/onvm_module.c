@@ -190,6 +190,7 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 	mtcp_manager_t mtcp;
 	int ret, i;
 	struct onvm_pkt_meta* meta;
+	struct onvm_ft_ipv4_5tuple key;
         int ifidx;
 
         ifidx = nif;	
@@ -242,6 +243,8 @@ onvm_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 				meta->action = ONVM_NF_ACTION_OUT;
 				meta->destination = CONFIG.eths[nif].ifindex;
 			} else {
+				onvm_ft_fill_key(&key, pkts[i]);
+				pkts[i]->hash.rss = onvm_softrss(&key);
 				meta->action = ONVM_NF_ACTION_TONF;
 				meta->destination = CONFIG.onvm_dest;
 			}

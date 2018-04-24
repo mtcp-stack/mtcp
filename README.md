@@ -260,6 +260,8 @@ to an error resembling the one mentioned below:
 (```EAL: FATAL: Cannot init memory```, or
 ``` Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option```)  
 
+Also solves this startup error ```EAL: Cannot mmap device resource file /sys/bus/pci/devices/0000:06:00.0/resource3 to address: 0x7ffff7ff1000```   
+
 To prevent this, use the base virtual address parameter to run the ONVM manager, e.g.:
 
 ```

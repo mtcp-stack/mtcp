@@ -87,7 +87,8 @@ HandleSignal(int signal)
 		struct timespec cur_ts;
 
 #ifdef ENABLE_ONVM
-		onvm_nflib_stop();
+		if (current_iomodule_func == &onvm_module_func)
+			onvm_nflib_stop();
 #endif
 		core = sched_getcpu();
 		clock_gettime(CLOCK_REALTIME, &cur_ts);

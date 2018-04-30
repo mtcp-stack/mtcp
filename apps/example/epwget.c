@@ -29,7 +29,6 @@
 #define MAX_FILE_LEN 128
 #define HTTP_HEADER_LEN 1024
 
-#define IP_RANGE 1
 #define MAX_IP_STR_LEN 16
 
 #define BUF_SIZE (8*1024)
@@ -76,6 +75,7 @@ static int total_flows;
 static int flows[MAX_CPUS];
 static int flowcnt = 0;
 static int concurrency;
+static int num_ip;
 static int max_fds;
 static int response_size = 0;
 /*----------------------------------------------------------------------------*/
@@ -559,7 +559,7 @@ RunWgetMain(void *arg)
 	g_stat[core] = &ctx->stat;
 	srand(time(NULL));
 
-	mtcp_init_rss(mctx, saddr, IP_RANGE, daddr, dport);
+	mtcp_init_rss(mctx, saddr, num_ip, daddr, dport);
 
 	n = flows[core];
 	if (n == 0) {
@@ -824,6 +824,7 @@ main(int argc, char **argv)
 	mcfg.max_concurrency = max_fds;
 	mcfg.max_num_buffers = max_fds;
 	mtcp_setconf(&mcfg);
+	num_ip = mcfg.num_ip;
 
 	mtcp_register_signal(SIGINT, SignalHandler);
 

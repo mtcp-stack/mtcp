@@ -161,6 +161,13 @@ struct mtcp_config
 	/* adding multi-process support */
 	uint8_t multi_process;
 	uint8_t multi_process_is_master;
+
+#ifdef ENABLE_ONVM
+	/* onvm specific args */
+	uint16_t onvm_serv;
+  	uint16_t onvm_inst;
+  	uint16_t onvm_dest;
+#endif
 };
 /*----------------------------------------------------------------------------*/
 struct mtcp_context

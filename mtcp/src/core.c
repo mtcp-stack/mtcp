@@ -35,6 +35,10 @@
 #include <rte_lcore.h>
 #endif
 
+#ifdef ENABLE_ONVM
+#include "onvm_nflib.h"
+#endif
+
 #define PS_CHUNK_SIZE 64
 #define RX_THRESH (PS_CHUNK_SIZE * 0.8)
 
@@ -82,6 +86,10 @@ HandleSignal(int signal)
 		int core;
 		struct timespec cur_ts;
 
+#ifdef ENABLE_ONVM
+		if (current_iomodule_func == &onvm_module_func)
+			onvm_nflib_stop();
+#endif
 		core = sched_getcpu();
 		clock_gettime(CLOCK_REALTIME, &cur_ts);
 
@@ -913,7 +921,7 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 	}
 
 	mtcp->ctx = ctx;
-#ifndef DISABLE_DPDK
+#if !defined(DISABLE_DPDK) && !ENABLE_ONVM
 	char pool_name[RTE_MEMPOOL_NAMESIZE];
 	sprintf(pool_name, "flow_pool_%d", ctx->cpu);
 	mtcp->flow_pool = MPCreate(pool_name, sizeof(tcp_stream),
@@ -1466,7 +1474,16 @@ mtcp_init(const char *config_file)
 			    MAX_CPUS, num_cpus - MAX_CPUS);
 		exit(EXIT_FAILURE);
 	}
-	
+
+#if 0
+	/* TODO: Enable this macro if cross-machine comm. with onvm client/server fails */
+	if (num_cpus > 1) {
+		TRACE_ERROR("You cannot run mTCP application with more than 1 "
+			    "core when you are using ONVM driver\n");
+		exit(EXIT_FAILURE);
+	}
+#endif
+
 	for (i = 0; i < num_cpus; i++) {
 		g_mtcp[i] = NULL;
 		running[i] = FALSE;

@@ -132,6 +132,9 @@
 /* libmtcp support */
 #undef HAVE_LIBMTCP
 
+/* libonvm support */
+#undef HAVE_LIBONVM
+
 /* libpcre */
 #undef HAVE_LIBPCRE
 

@@ -5733,30 +5733,36 @@ exit:
 }
 
 #ifdef NETIF_F_HW_TC
-#ifdef I40E_FCOE
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
-int __i40e_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
-		    struct tc_to_netdev *tc)
-#else
-int __i40e_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
-		    __be16 proto, struct tc_to_netdev *tc)  
-#endif
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)  
-static int __i40e_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
+#ifdef HAVE_NDO_SETUP_TC_REMOVE_TC_TO_NETDEV
+static int __i40e_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+			   void *type_data)
+#elif defined(HAVE_NDO_SETUP_TC_CHAIN_INDEX)
+static int __i40e_setup_tc(struct net_device *netdev, u32 handle,
+			   u32 chain_index, __be16 proto,
 			   struct tc_to_netdev *tc)
 #else
-static int __i40e_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
-			   __be16 proto, struct tc_to_netdev *tc)  
-#endif
+static int __i40e_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
+			   struct tc_to_netdev *tc)
 #endif
 {
-	if (tc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)	
-	return i40e_setup_tc(netdev, tc->tc);
+#ifdef HAVE_NDO_SETUP_TC_REMOVE_TC_TO_NETDEV
+	struct tc_mqprio_qopt *mqprio = type_data;
 #else
-	return i40e_setup_tc(netdev, tc->mqprio->num_tc);	
+#ifdef TC_MQPRIO_HW_OFFLOAD_MAX
+	struct tc_mqprio_qopt *mqprio = tc->mqprio;
+#endif /* TC_MQPRIO_HW_OFFLOAD_MAX*/
+	unsigned int type = tc->type;
+#endif /* HAVE_NDO_SETUP_TC_REMOVE_TC_TO_NETDEV */
+
+	if (type != TC_SETUP_QDISC_MQPRIO)
+		return -EINVAL;
+
+#ifdef TC_MQPRIO_HW_OFFLOAD_MAX
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return i40e_setup_tc(netdev, mqprio->num_tc);
+#else
+	return i40e_setup_tc(netdev, tc->tc);
 #endif
 }
 #endif /* NETIF_F_HW_TC */

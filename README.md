@@ -145,7 +145,7 @@ mTCP can be prepared in three ways.
     ```
 
 2. Next bring the dpdk-registered interfaces up. Please use the
-   ``setup_iface_single_process.sh`` script file present in ``dpdk-17.08/tools/``
+   ``setup_iface_single_process.sh`` script file present in ``dpdk-17.08/usertools/``
    directory for this purpose. Please change lines 49-51 to change the IP	
    address. Under default settings, run the script as:
 

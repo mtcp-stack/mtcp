@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <sys/epoll.h>
+#include <sys/resource.h>
 
 #include <mtcp_api.h>
 #include <mtcp_epoll.h>
@@ -63,6 +64,7 @@ static int done[MAX_CPUS];
 /*----------------------------------------------------------------------------*/
 static int num_cores;
 static int core_limit;
+static int fd_offset;
 /*----------------------------------------------------------------------------*/
 static int fio = FALSE;
 static char outfile[MAX_FILE_LEN + 1];
@@ -181,7 +183,7 @@ CreateConnection(thread_context_t ctx)
 		TRACE_INFO("Failed to create socket!\n");
 		return -1;
 	}
-	memset(&ctx->wvars[sockid], 0, sizeof(struct wget_vars));
+	memset(&ctx->wvars[sockid - fd_offset], 0, sizeof(struct wget_vars));
 
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = daddr;
@@ -646,10 +648,10 @@ RunWgetMain(void *arg)
 
 			} else if (events[i].events & EPOLLIN) {
 				HandleReadEvent(ctx, 
-						events[i].data.fd, &wvars[events[i].data.fd]);
+						events[i].data.fd, &wvars[events[i].data.fd - fd_offset]);
 
 			} else if (events[i].events == EPOLLOUT) {
-				struct wget_vars *wv = &wvars[events[i].data.fd];
+				struct wget_vars *wv = &wvars[events[i].data.fd - fd_offset];
 
 				if (!wv->request_sent) {
 					SendHTTPRequest(ctx, events[i].data.fd, wv);
@@ -694,6 +696,7 @@ int
 main(int argc, char **argv)
 {
 	struct mtcp_conf mcfg;
+	struct rlimit r;	
 	char *conf_file;
 	int cores[MAX_CPUS];
 	int flow_per_thread;
@@ -739,6 +742,14 @@ main(int argc, char **argv)
 	core_limit = num_cores;
 	concurrency = 100;
 
+	ret = getrlimit(RLIMIT_NOFILE, &r);
+	if (ret == -1) {
+		TRACE_CONFIG("Can't get max number of file descriptors!\n");
+		exit(EXIT_FAILURE);
+	} else {
+		fd_offset = r.rlim_cur;
+	}
+	
 	while (-1 != (o = getopt(argc, argv, "N:c:o:n:f:"))) {
 		switch(o) {
 		case 'N':

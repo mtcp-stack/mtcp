@@ -670,13 +670,19 @@ WriteTCPControlList(mtcp_manager_t mtcp,
 			cur_stream->sndvar->on_control_list = FALSE;
 			//TRACE_DBG("Stream %u: Sending control packet\n", cur_stream->id);
 			ret = SendControlPacket(mtcp, cur_stream, cur_ts);
-			if (ret < 0) {
+			if (ret == -2) {
 				TAILQ_INSERT_HEAD(&sender->control_list, 
 						cur_stream, sndvar->control_link);
 				cur_stream->sndvar->on_control_list = TRUE;
 				sender->control_list_cnt++;
 				/* since there is no available write buffer, break */
 				break;
+			} else if (ret < 0) {
+				/* try again after handling other streams */
+				TAILQ_INSERT_TAIL(&sender->control_list,
+						  cur_stream, sndvar->control_link);
+				cur_stream->sndvar->on_control_list = TRUE;
+				sender->control_list_cnt++;
 			}
 		} else {
 			TRACE_ERROR("Stream %d: not on control list.\n", cur_stream->id);

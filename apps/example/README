@@ -30,7 +30,7 @@ options:
 epwget: simple mtcp-epoll-based http request generator
  Single-Process, Multi-threaded Usage:
  usage: ./epwget URL #requests [-N #cores] [-c concurrency] -f $mtcp_conf
-    ex) ./epwget 10.0.0.43/example.txt 10000000 -N 8 -c 8000
+    ex) ./epwget 10.0.0.43/example.txt 10000000 -N 8 -c 8000 -f epwget.conf
 
  Multi-Process, Single-threaded Usage [DPDK-only]
     (Master runs on core 0 by default, Slave processes on core 1~N)
@@ -56,6 +56,30 @@ notes:
   - epwget overrides some part of the settings in epgwet.conf and uses 
     mtcp_setconf() internally to apply the input arguments to the 
     configuration.
+
+========================================================================
+
+ONVM setups:
+The config file provides simple onvm mtcp setups such as:
+  - simple endpoint server
+    	  - Enable `io = onvm`, and `onvm_serv = 1` in epserver.conf
+	  - Run onvm
+	    	$ onvm/go.sh 1,2,3 1 -s stdout
+	  - Run epserver
+	    	$ sudo ./epserver -p /path/to/www -f epserver.conf -N 1
+  - local client/server setup
+    	  - Enable `io = onvm`, `onvm_serv` = 1, and `onvm_dest = 2` in epserver.conf
+	  - Enable `io = onvm`, `onvm_serv` = 2, and `onvm_dest = 1` in epwget.conf
+	  - Run onvm
+	    	$ onvm/go.sh 1,2,3 1 -s stdout
+	  - Run epserver
+	    	$ sudo ./epserver -p /path/to/www -f epserver.conf -N 1
+	  - Run epwget
+	    	$ sudo ./epwget $SERVER_IP/foo.html 10000000 -N 1 -c 1024 -f epwget.conf
+  
+
+PLEASE NOTE THAT YOU WILL HAVE TO ADD STATIC ARP TABLE ENTRIES TO RUN
+MTCP IN ONVM MODE.
 
 ========================================================================
 

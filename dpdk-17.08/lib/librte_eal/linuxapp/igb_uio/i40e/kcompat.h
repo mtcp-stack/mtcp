@@ -1640,6 +1640,36 @@ static inline struct mii_ioctl_data *_kc_if_mii(struct ifreq *rq)
 #endif /* < 2.6.8 */
 
 /*****************************************************************************/
+/*****************************************************************************/
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0))
+#ifndef ethtool_link_ksettings_del_link_mode
+#define ethtool_link_ksettings_del_link_mode(ptr, name, mode)		\
+	__clear_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
+#endif
+#if (SLE_VERSION_CODE && (SLE_VERSION_CODE >= SLE_VERSION(15,0,0)))
+#define HAVE_NDO_SETUP_TC_REMOVE_TC_TO_NETDEV
+#endif
+
+#if (RHEL_RELEASE_CODE && (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(7,5)))
+#define HAVE_NDO_SETUP_TC_REMOVE_TC_TO_NETDEV
+#define HAVE_RHEL7_NETDEV_OPS_EXT_NDO_SETUP_TC
+#endif
+
+#define TIMER_DATA_TYPE		unsigned long
+#define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
+
+#define timer_setup(timer, callback, flags)				\
+	__setup_timer((timer), (TIMER_FUNC_TYPE)(callback),		\
+		      (TIMER_DATA_TYPE)(timer), (flags))
+
+#define from_timer(var, callback_timer, timer_fieldname) \
+	container_of(callback_timer, typeof(*var), timer_fieldname)
+
+#else /* > 4.14 */
+#define HAVE_NDO_SETUP_TC_REMOVE_TC_TO_NETDEV
+#endif /* 4.14.0 */
+
+/*****************************************************************************/		     
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
 #include <net/dsfield.h>
 #define __iomem
@@ -5414,5 +5444,14 @@ static inline void __page_frag_cache_drain(struct page *page,
 #else
 #define HAVE_VOID_NDO_GET_STATS64
 #endif /* 4.11.0 */
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
+#define TC_SETUP_QDISC_MQPRIO TC_SETUP_MQPRIO
+#ifdef ETHTOOL_GLINKSETTINGS
+void _kc_ethtool_intersect_link_masks(struct ethtool_link_ksettings *dst,
+				      struct ethtool_link_ksettings *src);
+#define ethtool_intersect_link_masks _kc_ethtool_intersect_link_masks
+#endif /* ETHTOOL_GLINKSETTINGS */
+#endif /* 4.15.0 */		     
 
 #endif /* _KCOMPAT_H_ */

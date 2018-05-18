@@ -1,7 +1,7 @@
 #ifndef __MEMORY_MGT_H_
 #define __MEMORY_MGT_H_
 /*----------------------------------------------------------------------------*/
-#ifndef DISABLE_DPDK
+#if ! defined(DISABLE_DPDK) && !defined(ENABLE_ONVM)
 #include <rte_common.h>
 #include <rte_mempool.h>
 /*----------------------------------------------------------------------------*/

@@ -16,7 +16,7 @@ We require the following libraries to run mTCP.
  - ``libpthread``
  - ``librt``
 
-Compling PSIO/DPDK/NETMAP driver requires kernel headers.
+Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
 We have modified the dpdk-17.08 package to export net_device stat data 
@@ -59,7 +59,7 @@ config: sample mTCP configuration files (may not be necessary)
 
 ### INSTALL GUIDES ###
 
-mTCP can be prepared in two ways.
+mTCP can be prepared in three ways.
 
 ***PSIO VERSION***
 
@@ -145,7 +145,7 @@ mTCP can be prepared in two ways.
     ```
 
 2. Next bring the dpdk-registered interfaces up. Please use the
-   ``setup_iface_single_process.sh`` script file present in ``dpdk-17.08/tools/``
+   ``setup_iface_single_process.sh`` script file present in ``dpdk-17.08/usertools/``
    directory for this purpose. Please change lines 49-51 to change the IP	
    address. Under default settings, run the script as:
 
@@ -193,6 +193,80 @@ mTCP can be prepared in two ways.
    - you may write your own configuration file for your application
 
 6. Run the applications!
+
+
+***ONVM VERSION***
+
+***NEW***: Now you can run mTCP applications (server + client) locally.
+A local setup is useful when only 1 machine is available for the experiment. 
+ONVM configurations are placed as `.conf` files in apps/example directory.
+ONVM basics are explained in https://github.com/sdnfv/openNetVM.
+
+**Before running the applications make sure that onvm_mgr is running.**  
+*Also, no core overlap between applications and onvm_mgr is allowed.*
+
+1. [Install openNetVM following these instructions](https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md)
+
+2. Next bring the dpdk-registered interfaces up. This can be setup using:  
+
+     ```# sudo $RTE_SDK/tools/dpdk-setup-iface.sh```
+
+3. Create soft links for ``include/`` and ``lib/`` directories inside
+   empty ``dpdk/`` directory:
+   ```bash
+      # cd dpdk/
+      # ln -s $RTE_SDK/$RTE_TARGET/lib lib
+      # ln -s $RTE_SDK/$RTE_TARGET/include include
+   ```
+
+4. Setup mtcp library
+    ```bash
+	# ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
+	# e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk --with-onvm-lib=`echo $ONVM_HOME`/onvm
+	# make
+    ```
+
+  - By default, mTCP assumes that there are 16 CPUs in your system.
+    You can set the CPU limit, e.g. on a 32-core system, by using the following command:
+    ```bash
+    	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk --with-onvm-lib=$<path_to_onvm_lib> CFLAGS="-DMAX_CPUS=32"
+    ```
+    Please note that your NIC should support RSS queues equal to the MAX_CPUS value
+    (since mTCP expects a one-to-one RSS queue to CPU binding).
+    
+   - In case `./configure' script prints an error, run the
+    following command; and then re-do step-4 (configure again):
+    
+       ```# autoreconf -ivf```
+   - checksum offloading in the NIC is now ENABLED (by default)!!!
+   - this only works for dpdk at the moment
+   - use ```./configure --with-dpdk-lib=`echo $PWD`/dpdk --with-onvm-lib=$<path_to_onvm_lib> --disable-hwcsum``` to disable checksum offloading.
+   - check libmtcp.a in mtcp/lib
+   - check header files in mtcp/include
+   - check example binary files in apps/example
+
+5. Check the configurations in apps/example
+   - epserver.conf for server-side configuration
+   - epwget.conf for client-side configuration
+   - you may write your own configuration file for your application
+
+6. Run the applications!
+
+**Notes**
+
+Once you have started onvm_mgr, sometimes an mTCP application may fail to get launched due
+to an error resembling the one mentioned below:
+
+(```EAL: FATAL: Cannot init memory```, or
+``` Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option```, or  
+```EAL: Cannot mmap device resource file /sys/bus/pci/devices/0000:06:00.0/resource3 to address: 0x7ffff7ff1000```)
+
+To prevent this, use the base virtual address parameter to run the ONVM manager, e.g.:
+
+```
+cd openNetVM/onvm  
+./go.sh 1,2,3 1 -s stdout -v 0x7f000000000 
+```
 
 ***NETMAP VERSION***
 

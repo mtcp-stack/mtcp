@@ -174,16 +174,16 @@ SetInterfaceInfo(char* dev_name_list)
 	} else if (current_iomodule_func == &dpdk_module_func) {
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;
-		uint32_t cpumask = 0;
-		char cpumaskbuf[10];
+		uint64_t cpumask = 0;
+		char cpumaskbuf[20];
 		char mem_channels[5];
 		int ret;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
 		/* get the cpu mask */
 		for (ret = 0; ret < cpu; ret++)
-			cpumask = (cpumask | (1 << ret));
-		sprintf(cpumaskbuf, "%X", cpumask);
+			cpumask = (cpumask | (1LLU << ret));
+		sprintf(cpumaskbuf, "%"PRIx64, cpumask);
 
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {

@@ -40,6 +40,7 @@ install:
   - sudo apt-get install -y linux-headers-$(uname -r)
   - sudo apt-get install libnuma-dev
   - sudo apt-get install bash
+  - sudo apt-get install libgmp3-dev
 
 script:
   - bash .buildtest.sh

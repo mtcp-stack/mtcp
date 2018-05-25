@@ -15,6 +15,7 @@ We require the following libraries to run mTCP.
  - ``libnuma``
  - ``libpthread``
  - ``librt``
+ - ``libgmp`` (for DPDK/ONVM driver)
 
 Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
  - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``

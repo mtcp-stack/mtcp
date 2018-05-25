@@ -14,7 +14,7 @@ AC_DISABLE_OPTION_CHECKING
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([linux/sched.h pthread.h numa.h arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([linux/sched.h pthread.h numa.h arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h gmp.h])
 
 # Check for AC_PTHREAD [FC is preventing this to be enabled..]
 #AX_PTHREAD( [
@@ -41,7 +41,7 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([bzero clock_gettime getpagesize gettimeofday memmove memset munmap select socket strchr strerror strstr strtol])
+AC_CHECK_FUNCS([bzero clock_gettime getpagesize gettimeofday memmove memset munmap select socket strchr strerror strstr strtol mpz_init])
 
 # Reset DPDK to 0
 AC_SUBST(DPDK, 0)
@@ -56,8 +56,8 @@ AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
 AC_SUBST(HWCSUM, 1)
 
-# Check dpdk-16.11 path (lib & inc)
-AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-16.11 install root])
+# Check dpdk-17.08 path (lib & inc)
+AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-17.08 install root])
 if test "$with_dpdk_lib" != ""
 then
         AC_SUBST(DPDKLIBPATH, $with_dpdk_lib)

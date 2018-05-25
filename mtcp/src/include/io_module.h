@@ -5,6 +5,10 @@
 #include <stdint.h>
 /* for ps lib funcs */
 #include "ps.h"
+#ifndef DISABLE_DPDK
+/* for dpdk/onvm big ints */
+#include <gmp.h>
+#endif
 /*----------------------------------------------------------------------------*/
 /**
  * Declaration to soothe down the warnings 

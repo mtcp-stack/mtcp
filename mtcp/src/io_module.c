@@ -31,6 +31,8 @@
 /* for onvm */
 #include "onvm_nflib.h"
 #include "onvm_pkt_helper.h"
+/* for dpdk/onvm big ints */
+#include <gmp.h>
 #endif
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
@@ -174,17 +176,19 @@ SetInterfaceInfo(char* dev_name_list)
 	} else if (current_iomodule_func == &dpdk_module_func) {
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;
-		uint64_t cpumask = 0;
-		char cpumaskbuf[20];
+		mpz_t _cpumask;
+		char cpumaskbuf[30];
 		char mem_channels[5];
 		int ret;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
+		mpz_init(_cpumask);
+
 		/* get the cpu mask */
 		for (ret = 0; ret < cpu; ret++)
-			cpumask = (cpumask | (1LLU << ret));
-		sprintf(cpumaskbuf, "%"PRIx64, cpumask);
-
+			mpz_setbit(_cpumask, ret);
+		gmp_sprintf(cpumaskbuf, "%ZX", _cpumask);
+		
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {
 			TRACE_ERROR("DPDK module requires # of memory channels "
@@ -395,17 +399,19 @@ SetInterfaceInfo(char* dev_name_list)
 	} else if (current_iomodule_func == &onvm_module_func) {
 #ifdef ENABLE_ONVM
 		int cpu = CONFIG.num_cores;
-		uint32_t cpumask = 0;
-		char cpumaskbuf[10];
+		mpz_t cpumask;
+		char cpumaskbuf[30];
 		char mem_channels[5];
 		char service[6];
 		char instance[6];
 		int ret;
+
+		mpz_init(cpumask);
 		
 		/* get the cpu mask */
 		for (ret = 0; ret < cpu; ret++)
-			cpumask = (cpumask | (1 << ret));
-		sprintf(cpumaskbuf, "%X", cpumask);
+			mpz_setbit(cpumask, ret);
+		gmp_sprintf(cpumaskbuf, "%ZX", cpumask);
 
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {

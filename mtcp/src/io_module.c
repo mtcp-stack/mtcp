@@ -188,6 +188,8 @@ SetInterfaceInfo(char* dev_name_list)
 		for (ret = 0; ret < cpu; ret++)
 			mpz_setbit(_cpumask, ret);
 		gmp_sprintf(cpumaskbuf, "%ZX", _cpumask);
+
+		mpz_clear(_cpumask);
 		
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {
@@ -413,6 +415,8 @@ SetInterfaceInfo(char* dev_name_list)
 			mpz_setbit(cpumask, ret);
 		gmp_sprintf(cpumaskbuf, "%ZX", cpumask);
 
+		mpz_clear(cpumask);
+				
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {
 			TRACE_ERROR("DPDK module requires # of memory channels "

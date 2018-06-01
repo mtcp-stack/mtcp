@@ -18,7 +18,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN EXPAT.
 #
 
-SHELL = /bin/bash
+SHELL = /bin/sh
 
 srcdir = .
 top_srcdir = .
@@ -50,7 +50,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 INCLUDES = -I$(srcdir)/lib -I.
 LDFLAGS = 
 CPPFLAGS = 
-CFLAGS = -g -O2 -DHAVE_EXPAT_CONFIG_H
+CFLAGS = -g -O3 -DHAVE_EXPAT_CONFIG_H
 VSNFLAG = -version-info 5:0:5
 
 ### autoconf this?

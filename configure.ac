@@ -110,7 +110,7 @@ then
 	AC_SUBST(ONVM, 1)
 fi
 
-if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "x$enable_netmap" = "xno"
+if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "$enable_netmap" = ""
 then
 	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
 fi
@@ -121,3 +121,5 @@ AC_OUTPUT(mtcp/src/Makefile)
 AC_OUTPUT(apps/example/Makefile)
 AC_OUTPUT(util/Makefile)
 AC_OUTPUT(io_engine/lib/Makefile)
+
+bash ./.check_hyperthreading.sh

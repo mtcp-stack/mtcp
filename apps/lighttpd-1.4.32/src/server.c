@@ -499,6 +499,9 @@ core_affinitize(int cpu)
 	size_t n;
 	int ret;
 
+#ifdef USE_MTCP
+	return mtcp_core_affinitize(cpu);
+#endif
 	n = sysconf(_SC_NPROCESSORS_ONLN);
 
 	if (cpu < 0 || cpu >= (int) n) {

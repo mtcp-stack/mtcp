@@ -646,7 +646,7 @@ LIBMTCP_LIBS=""
 
 if test "$WITH_LIBMTCP" != "no"; then
 	LIBMTCP_CFLAGS="-I$WITH_LIBMTCP/lib/ -I$WITH_LIBMTCP/src/include/ -DMULTI_THREADED"
-	LIBMTCP_LIBS="$WITH_LIBMTCP/lib/libmtcp.a -lpthread -lnuma -lrt"
+	LIBMTCP_LIBS="$WITH_LIBMTCP/lib/libmtcp.a -lpthread -lnuma -lrt -lgmp"
 	CFLAGS="${CFLAGS} ${LIBMTCP_CFLAGS}"
 	AC_DEFINE([HAVE_LIBMTCP], [1], [libmtcp support])
 	AC_MSG_RESULT(yes)

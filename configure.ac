@@ -121,3 +121,5 @@ AC_OUTPUT(mtcp/src/Makefile)
 AC_OUTPUT(apps/example/Makefile)
 AC_OUTPUT(util/Makefile)
 AC_OUTPUT(io_engine/lib/Makefile)
+
+bash ./.check_hyperthreading.sh

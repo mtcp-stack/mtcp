@@ -645,8 +645,8 @@ LoadConfiguration(const char *fname)
 
 	/* set default configuration */
 	CONFIG.num_cores = num_cpus;
-	CONFIG.max_concurrency = 100000;
-	CONFIG.max_num_buffers = 100000;
+	CONFIG.max_concurrency = 10000;
+	CONFIG.max_num_buffers = 10000;
 	CONFIG.rcvbuf_size = -1;
 	CONFIG.sndbuf_size = -1;
 	CONFIG.tcp_timeout = TCP_TIMEOUT;

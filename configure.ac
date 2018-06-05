@@ -148,6 +148,7 @@ AM_INIT_AUTOMAKE(mtcp, 3)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT(mtcp/src/Makefile)
 AC_OUTPUT(apps/example/Makefile)
+AC_OUTPUT(apps/perf/Makefile)
 AC_OUTPUT(util/Makefile)
 AC_OUTPUT(io_engine/lib/Makefile)
 

@@ -25,7 +25,7 @@ typedef struct mem_pool
 	int mp_total_chunks;       /* number of total free chunks */
 	int mp_chunk_size;        /* chunk size in bytes */
 	int mp_type;
-
+	
 } mem_pool;
 /*----------------------------------------------------------------------------*/
 mem_pool * 
@@ -111,7 +111,7 @@ MPFreeChunk(mem_pool_t mp, void *p)
 	assert(((u_char *)p - mp->mp_startptr) % mp->mp_chunk_size == 0);
 	//	assert(*((u_char *)p + (mp->mp_chunk_size-1)) == 'a');
 	//	*((u_char *)p + (mp->mp_chunk_size-1)) = 'f';
-
+	
 	mcp->mc_free_chunks = 1;
 	mcp->mc_next = mp->mp_freeptr;
 	mp->mp_freeptr = mcp;
@@ -134,25 +134,25 @@ MPGetFreeChunks(mem_pool_t mp)
 uint32_t 
 MPIsDanger(mem_pool_t mp)
 {
-#define DANGER_THREASHOLD 0.95
-#define SAFE_THREASHOLD 0.90
-    uint32_t danger_num = mp->mp_total_chunks * DANGER_THREASHOLD;
-    uint32_t safe_num = mp->mp_total_chunks * SAFE_THREASHOLD;
-    if (danger_num < mp->mp_total_chunks - mp->mp_free_chunks) {
-        return mp->mp_total_chunks - mp->mp_free_chunks - safe_num;
-    }
-    return 0;
+#define DANGER_THRESHOLD 0.95
+#define SAFE_THRESHOLD 0.90
+	uint32_t danger_num = mp->mp_total_chunks * DANGER_THRESHOLD;
+	uint32_t safe_num = mp->mp_total_chunks * SAFE_THRESHOLD;
+	if (danger_num < mp->mp_total_chunks - mp->mp_free_chunks) {
+		return mp->mp_total_chunks - mp->mp_free_chunks - safe_num;
+	}
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 uint32_t
 MPIsOverSafeline(mem_pool_t mp)
 {
 #define SAFELINE 0.90
-    uint32_t safe_num = mp->mp_total_chunks * SAFELINE;
-    if (safe_num < mp->mp_total_chunks - mp->mp_free_chunks) {
-        return 1;
-    }
-    return 0;
+	uint32_t safe_num = mp->mp_total_chunks * SAFELINE;
+	if (safe_num < mp->mp_total_chunks - mp->mp_free_chunks) {
+		return 1;
+	}
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 #else

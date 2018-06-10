@@ -6,6 +6,9 @@
 #include <sys/queue.h>
 
 #include "mtcp.h"
+#if RATE_LIMIT_ENABLED || PACING_ENABLED
+#include "pacing.h"
+#endif
 
 struct rtm_stat
 {
@@ -191,6 +194,12 @@ typedef struct tcp_stream
 
 	struct tcp_recv_vars *rcvvar;
 	struct tcp_send_vars *sndvar;
+#if RATE_LIMIT_ENABLED
+	struct token_bucket  *bucket;
+#endif
+#if PACING_ENABLED
+        struct packet_pacer  *pacer;
+#endif
 	
 	uint32_t last_active_ts;		/* ts_last_ack_sent or ts_last_ts_upd */
 

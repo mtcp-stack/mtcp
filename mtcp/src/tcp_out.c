@@ -7,6 +7,9 @@
 #include "eventpoll.h"
 #include "timer.h"
 #include "debug.h"
+#if RATE_LIMIT_ENABLED || PACING_ENABLED
+#include "pacing.h"
+#endif
 
 #define TCP_CALCULATE_CHECKSUM      TRUE
 #define ACK_PIGGYBACK				TRUE
@@ -519,6 +522,7 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		if (len == 0)
 			break;
 
+		//sndvar->cwnd = (200 * sndvar->mss);
 		remaining_window = MIN(sndvar->cwnd, sndvar->peer_wnd)
 			               - (seq - sndvar->snd_una);
 		/* if there is no space in the window */
@@ -545,6 +549,19 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		/* payload size limited by TCP MSS */
 		pkt_len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
 
+#if RATE_LIMIT_ENABLED
+		if (cur_stream->bucket->rate != 0 && (SufficientTokens(cur_stream->bucket, pkt_len*8) < 0)) {
+			packets = -3;
+			goto out;
+		}
+#endif
+    
+#if PACING_ENABLED
+                if (!CanSendNow(cur_stream->pacer)) {
+                    packets = -3;
+                    goto out;
+                }
+#endif
 		if ((sndlen = SendTCPPacket(mtcp, cur_stream, cur_ts,
 					    TCP_FLAG_ACK, data, pkt_len)) < 0) {
 			/* there is no available tx buf */

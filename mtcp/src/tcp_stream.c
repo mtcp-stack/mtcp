@@ -8,6 +8,9 @@
 #include "ip_out.h"
 #include "timer.h"
 #include "debug.h"
+#if RATE_LIMIT_ENABLED || PACING_ENABLED
+#include "pacing.h"
+#endif
 
 #define TCP_MAX_SEQ 4294967295
 
@@ -335,6 +338,13 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 			sa[0], sa[1], sa[2], sa[3], ntohs(stream->sport), 
 			da[0], da[1], da[2], da[3], ntohs(stream->dport), 
 			stream->sndvar->iss);
+
+#if RATE_LIMIT_ENABLED
+	stream->bucket = NewTokenBucket();
+#endif
+#if PACING_ENABLED
+        stream->pacer = NewPacketPacer();
+#endif
 
 	UNUSED(da);
 	UNUSED(sa);

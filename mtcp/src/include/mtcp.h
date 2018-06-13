@@ -49,8 +49,8 @@
 #define MAX_PKT_SIZE                    (2*1024)
 #define ETH_NUM                         MAX_DEVICES
 
-#define TCP_OPT_TIMESTAMP_ENABLED       TRUE   /* enabled for rtt measure */
-#define TCP_OPT_SACK_ENABLED            FALSE  /* not implemented */
+#define TCP_OPT_TIMESTAMP_ENABLED       TRUE   // enabled for rtt measure
+#define TCP_OPT_SACK_ENABLED            TRUE   // only recv-side implemented
 #define RATE_LIMIT_ENABLED              FALSE
 #define PACING_ENABLED                  FALSE
 

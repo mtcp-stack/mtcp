@@ -457,7 +457,11 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 
 #if RECOVERY_AFTER_LOSS
 	/* updating snd_nxt (when recovered from loss) */
-	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) || (cur_stream->wait_for_acks && TCP_SEQ_GT(ack_seq, cur_stream->seq_at_last_loss))) {
+	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) || (cur_stream->wait_for_acks && TCP_SEQ_GT(ack_seq, cur_stream->seq_at_last_loss)
+#if TCP_OPT_SACK_ENABLED 
+		&& cur_stream->rcvvar->sacked_pkts == 0
+#endif
+	)) {
 #if RTM_STAT
 		sndvar->rstat.ack_upd_cnt++;
 		sndvar->rstat.ack_upd_bytes += (ack_seq - cur_stream->snd_nxt);

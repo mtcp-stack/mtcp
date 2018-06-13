@@ -63,6 +63,7 @@ struct tcp_recv_vars
 
 #if TCP_OPT_SACK_ENABLED		/* currently not used */
 #define MAX_SACK_ENTRY 8
+	uint32_t sacked_pkts;
 	struct sack_entry sack_table[MAX_SACK_ENTRY];
 	uint8_t sacks:3;
 #endif /* TCP_OPT_SACK_ENABLED */

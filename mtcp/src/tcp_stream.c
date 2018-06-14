@@ -103,7 +103,21 @@ EqualFlow(const void *f1, const void *f2)
 			flow1->daddr == flow2->daddr &&
 			flow1->dport == flow2->dport);
 }
+
+#if USE_CCP
 /*---------------------------------------------------------------------------*/
+unsigned int HashSID(const void *f) {
+	tcp_stream *flow = (tcp_stream *)f;
+	return (flow->id % (NUM_BINS_FLOWS -1));
+}
+
+int
+EqualSID(const void *f1, const void *f2) {
+	return (((tcp_stream *)f1)->id == ((tcp_stream *)f2)->id);
+}
+/*----------------------------------------------------------------------------*/
+#endif
+
 inline void 
 RaiseReadEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 {
@@ -256,6 +270,18 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
 		return NULL;
 	}
+
+#if USE_CCP
+	ret = StreamHTInsert(mtcp->tcp_sid_table, stream);
+	if (ret < 0) {
+		TRACE_ERROR("Stream %d: "
+				"Failed to insert the stream into SID lookup table.\n", stream->id);
+		MPFreeChunk(mtcp->flow_pool, stream);
+		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+		return NULL;
+	}
+#endif
+
 	stream->on_hash_table = TRUE;
 	mtcp->flow_cnt++;
 

@@ -12,6 +12,10 @@
 
 #define IS_FLOW_TABLE(x)	(x == HashFlow)
 #define IS_LISTEN_TABLE(x)	(x == HashListener)
+#if USE_CCP
+#define IS_SID_TABLE(x)     (x == HashSID)
+#endif
+
 /*----------------------------------------------------------------------------*/
 struct hashtable * 
 CreateHashtable(unsigned int (*hashfn) (const void *), // key function
@@ -30,7 +34,11 @@ CreateHashtable(unsigned int (*hashfn) (const void *), // key function
 	ht->bins = bins;
 
 	/* creating bins */
+#if USE_CCP
+	if (IS_FLOW_TABLE(hashfn) || IS_SID_TABLE(hashfn)) {
+#else
 	if (IS_FLOW_TABLE(hashfn)) {
+#endif
 		ht->ht_table = calloc(bins, sizeof(hash_bucket_head));
 		if (!ht->ht_table) {
 			TRACE_ERROR("calloc: CreateHashtable bins!\n");

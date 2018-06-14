@@ -918,6 +918,14 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 		return NULL;
 	}
 
+#if USE_CCP
+	mtcp->tcp_sid_table = CreateHashtable(HashSID, EqualSID, NUM_BINS_FLOWS);
+	if (!mtcp->tcp_sid_table) {
+		CTRACE_ERROR("Failed to allocate tcp sid lookup table.\n");
+		return NULL;
+	}
+#endif
+
 	mtcp->listeners = CreateHashtable(HashListener, EqualListener, NUM_BINS_LISTENERS);
 	if (!mtcp->listeners) {
 		CTRACE_ERROR("Failed to allocate listener table.\n");
@@ -1161,6 +1169,9 @@ MTCPRunThread(void *arg)
 	mtcp_free_context(&m);
 	/* destroy hash tables */
 	DestroyHashtable(g_mtcp[cpu]->tcp_flow_table);
+#if USE_CCP
+	DestroyHashtable(g_mtcp[cpu]->tcp_sid_table);
+#endif
 	DestroyHashtable(g_mtcp[cpu]->listeners);
 	
 	TRACE_DBG("MTCP thread %d finished.\n", ctx->cpu);

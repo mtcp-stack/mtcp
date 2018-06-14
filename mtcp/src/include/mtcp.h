@@ -51,8 +51,10 @@
 
 #define TCP_OPT_TIMESTAMP_ENABLED       TRUE   // enabled for rtt measure
 #define TCP_OPT_SACK_ENABLED            TRUE   // only recv-side implemented
+
 #define RATE_LIMIT_ENABLED              FALSE
 #define PACING_ENABLED                  FALSE
+#define USE_CCP                         TRUE
 
 #define LOCK_STREAM_QUEUE               FALSE
 #define USE_SPIN_LOCK                   TRUE
@@ -210,6 +212,9 @@ struct mtcp_manager
 	sb_manager_t rbm_snd;
 	rb_manager_t rbm_rcv;
 	struct hashtable *tcp_flow_table;
+#if USE_CCP
+	struct hashtable *tcp_sid_table;
+#endif
 
 	uint32_t s_index:24;		/* stream index */
 	socket_map_t smap;

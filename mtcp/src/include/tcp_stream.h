@@ -215,6 +215,16 @@ HashFlow(const void *flow);
 int
 EqualFlow(const void *flow1, const void *flow2);
 
+#if USE_CCP 
+/*----------------------------------------------------------------------------*/
+unsigned int
+HashSID(const void *flow);
+
+int
+EqualSID(const void *flow1, const void *flow2);
+/*----------------------------------------------------------------------------*/
+#endif
+
 extern inline int 
 AddEpollEvent(struct mtcp_epoll *ep, 
 		int queue_type, socket_map_t socket, uint32_t event);

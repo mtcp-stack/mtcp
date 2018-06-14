@@ -1,4 +1,6 @@
 #include <assert.h>
+#include <time.h>
+#include <inttypes.h>
 
 #include "tcp_util.h"
 #include "tcp_in.h"
@@ -9,6 +11,9 @@
 #include "timer.h"
 #include "ip_in.h"
 #include "clock.h"
+#if USE_CCP
+#include "ccp.h"
+#endif
 
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
@@ -380,6 +385,9 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			if (cur_stream->rcvvar->snd_wl2 + sndvar->peer_wnd == right_wnd_edge) {
 				if (cur_stream->rcvvar->dup_acks + 1 > cur_stream->rcvvar->dup_acks) {
 					cur_stream->rcvvar->dup_acks++;
+#if USE_CCP
+					ccp_record_event(mtcp, cur_stream, EVENT_DUPACK, (cur_stream->snd_nxt - ack_seq));
+#endif
 				}
 				dup = TRUE;
 			}
@@ -409,6 +417,10 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #if RTM_STAT
 			sndvar->rstat.tdp_ack_cnt++;
 			sndvar->rstat.tdp_ack_bytes += (cur_stream->snd_nxt - ack_seq);
+#endif
+
+#if USE_CCP
+			ccp_record_event(mtcp, cur_stream, EVENT_TRI_DUPACK, ack_seq);
 #endif
 			if (ack_seq != sndvar->snd_una) {
 				TRACE_DBG("ack_seq and snd_una mismatch on tdp ack. "
@@ -484,22 +496,24 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	}
 #endif
 
+	rmlen = ack_seq - sndvar->sndbuf->head_seq;
+	uint16_t packets = rmlen / sndvar->eff_mss;
+	if (packets * sndvar->eff_mss > rmlen) {
+		packets++;
+	}
+
+#if USE_CCP
+	ccp_cong_control(mtcp, cur_stream, ack_seq, rmlen, packets);
+#endif
+
 	/* If ack_seq is previously acked, return */
 	if (TCP_SEQ_GEQ(sndvar->sndbuf->head_seq, ack_seq)) {
 		return;
 	}
 
 	/* Remove acked sequence from send buffer */
-	rmlen = ack_seq - sndvar->sndbuf->head_seq;
 	if (rmlen > 0) {
 		/* Routine goes here only if there is new payload (not retransmitted) */
-		uint16_t packets;
-
-		/* If acks new data */
-		packets = rmlen / sndvar->eff_mss;
-		if ((rmlen / sndvar->eff_mss) * sndvar->eff_mss > rmlen) {
-			packets++;
-		}
 		
 		/* Estimate RTT and calculate rto */
 		if (cur_stream->saw_timestamp) {
@@ -512,6 +526,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			TRACE_RTT("NOT IMPLEMENTED.\n");
 		}
 
+		// TODO CCP should comment this out? 
 		/* Update congestion control variables */
 		if (cur_stream->state >= TCP_ST_ESTABLISHED) {
 			if (sndvar->cwnd < sndvar->ssthresh) {

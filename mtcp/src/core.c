@@ -28,6 +28,10 @@
 #include "ip_out.h"
 #include "timer.h"
 #include "debug.h"
+#if USE_CCP
+#include "ccp.h"
+#include "libccp/ccp.h"
+#endif
 
 #ifndef DISABLE_DPDK
 /* for launching rte thread */
@@ -68,6 +72,9 @@ static pthread_t g_thread[MAX_CPUS] = {0};
 	(STREAM) || (STATE) || (STAT) || (APP) || (EPOLL)	\
 	|| (DUMP_STREAM)
 static pthread_t log_thread[MAX_CPUS]  = {0};
+#endif
+#if USE_CCP
+static pthread_t ccp_thread[MAX_CPUS] = {0};
 #endif
 /*----------------------------------------------------------------------------*/
 static sem_t g_init_sem[MAX_CPUS];
@@ -1083,6 +1090,35 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 	return mtcp;
 }
 /*----------------------------------------------------------------------------*/
+#if USE_CCP
+static void *
+CCPRecvLoopThread(void *arg) {
+	mtcp_manager_t mtcp = (mtcp_manager_t)arg;
+	mtcp_thread_context_t ctx = mtcp->ctx;
+
+	int cpu = ctx->cpu;
+	mtcp_core_affinitize(cpu);
+
+	TRACE_CCP("ccp recv loop thread started on cpu %d\n", cpu);
+
+	char recvBuf[CCP_MAX_MSG_SIZE];
+	int bytes_recvd;
+	while (!ctx->done && !ctx->exit) {
+		do {
+			bytes_recvd = recvfrom(mtcp->from_ccp, recvBuf, CCP_MAX_MSG_SIZE, 0, NULL, NULL);
+			if (bytes_recvd <= 0) {
+				if (bytes_recvd < 0) {
+					TRACE_ERROR("recv returned %d\n", bytes_recvd);
+				}
+				break;
+			}
+			ccp_read_msg(recvBuf, bytes_recvd);
+		} while(1);
+	}
+	return 0;
+}
+#endif
+/*----------------------------------------------------------------------------*/
 static void *
 MTCPRunThread(void *arg)
 {
@@ -1147,6 +1183,17 @@ MTCPRunThread(void *arg)
 	/* remember this context pointer for signal processing */
 	g_pctx[cpu] = ctx;
 	mlockall(MCL_CURRENT);
+
+#if USE_CCP
+	setup_ccp_connection(mtcp);
+
+	if (pthread_create(&ccp_thread[cpu], NULL,
+		CCPRecvLoopThread, (void *)mtcp) != 0)
+	{
+		TRACE_ERROR("Failed to create thread for CCP receive loop on cpu %d\n", cpu);
+		return NULL;
+	}
+#endif
 
 	// attach (nic device, queue)
 	working = AttachDevice(ctx);
@@ -1300,6 +1347,8 @@ mtcp_free_context(mctx_t mctx)
 	int ret, i;
 
 	if (g_pctx[mctx->cpu] == NULL) return;
+
+	flush_log_data(mtcp);
 	
 	TRACE_DBG("CPU %d: mtcp_destroy_context()\n", mctx->cpu);
 
@@ -1342,6 +1391,14 @@ mtcp_free_context(mctx_t mctx)
 #endif
 	fclose(mtcp->log_fp);
 	TRACE_LOG("Log thread %d joined.\n", mctx->cpu);
+
+#if USE_CCP
+	destroy_ccp_connection(mtcp);
+	// pthread_join(ccp_thread[ctx->cpu], NULL);
+	close(mtcp->from_ccp);
+	close(mtcp->to_ccp);
+	TRACE_CCP("CCP thread %d joined.\n", mctx->cpu);
+#endif
 
 	if (mtcp->connectq) {
 		DestroyStreamQueue(mtcp->connectq);

@@ -288,6 +288,11 @@ struct mtcp_manager
 	struct time_stat rtstat;
 #endif /* NETSTAT */
 	struct io_module_func *iom;
+
+#if USE_CCP
+	int from_ccp;
+	int to_ccp;
+#endif
 };
 /*----------------------------------------------------------------------------*/
 typedef struct mtcp_manager* mtcp_manager_t;

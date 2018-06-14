@@ -201,6 +201,9 @@ typedef struct tcp_stream
 #if PACING_ENABLED
         struct packet_pacer  *pacer;
 #endif
+#if USE_CCP
+    struct ccp_connection *ccp_conn;
+#endif
 	
 	uint32_t last_active_ts;		/* ts_last_ack_sent or ts_last_ts_upd */
 

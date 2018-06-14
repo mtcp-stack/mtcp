@@ -94,7 +94,7 @@ HandleActiveOpen(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	ParseTCPOptions(cur_stream, cur_ts, (uint8_t *)tcph + TCP_HEADER_LEN, 
 			(tcph->doff << 2) - TCP_HEADER_LEN);
 	cur_stream->sndvar->cwnd = ((cur_stream->sndvar->cwnd == 1)? 
-			(cur_stream->sndvar->mss * 2): cur_stream->sndvar->mss);
+			(cur_stream->sndvar->mss * TCP_INIT_CWND): cur_stream->sndvar->mss);
 	cur_stream->sndvar->ssthresh = cur_stream->sndvar->mss * 10;
 	UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 

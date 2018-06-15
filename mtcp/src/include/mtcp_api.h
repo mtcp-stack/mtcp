@@ -13,6 +13,37 @@
 #define INPORT_ANY	(uint16_t)0
 #endif
 
+/*******************************************/
+// LIBOS
+
+#ifndef C_MAX_QUEUE_DEPTH
+#define C_MAX_QUEUE_DEPTH 40
+#endif
+
+#ifndef C_MAX_SGARRAY_SIZE
+#define C_MAX_SGARRAY_SIZE 10
+#endif
+
+#ifndef C_ZEUS_IO_ERR_NO
+#define C_ZEUS_IO_ERR_NO (-9)
+#endif
+
+
+// NOTE: duplication as io-queue_c.h
+// TODO: split all the DS into single h file
+typedef struct Sgelem{
+    void * buf;
+    size_t len;
+}zeus_sgelem;
+
+typedef struct Sgarray{
+    int num_bufs;
+    zeus_sgelem bufs[C_MAX_SGARRAY_SIZE];
+}zeus_sgarray;
+
+/*******************************************/
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -140,6 +171,31 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len);
 /* writev should work in atomic */
 int
 mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV);
+
+
+/******************************************************************************/
+// libos_mtcp c interface
+/******************************************************************************/
+
+// typedef int qtoken
+
+// network functions
+int libos_mtcp_queue(int domain, int type, int protocol);
+int libos_mtcp_listen(int qd, int backlog);
+int libos_mtcp_bind(int qd, struct sockaddr *saddr, socklen_t size);
+int libos_mtcp_accept(int qd, struct sockaddr *saddr, socklen_t *size);
+int libos_mtcp_connect(int qd, struct sockaddr *saddr, socklen_t size);
+int libos_mtcp_close(int qd);
+// other functions
+int libos_mtcp_push(int qd, zeus_sgarray *sga);
+int libos_mtcp_pop(int qd, zeus_sgarray *sga);
+ssize_t libost_mtpc_wait(int *qts, size_t num_qts);
+ssize_t libos_mtcp_wait_all(int *qts, size_t num_qts);
+ssize_t libos_mtcp_blocking_push(int qd, zeus_sgarray *sga);
+ssize_t libos_mtcp_blocking_pop(int qd, zeus_sgarray *sga);
+
+/******************************************************************************/
+/******************************************************************************/
 
 #ifdef __cplusplus
 };

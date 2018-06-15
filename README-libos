@@ -1,1 +1,64 @@
-TODO
+mtcp-libos
+===
+
+epserver.c/main()
+-> core.c/mtcp_init(conf_file)
+    -> LoadConfiguration(config_file)
+    -> setRoutingTable()
+    -> loadARPTable()
+    -> signal(SIGINT, HandleSignal)
+    -> signal(SIGUSR1, HandleSignal)
+    -> current_io_module_func -> load_module();  // load io module (dpdk_module), function pointer
+        -> dpdk_module.c/dpdk_load_module
+            -> setting the rss key
+            -> create the mbuf pools
+                -> DPDK/rte_mempool_create()
+                -> init each ports: (for each port)
+                    -> DPDK/rte_ech_dev_configure()
+                    -> DPDK/rte_eth_rx_queue_set()     // per cpu per rx queue
+                    -> RPRK/rte_eth_tx_queue_setup()   // per cpu per tx queue
+                    -> DPDK/rte_eth_dev_start(portid)  // start device
+                    -> DPDK/rte_eth_promiscuous_enable(portid)  // rte_ethdev.h:enable receipt in promiscuous mode for an Ethernet device
+                    -> DPDK/rte_eth_dev_flow_ctrl_get(portid, &fc_con);  // retrieve current flow control settings per port
+                    -- fc.conf.mode = RTE_FC_NONE;                       // disable flow control
+                    -> DPDK/rte_eth_dev_flow_ctrl_set(portid, &fc_con);
+-> mtcp_getconf(&mcfg);
+-- if backlog is not specified, set it to 4K (Q:what is backlog?)
+-> core.c/mtcp_register_signal(SIGINT, SIgnalHandler);
+=============================================================================
+== application initialization finished
+=============================================================================
+-- for each core, create the thread to run the application (bind to corresponding core)
+    -> pthread_create(&app_thread[i], NULL, RunServerThread, (void *)i&cores[i])
+        -- epserver.c/RunServerThread()
+            -> InitializeServerThread(int core)
+                -- affinitize application thread to a cpu core
+                -> ctx->mctx = core.c/mtcp_create_context(core)    // create mtcp context
+                    -> sem_init(&g_init_sem[cpu])
+                    -- wake up mtcp threads (wake up i/o threads)
+                    -- if master-core == cpu:
+                        -> pthread_create(,NULL, MTCPRunThread, (void*) mctx)
+                    -- else:
+                        -> rte_eal_remote_launch(MTCPDPDKRunThread, mctx, cpu);
+                            -> MTCPRunThread
+                    -- core.c/MTCPRunThread(void *arg)
+                        -> affinitize the thread to this core
+                        -> mtcp->iom = current_iomodule_func
+                        -> pthread_mutex_init(smap_lock)
+                        -> pthread_mutex_init(flow_pool_lock)
+                        -> pthread_mutex_init(socket_pool_lock)
+                        -> tcp_stream_queue.h/SQ_LOCK_INIT   (seems do nothing)
+                        -> sys,mman.h/mlockall(): lock all of the calling process's virtual aaddress space into RAM, preventing that memory from being paged to the swap area, in unit of page
+                        -> AttachDevice(ctx)
+                        -> sem_post(&g_init_sem[ctx->cpu])
+                        /***************************************/
+                        // the loop of dpdk thread (perform network only for each core)
+                        -> RunMainLoop(ctx)
+                        /**************************************/
+                        -> mtcP_free_context(&m)
+                        -> DestroyHashtable(g_mtcp[cpu]->cpu_flow_table)
+                        -> DestroyHashtable(g_mtcp[cpu]->listener)
+                -> ctx->ep = mtcp_epoll_create(ctx->mctx, MAX_EVENTS);   // create epoll descriptor
+                -> ctx->svars
+                -- return ctx
+

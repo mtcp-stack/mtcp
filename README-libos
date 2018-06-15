@@ -86,7 +86,11 @@ epserver.c/main()
                                 -> if (mtcp->flow_cnt > 0) core.c/HandleApplicationCalls(mtcp, ts)
                                 -> core.c/WritePacketsToChunks(mtcp, ts)
                                 -- // send packets from write buffer
-                                -> mtcp->iom->send_pkts(ctx, tx_inf);
+                                -> @@ mtcp->iom->send_pkts(ctx, tx_inf); // will call dpdk_send_pkts
+                                    -- if there are packets in the queue ... flush them to the wire
+                                    -> if(dpc->wmbuf[ifidx].len > 0){
+                                        -> rte_eth_tx_burst(portid, ctxt->cpu, pkts, cnt)
+                                        }
                                 -> mtcp->iom->select(ctx)       // only work when #ifdef RX_IDLE_ENABLE
                         /**************************************/
                         -> mtcP_free_context(&m)
@@ -177,12 +181,15 @@ struct tcp_send_vars {
 core.c/WritePacketsToChunks
 -> tcp_out.c/WriteTCPDataList
     -> tcp_out.c/FlushTCPSendingBuffer()
+        -> SBUF_LOCK(&sndvar->write_lock)
         ->  tcp_out.c/SendTcpPacket()
-            -> ip_out.c/IPOutput()
+            -> tcph = ip_out.c/IPOutput()
                 -> eth_out.c/EthernetOutput()
                     -> mtcp->iom->get_wptr()    // retrieve next pkt empty pkt buffer for the application for packet writting, returns ptr to pkt buffer
                         -> dpdk_get_wptr()
                             -- // return about dpc->wmbufs[ifidx].m_table[len_of_mbuf]
+            -> if payload exist, will call memcpy
+        -> SBUF_UNBLOCK(&sndvar->write_lock)
 
 
 api.c/mtcp_write()

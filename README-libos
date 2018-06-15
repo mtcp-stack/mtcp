@@ -54,6 +54,14 @@ epserver.c/main()
                         /***************************************/
                         // the loop of dpdk thread (perform network only for each core)
                         -> RunMainLoop(ctx)
+                            -- while loop:
+                                -> mtcp->iom->recv_pkts(ctx, rx_inf)
+                                -- will call dpdk_module->recv_pkts(ctx, rx_inf)
+                                -> dpdk_module/dpdk_recv_pkts
+                                    -> rte_ethdev.h/rte_eth_rx_burst(portid, cpu, dpc->pkts_burst",  MAX_PKT_BURST)
+                                        // Retrieve a burst of input packets from a receive queue of an Ethernet receive queue, 
+                                        // up to *nb_pkts* packets, and for each completed RX descriptor in the ring, 
+                                        // return the # of packets actually retrived
                         /**************************************/
                         -> mtcP_free_context(&m)
                         -> DestroyHashtable(g_mtcp[cpu]->cpu_flow_table)

@@ -1518,10 +1518,14 @@ mtcp_init(const char *config_file)
 	LoadARPTable();
 	PrintARPTable();
 
+    // JL:The SIGUSR1 and SIGUSR2 signals are set aside for you to use any way you want.
+    // They’re useful for simple interprocess communication,
+    // if you write a signal handler for them in the program that receives the signal.
 	if (signal(SIGUSR1, HandleSignal) == SIG_ERR) {
 		perror("signal, SIGUSR1");
 		return -1;
 	}
+    // JL: SIGINT and SIGQUIT are intended specifically for requests from the terminal
 	if (signal(SIGINT, HandleSignal) == SIG_ERR) {
 		perror("signal, SIGINT");
 		return -1;

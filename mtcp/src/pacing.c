@@ -8,8 +8,8 @@ token_bucket *NewTokenBucket() {
     if (bucket) {
         fprintf(stderr, "created bucket!\n");
     }
-    bucket->rate = 1000000000;
-    bucket->burst = 1000000;
+    bucket->rate = 0;
+    bucket->burst = 14480;
     bucket->tokens = bucket->burst;
     bucket->last_fill_t = now_usecs();
     return bucket;
@@ -43,10 +43,10 @@ int SufficientTokens(token_bucket *bucket, uint64_t new_bits) {
 }
 
 void PrintBucket(token_bucket *bucket) {
-    /*fprintf(stderr, "[rate=%u tokens=%f last=%u]\n",
-            bucket->rate,
+    fprintf(stderr, "[rate=%.3f tokens=%f last=%u]\n",
+            bucket->rate / 1000000.0,
             bucket->tokens,
-            bucket->last_fill_t);*/
+            bucket->last_fill_t);
 }
 #endif
 

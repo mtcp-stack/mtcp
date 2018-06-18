@@ -558,6 +558,10 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		pkt_len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
 
 #if RATE_LIMIT_ENABLED
+		// update rate
+		if (cur_stream->rcvvar->srtt) {
+			cur_stream->bucket->rate = (uint32_t)(((double)sndvar->cwnd / (cur_stream->rcvvar->srtt * 125.0)) * 8000000);
+		}
 		if (cur_stream->bucket->rate != 0 && (SufficientTokens(cur_stream->bucket, pkt_len*8) < 0)) {
 			packets = -3;
 			goto out;

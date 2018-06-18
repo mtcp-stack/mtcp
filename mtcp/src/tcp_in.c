@@ -504,6 +504,8 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 
 #if USE_CCP
 	ccp_cong_control(mtcp, cur_stream, ack_seq, rmlen, packets);
+#else
+	log_cwnd_rtt(cur_stream);
 #endif
 
 	/* If ack_seq is previously acked, return */

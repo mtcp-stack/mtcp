@@ -1,5 +1,5 @@
-#ifndef __MTCP_PIPE_H_
-#define __MTCP_PIPE_H_
+#ifndef MTCP_PIPE_H
+#define MTCP_PIPE_H
 
 #include <mtcp_api.h>
 
@@ -15,4 +15,4 @@ RaisePendingPipeEvents(mctx_t mctx, int epid, int pipeid);
 int 
 PipeClose(mctx_t mctx, int pipeid);
 
-#endif /* __MTCP_PIPE_H_ */
+#endif /* MTCP_PIPE_H */

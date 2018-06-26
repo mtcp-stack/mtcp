@@ -1,5 +1,5 @@
-#ifndef __TCP_UTIL_H_
-#define __TCP_UTIL_H_
+#ifndef TCP_UTIL_H
+#define TCP_UTIL_H
 
 #include "mtcp.h"
 #include "tcp_stream.h"
@@ -29,4 +29,4 @@ TCPCalcChecksum(uint16_t *buf, uint16_t len, uint32_t saddr, uint32_t daddr);
 void
 PrintTCPOptions(uint8_t *tcpopt, int len);
 
-#endif /* __TCP_UTIL_H_ */	
+#endif /* TCP_UTIL_H */	

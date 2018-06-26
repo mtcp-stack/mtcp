@@ -1,5 +1,5 @@
-#ifndef __SOCKET_H_
-#define __SOCKET_H_
+#ifndef SOCKET_H
+#define SOCKET_H
 
 #include "mtcp_api.h"
 #include "mtcp_epoll.h"
@@ -60,4 +60,4 @@ struct tcp_listener
 };
 /*----------------------------------------------------------------------------*/
 
-#endif /* __SOCKET_H_ */
+#endif /* SOCKET_H */

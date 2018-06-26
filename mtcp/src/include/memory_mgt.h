@@ -1,5 +1,5 @@
-#ifndef __MEMORY_MGT_H_
-#define __MEMORY_MGT_H_
+#ifndef MEMORY_MGT_H
+#define MEMORY_MGT_H
 /*----------------------------------------------------------------------------*/
 #if ! defined(DISABLE_DPDK) && !defined(ENABLE_ONVM)
 #include <rte_common.h>
@@ -37,4 +37,4 @@ MPDestroy(mem_pool_t mp);
 int
 MPGetFreeChunks(mem_pool_t mp);
 /*----------------------------------------------------------------------------*/
-#endif /* __MEMORY_MGT_H_ */
+#endif /* MEMORY_MGT_H */

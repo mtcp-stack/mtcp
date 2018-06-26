@@ -1,6 +1,6 @@
-#ifndef __CPU_H_
-#define __CPU_H_
+#ifndef CPU_H
+#define CPU_H
 
 int GetNumCPUs();
 
-#endif /* __CPU_H_ */
+#endif /* CPU_H */

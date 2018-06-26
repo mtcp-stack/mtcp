@@ -1,5 +1,5 @@
-#ifndef __CONFIG_H_
-#define __CONFIG_H_
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include "ps.h"
 
@@ -49,4 +49,4 @@ ParseMACAddress(unsigned char *haddr, char *haddr_str);
 int 
 ParseIPAddress(uint32_t *ip_addr, char *ip_str);
 
-#endif /* __CONFIG_H_ */
+#endif /* CONFIG_H */

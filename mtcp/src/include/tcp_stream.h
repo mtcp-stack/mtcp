@@ -1,5 +1,5 @@
-#ifndef __TCP_STREAM_H_
-#define __TCP_STREAM_H_
+#ifndef TCP_STREAM_H
+#define TCP_STREAM_H
 
 #include <netinet/ip.h>
 #include <linux/tcp.h>
@@ -232,4 +232,4 @@ DumpStream(mtcp_manager_t mtcp, tcp_stream *stream);
 extern inline void
 InitializeTCPStreamManager();
 
-#endif /* __TCP_STREAM_H_ */
+#endif /* TCP_STREAM_H */

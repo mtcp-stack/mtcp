@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef __NRE_RING_BUFFER_
-#define __NRE_RING_BUFFER_
+#ifndef NRE_RING_BUFFER
+#define NRE_RING_BUFFER
 
 #include <stdint.h>
 #include <sys/types.h>

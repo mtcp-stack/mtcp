@@ -1,5 +1,5 @@
-#ifndef __IO_MODULE_H__
-#define __IO_MODULE_H__
+#ifndef IO_MODULE_H
+#define IO_MODULE_H
 /*----------------------------------------------------------------------------*/
 /* for type def'ns */
 #include <stdint.h>
@@ -120,4 +120,4 @@ extern io_module_func onvm_module_func;
 			assert(0);					\
 	}
 /*----------------------------------------------------------------------------*/
-#endif /* !__IO_MODULE_H__ */
+#endif /* IO_MODULE_H */

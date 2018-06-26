@@ -1,5 +1,5 @@
-#ifndef __MTCP_API_H_
-#define __MTCP_API_H_
+#ifndef MTCP_API_H
+#define MTCP_API_H
 
 #include <stdint.h>
 #include <netinet/in.h>
@@ -145,4 +145,4 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV);
 };
 #endif
 
-#endif /* __MTCP_API_H_ */
+#endif /* MTCP_API_H */

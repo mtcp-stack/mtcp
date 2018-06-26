@@ -1,5 +1,5 @@
-#ifndef __ARP_H_
-#define __ARP_H_
+#ifndef ARP_H
+#define ARP_H
 
 #define MAX_ARPENTRY 1024
 
@@ -25,4 +25,4 @@ ARPTimer(mtcp_manager_t mtcp, uint32_t cur_ts);
 void 
 PrintARPTable();
 
-#endif /* __ARP_H_ */
+#endif /* ARP_H */

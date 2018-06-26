@@ -111,6 +111,9 @@ mtcp_connect(mctx_t mctx, int sockid,
 int 
 mtcp_close(mctx_t mctx, int sockid);
 
+int
+mtcp_shutdown(mctx_t mctx, int sockid, int sock_how);
+
 /** Returns the current address to which the socket sockfd is bound
  * @param [in] mctx: mtcp context
  * @param [in] addr: address buffer to be filled

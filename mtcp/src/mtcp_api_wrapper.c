@@ -143,14 +143,9 @@ mtcp_wrapper_shutdown(int sock_fd, int sock_how)
 	
 	mctx.cpu = current_core;
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
-		MTCP_KERNEL_CALL(shutdown)(sock_fd, sock_how);
-#if 0
-	if (sock_how == SHUT_WR)
-		return mtcp_close(&mctx, mtcp_get_sockid_from_fd(sock_fd));
-#endif
-	abort();
-	/* not supported */
-	return -1;
+		return MTCP_KERNEL_CALL(shutdown)(sock_fd, sock_how);
+
+	return mtcp_shutdown(&mctx, mtcp_get_sockid_from_fd(sock_fd), sock_how);
 }
 /*----------------------------------------------------------------------------*/
 __attribute__((gnu_inline)) inline int
@@ -877,6 +872,10 @@ __mtcp_init(void)
 void
 __mtcp_fini(void)
 {
+	struct mtcp_context mctx;
+	mctx.cpu = current_core;
+	
+	mtcp_destroy_context(&mctx);
 	mtcp_destroy();
 #ifndef RTLD_NEXT
 	dlclose( mtcp_libc_dl_handle );

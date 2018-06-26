@@ -849,6 +849,50 @@ mtcp_connect(mctx_t mctx, int sockid,
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+static inline int
+ShutStreamSocket(mctx_t mctx, int sockid, int how)
+{
+       mtcp_manager_t mtcp;
+       tcp_stream *cur_stream;
+
+       mtcp = GetMTCPManager(mctx);
+       if (!mtcp)
+               return -1;
+
+       cur_stream = mtcp->smap[sockid].stream;
+       if (!cur_stream) {
+               TRACE_API("Socket %d: stream does not exist.\n", sockid);
+               errno = ENOTCONN;
+               return -1;
+       }
+
+       if (cur_stream->closed) {
+               TRACE_API("Socket %d (Stream %u): already closed stream\n",
+                         sockid, cur_stream->id);
+               return 0;
+       }
+
+       switch (how) {
+       case SHUT_RD:
+               cur_stream->read_off = 1;
+               break;
+       case SHUT_WR:
+               cur_stream->write_off = 1;
+               break;
+       case SHUT_RDWR:
+               cur_stream->read_off =
+                       cur_stream->write_off = 1;
+               break;
+       default:
+               /* control should never come here */
+               TRACE_API("Invalid socket shutdown option\n");
+               errno = EINVAL;
+               return -1;
+       }
+
+       return 0;
+}
+/*----------------------------------------------------------------------------*/
 static inline int 
 CloseStreamSocket(mctx_t mctx, int sockid)
 {
@@ -960,12 +1004,12 @@ mtcp_close(mctx_t mctx, int sockid)
 {
 	mtcp_manager_t mtcp;
 	int ret;
-
+	
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
 		return -1;
 	}
-
+	
 	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
 		TRACE_API("Socket id %d out of range.\n", sockid);
 		errno = EBADF;
@@ -1005,6 +1049,60 @@ mtcp_close(mctx_t mctx, int sockid)
 	
 	FreeSocket(mctx, sockid, FALSE);
 
+	return ret;
+}
+/*----------------------------------------------------------------------------*/
+int
+mtcp_shutdown(mctx_t mctx, int sockid, int how)
+{
+	mtcp_manager_t mtcp;
+	int ret;
+	
+	mtcp = GetMTCPManager(mctx);
+	if (!mtcp) {
+		return -1;
+	}
+	
+	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+		TRACE_API("Socket id %d out of range.\n", sockid);
+		errno = EBADF;
+		return -1;
+	}
+	
+	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+		TRACE_API("Invalid socket id: %d\n", sockid);
+		errno = EBADF;
+		return -1;
+	}
+	
+	TRACE_API("Socket %d: mtcp_close called.\n", sockid);
+	
+	switch (mtcp->smap[sockid].socktype) {
+	case MTCP_SOCK_STREAM:
+		ret = ShutStreamSocket(mctx, sockid, how);
+		break;
+		
+	case MTCP_SOCK_LISTENER:
+		errno = ENOSYS;
+		ret = -1;
+		break;
+		
+	case MTCP_SOCK_EPOLL:
+		errno = ENOSYS;
+		ret = -1;
+		break;
+		
+	case MTCP_SOCK_PIPE:
+		errno = ENOSYS;
+		ret = -1;
+		break;
+		
+	default:
+		errno = EINVAL;
+		ret = -1;
+		break;
+	}
+	
 	return ret;
 }
 /*----------------------------------------------------------------------------*/
@@ -1506,6 +1604,15 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 		return -1;
 	}
 
+	/*
+	 * if shutdown with SHUT_WR or SHUT_RDWR
+	 * on socket then return -1;
+	 */
+	if (cur_stream->write_off) {
+		errno = EACCES;
+		return -1;
+	}
+	
 	if (len <= 0) {
 		if (socket->opts & MTCP_NONBLOCK) {
 			errno = EAGAIN;

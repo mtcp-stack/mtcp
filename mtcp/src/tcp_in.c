@@ -608,7 +608,8 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 			cur_stream->socket? cur_stream->socket->epoll & MTCP_EPOLLOUT : 0);
 
 	if (cur_stream->state == TCP_ST_ESTABLISHED) {
-		RaiseReadEvent(mtcp, cur_stream);
+		if (!cur_stream->read_off)	
+			RaiseReadEvent(mtcp, cur_stream);
 	}
 
 	return TRUE;
@@ -884,7 +885,8 @@ Handle_TCP_ST_ESTABLISHED (mtcp_manager_t mtcp, uint32_t cur_ts,
 			AddtoControlList(mtcp, cur_stream, cur_ts);
 
 			/* notify FIN to application */
-			RaiseReadEvent(mtcp, cur_stream);
+			if (!cur_stream->read_off)
+				RaiseReadEvent(mtcp, cur_stream);
 		} else {
 			EnqueueACK(mtcp, cur_stream, cur_ts, ACK_OPT_NOW);
 			return;

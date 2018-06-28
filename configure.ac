@@ -14,7 +14,22 @@ AC_DISABLE_OPTION_CHECKING
 
 # Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([linux/sched.h pthread.h numa.h arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h gmp.h])
+AC_CHECK_HEADER([linux/sched.h],,AC_MSG_ERROR([Could not find linux/sched.h]))
+AC_CHECK_HEADER([pthread.h],,AC_MSG_ERROR([Could not find pthread.h]))
+AC_CHECK_HEADER([numa.h],,AC_MSG_ERROR([Could not find numa.h]))
+AC_CHECK_HEADER([arpa/inet.h],,AC_MSG_ERROR([Could not find arpa/inet.h]))
+AC_CHECK_HEADER([fcntl.h],,AC_MSG_ERROR([Could not find fcntl.h]))
+AC_CHECK_HEADER([limits.h],,AC_MSG_ERROR([Could not find limits.h]))
+AC_CHECK_HEADER([netdb.h],,AC_MSG_ERROR([netdb.h]))
+AC_CHECK_HEADER([netinet/in.h],,AC_MSG_ERROR([Could not find netinet/in.h]))
+AC_CHECK_HEADER([stdint.h],,AC_MSG_ERROR([Could not find stdint.h]))
+AC_CHECK_HEADER([stdlib.h],,AC_MSG_ERROR([Could not find stdlib.h]))
+AC_CHECK_HEADER([string.h],,AC_MSG_ERROR([Could not find string.h]))
+AC_CHECK_HEADER([sys/ioctl.h],,AC_MSG_ERROR([Could not find sys/ioctl.h]))
+AC_CHECK_HEADER([sys/socket.h],,AC_MSG_ERROR([Could not find sys/socket.h]))
+AC_CHECK_HEADER([sys/time.h],,AC_MSG_ERROR([Could not find sys/time.h]))
+AC_CHECK_HEADER([unistd.h],,AC_MSG_ERROR([Could not find unistd.h]))
+AC_CHECK_HEADER([gmp.h],,AC_MSG_ERROR([Could not find gmp.h]))
 
 # Check for AC_PTHREAD [FC is preventing this to be enabled..]
 #AX_PTHREAD( [
@@ -41,7 +56,8 @@ AC_TYPE_UINT8_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([bzero clock_gettime getpagesize gettimeofday memmove memset munmap select socket strchr strerror strstr strtol mpz_init])
+AC_CHECK_FUNC([clock_gettime],,AC_MSG_ERROR([librt library is missing]))
+AC_CHECK_FUNCS([bzero getpagesize gettimeofday memmove memset munmap select socket strchr strerror strstr strtol],,AC_MSG_ERROR([glibc library is missing]))
 
 # Reset DPDK to 0
 AC_SUBST(DPDK, 0)

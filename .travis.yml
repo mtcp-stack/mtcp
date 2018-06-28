@@ -43,4 +43,6 @@ install:
   - sudo apt-get install libgmp3-dev
 
 script:
-  - bash .buildtest.sh
+  - bash .buildtest_dpdk.sh
+  - bash .buildtest_psio.sh
+  - bash .buildtest_netmap.sh

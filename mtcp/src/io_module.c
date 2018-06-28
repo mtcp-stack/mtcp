@@ -559,13 +559,12 @@ FetchEndianType()
 	char *argv;
 	char **argp = &argv;
 	/* dpdk_module_func/onvm_module_func logic down below */
-	(*current_iomodule_func).dev_ioctl(NULL, CONFIG.eths[0].ifindex, DRV_NAME, (void *)argp);
-	if (!strcmp(*argp, "net_i40e"))
-		return 1;
-
-	return 0;
-#else
-	return 1;
+	if (current_iomodule_func == &dpdk_module_func) {
+		(*current_iomodule_func).dev_ioctl(NULL, CONFIG.eths[0].ifindex, DRV_NAME, (void *)argp);
+		if (!strcmp(*argp, "net_i40e"))
+			return 1;
+	}
 #endif
+	return 0;
 }
 /*----------------------------------------------------------------------------*/

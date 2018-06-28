@@ -1,9 +1,18 @@
 - NETMAP VERSION -
 ------------------
-1. Install the netmap driver and the corresponding ixgbe/ driver
+
+-*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-
+-A- Tested with linux-3.13.0-121-generic & netmap commit: 8f3f79e4ca168c6d3220e7a5198a5778b030445e,
+and,
+-B- Tested with linux-3.13.0-121-generic & netmap commit: 21227d47ae995812412d1de22855c7fa8260f53a
+-*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-
+
+FOR -A-
+--------------------------------------------------------------------------------------------------
+1. Install the netmap driver and the corresponding ixgbe-3.15.1/ driver
   - please go through netmap's documentation for installation
   instructions. We used the following command to set the compilation
-  scripts for netmap (for ixgbe driver).
+  scripts for netmap (for ixgbe-3.15.1 driver).
   	   # ./configure --kernel-dir=/path/to/kernel/src --no-drivers=i40e,virtio_net.c
   - To run mTCP clients correctly, you need to modify the RSS
   seed in ixgbe_main.c:ixgbe_setup_mrqc() function. Our mTCP stack
@@ -22,10 +31,56 @@
 	   # sudo insmod ./netmap.ko
 	   # sudo insmod ./ixgbe/ixgbe.ko
 
-  - For optimum performance you are suggested to bind NICS IRQs to arbitrary
-  CPUs. Please use affinity-netmap.py script for this purpose. The current
-  script is setup for the netmap ixgbe driver. Please use a variant
-  of this file for other cases (igb, i40e etc.).
+FOR -B-
+--------------------------------------------------------------------------------------------------
+1. Install the netmap driver and the corresponding ixgbe-5.3.7/ driver
+  - please got through netmap's documentaiton for installation
+  instructions. We used the following command(s) to compile the driver
+  	  # cd LINUX; ./configure; make
+
+  - To run mTCP clients correctly, you need to modify the RSS seed in
+  ixgbe_main.c:ixgbe_init_rss_key() function. Our mTCP stack uses a specific
+  RSS seed (mentioned below).
+
+      	   static inline int ixgbe_init_rss_key(struct ixgbe_adapter *adapter)
+	   {
+#if 0
+		u32 *rss_key;
+		if (!adapter->rss_key) {
+			rss_key = kzalloc(IXGBE_RSS_KEY_SIZE, GFP_KERNEL);
+			if (unlikely(!rss_key))
+				return -ENOMEM;
+
+			netdev_rss_key_fill(rss_key, IXGBE_RSS_KEY_SIZE);
+			adapter->rss_key = rss_key;
+		}
+#endif
+		static uint32_t sym_rss_key[10] = {
+	     	      	  0x05050505, 0x05050505, 0x05050505,
+			  0x05050505, 0x05050505, 0x05050505, 0x05050505,
+			  0x05050505, 0x05050505, 0x05050505
+		};
+
+		if (!adapter->rss_key)
+			adapter->rss_key = sym_rss_key;
+		return 0;
+	   }
+
+  - Make sure that the underlying kernel module is correctly
+  working. You can use sample applications to validate your 
+  setup.
+	   # make
+	   # sudo insmod ./netmap.ko
+	   # sudo insmod ./ixgbe/ixgbe.ko
+--------------------------------------------------------------------------------------------------
+
+
+FOR BOTH -A- & -B- (CONTINUED)
+--------------------------------------------------------------------------------------------------
+ 2. For optimum performance you are suggested to bind NICS IRQs to arbitrary
+    CPUs. Please use affinity-netmap.py script for this purpose. The current
+    script is setup for the netmap ixgbe-5.3.7 driver. Please use a variant
+    of this file for other cases (igb, i40e etc.).
   	   # ./config/affinity-netmap.py ${IFACE}
 
   - Disable flow control in Ethernet layer
@@ -56,7 +111,7 @@
   read traffic from the specified NIC hardware queue. `-a` argument
   lets the program bind to a specific core.
   
-2. Setup mtcp library:
+3. Setup mtcp library:
    	   # ./configure --enable-netmap
    	   # make
   - By default, mTCP assumes that there are 16 CPUs in your system.
@@ -71,16 +126,16 @@
   - check header files in mtcp/include
   - check example binary files in apps/example
 
-3. Check the configurations in apps/example
+4. Check the configurations in apps/example
   - epserver.conf for server-side configuration
   - epwget.conf for client-side configuration
   - you may write your own configuration file for your application
 
-4. Run the applications. *If you run the application with one thread,
+5. Run the applications. *If you run the application with one thread,
 mTCP core will assume that the multi-queues option is disabled. This
 assumption is only valid for netmap version.*
 
-5. Netmap module (mtcp/src/netmap_module.c) by default uses blocking
+6. Netmap module (mtcp/src/netmap_module.c) by default uses blocking
 I/O by default. Most microbenchmarking applications (epserver/epwget)
 shows best performance with this setup in our testbed. In case the
 performance is sub-optimal in yours, we recommend that you try polling

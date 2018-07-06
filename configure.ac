@@ -11,6 +11,10 @@ AC_PROG_CC
 AC_PROG_RANLIB
 AC_LANG(C)
 AC_DISABLE_OPTION_CHECKING
+AC_CHECK_PROG(BC_CHECK,bc,yes)
+if test x"$BC_CHECK" != x"yes" ; then
+    AC_MSG_ERROR([Please install bc before compiling mTCP.])
+fi
 
 # Checks for header files.
 AC_HEADER_STDC

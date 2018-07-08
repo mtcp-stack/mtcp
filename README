@@ -127,7 +127,7 @@ mTCP can be prepared in three ways.
   on this page: http://dpdk.org/doc/nics. Please make sure that your
   NIC is compatible before moving on to the next step.
 
-  - recent Linux kernels tend to rename Ethernet interfaces based on
+  - recent Systemd tend to rename Ethernet interfaces based on
   their PCI addresses. If you are using Intel based Ethernet adapters,
   please rename the interface with a ``dpdk`` prefix. You can do so
   using the following command:

@@ -1,5 +1,5 @@
-#ifndef __FHASH_H_
-#define __FHASH_H_
+#ifndef FHASH_H
+#define FHASH_H
 
 #include <sys/queue.h>
 #include "tcp_stream.h"
@@ -49,4 +49,4 @@ int ListenerHTInsert(struct hashtable *ht, void *);
 void *ListenerHTRemove(struct hashtable *ht, void *);
 void *ListenerHTSearch(struct hashtable *ht, const void *);
 
-#endif /* __FHASH_H_ */
+#endif /* FHASH_H */

@@ -1,5 +1,5 @@
-#ifndef __LOGGER_H_
-#define __LOGGER_H_
+#ifndef LOGGER_H
+#define LOGGER_H
 
 #include <stdint.h>
 
@@ -44,4 +44,4 @@ void EnqueueJobBuffer(log_thread_context *ctx, log_buff* working_bp);
 void InitLogThreadContext (log_thread_context *ctx, int cpu);
 void *ThreadLogMain(void* arg);
 
-#endif /* __LOGGER_H_ */
+#endif /* LOGGER_H */

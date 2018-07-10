@@ -1,5 +1,5 @@
-#ifndef __TCP_SEND_BUFFER_H_
-#define __TCP_SEND_BUFFER_H_
+#ifndef TCP_SEND_BUFFER_H
+#define TCP_SEND_BUFFER_H
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -42,4 +42,4 @@ size_t
 SBRemove(sb_manager_t sbm, struct tcp_send_buffer *buf, size_t len);
 /*----------------------------------------------------------------------------*/
 
-#endif /* __TCP_SEND_BUFFER_H_ */
+#endif /* TCP_SEND_BUFFER_H */

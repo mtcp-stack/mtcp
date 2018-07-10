@@ -1,5 +1,5 @@
-#ifndef __DEBUG_H_
-#define __DEBUG_H_
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #include <errno.h>
 #include <stdio.h>
@@ -225,4 +225,4 @@ flush_log_data(mtcp_manager_t mtcp);
 void
 thread_printf(mtcp_manager_t mtcp, FILE* f_idx, const char* _Format, ...);
 
-#endif /* __DEBUG_H_ */
+#endif /* DEBUG_H */

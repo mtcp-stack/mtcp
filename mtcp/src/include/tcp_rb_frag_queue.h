@@ -1,5 +1,5 @@
-#ifndef __TCP_RB_FRAG_QUEUE_
-#define __TCP_RB_FRAG_QUEUE_
+#ifndef TCP_RB_FRAG_QUEUE
+#define TCP_RB_FRAG_QUEUE
 
 #include "tcp_ring_buffer.h"
 
@@ -19,4 +19,4 @@ struct fragment_ctx *
 RBFragDequeue(rb_frag_queue_t rb_fragq);
 /*---------------------------------------------------------------------------*/
 
-#endif /* __TCP_RB_FRAG_QUEUE_ */
+#endif /* TCP_RB_FRAG_QUEUE */

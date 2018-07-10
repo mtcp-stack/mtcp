@@ -1,5 +1,5 @@
-#ifndef __TCP_SB_QUEUE_
-#define __TCP_SB_QUEUE_
+#ifndef TCP_SB_QUEUE
+#define TCP_SB_QUEUE
 
 #include "tcp_send_buffer.h"
 
@@ -19,4 +19,4 @@ struct tcp_send_buffer *
 SBDequeue(sb_queue_t sq);
 /*---------------------------------------------------------------------------*/
 
-#endif /* __TCP_SB_QUEUE_ */
+#endif /* TCP_SB_QUEUE */

@@ -244,8 +244,7 @@ RaisePendingStreamEvents(mtcp_manager_t mtcp,
 	/* same thing to the write event */
 	if (socket->epoll & MTCP_EPOLLOUT) {
 		struct tcp_send_vars *sndvar = stream->sndvar;
-		if (!sndvar->sndbuf || 
-				(sndvar->sndbuf && sndvar->sndbuf->len < sndvar->snd_wnd)) {
+		if (!sndvar->sndbuf || (sndvar->sndbuf && sndvar->snd_wnd > 0)) {
 			if (!(socket->events & MTCP_EPOLLOUT)) {
 				TRACE_EPOLL("Socket %d: Adding write event\n", socket->id);
 				AddEpollEvent(ep, USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);

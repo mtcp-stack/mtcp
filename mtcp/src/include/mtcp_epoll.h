@@ -1,5 +1,5 @@
-#ifndef __MTCP_EPOLL_H_
-#define __MTCP_EPOLL_H_
+#ifndef MTCP_EPOLL_H
+#define MTCP_EPOLL_H
 
 #include "mtcp_api.h"
 
@@ -66,4 +66,4 @@ EventToString(uint32_t event);
 };
 #endif
 
-#endif /* __MTCP_EPOLL_H_ */
+#endif /* MTCP_EPOLL_H */

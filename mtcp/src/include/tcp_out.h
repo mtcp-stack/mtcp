@@ -1,5 +1,5 @@
-#ifndef __TCP_OUT_H_
-#define __TCP_OUT_H_
+#ifndef TCP_OUT_H
+#define TCP_OUT_H
 
 #include "mtcp.h"
 #include "tcp_stream.h"
@@ -56,4 +56,4 @@ EnqueueACK(mtcp_manager_t mtcp,
 extern inline void 
 DumpControlList(mtcp_manager_t mtcp, struct mtcp_sender *sender);
 
-#endif /* __TCP_OUT_H_ */
+#endif /* TCP_OUT_H */

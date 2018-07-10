@@ -1,5 +1,5 @@
-#ifndef __TIMER_H_
-#define __TIMER_H_
+#ifndef TIMER_H
+#define TIMER_H
 
 #include "mtcp.h"
 #include "tcp_stream.h"
@@ -51,4 +51,4 @@ CheckTimewaitExpire(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh);
 void 
 CheckConnectionTimeout(mtcp_manager_t mtcp, uint32_t cur_ts, int thresh);
 
-#endif /* __TIMER_H_ */
+#endif /* TIMER_H */

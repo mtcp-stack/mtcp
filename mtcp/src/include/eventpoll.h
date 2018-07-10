@@ -1,5 +1,5 @@
-#ifndef __EVENTPOLL_H_
-#define __EVENTPOLL_H_
+#ifndef EVENTPOLL_H
+#define EVENTPOLL_H
 
 #include "mtcp_api.h"
 #include "mtcp_epoll.h"
@@ -62,4 +62,4 @@ struct mtcp_epoll
 int 
 CloseEpollSocket(mctx_t mctx, int epid);
 
-#endif /* __EVENTPOLL_H_ */
+#endif /* EVENTPOLL_H */

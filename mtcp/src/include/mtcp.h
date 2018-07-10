@@ -1,5 +1,5 @@
-#ifndef __MTCP_H_
-#define __MTCP_H_
+#ifndef MTCP_H
+#define MTCP_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -323,4 +323,4 @@ extern addr_pool_t ap[ETH_NUM];
 extern int mtcp_max_fds;
 /*----------------------------------------------------------------------------*/
 
-#endif /* __MTCP_H_ */
+#endif /* MTCP_H */

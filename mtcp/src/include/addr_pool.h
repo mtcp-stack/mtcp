@@ -1,5 +1,5 @@
-#ifndef __ADDR_POOL_H_
-#define __ADDR_POOL_H_
+#ifndef ADDR_POOL_H
+#define ADDR_POOL_H
 
 #include <netinet/in.h>
 #include <sys/queue.h>
@@ -40,4 +40,4 @@ int
 FreeAddress(addr_pool_t ap, const struct sockaddr_in *addr);
 /*----------------------------------------------------------------------------*/
 
-#endif /* __ADDR_POOL_H_ */
+#endif /* ADDR_POOL_H */

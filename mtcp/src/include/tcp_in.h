@@ -1,5 +1,5 @@
-#ifndef __TCP_IN_H_
-#define __TCP_IN_H_
+#ifndef TCP_IN_H
+#define TCP_IN_H
 
 #include <linux/if_ether.h>
 #include <linux/tcp.h>
@@ -124,4 +124,4 @@ ProcessTCPPacket(struct mtcp_manager *mtcp, uint32_t cur_ts, const int ifidx,
 uint16_t 
 TCPCalcChecksum(uint16_t *buf, uint16_t len, uint32_t saddr, uint32_t daddr);
 
-#endif /* __TCP_IN_H_ */
+#endif /* TCP_IN_H */

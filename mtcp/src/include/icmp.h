@@ -1,5 +1,5 @@
-#ifndef __ICMP_H_
-#define __ICMP_H_
+#ifndef ICMP_H
+#define ICMP_H
 /*----------------------------------------------------------------------------*/
 struct icmphdr {
 	uint8_t  icmp_type;
@@ -48,4 +48,4 @@ ProcessICMPPacket(mtcp_manager_t mtcp, struct iphdr *iph, int len);
 #define ICMP_ADDRESS        17  /* Address Mask Request     */
 #define ICMP_ADDRESSREPLY   18  /* Address Mask Reply       */
 /*----------------------------------------------------------------------------*/
-#endif /* __ICMP_H_ */
+#endif /* ICMP_H */

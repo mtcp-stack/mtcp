@@ -5,6 +5,7 @@
 ### TARGET ###
 PS=@PSIO@
 DPDK=@DPDK@
+ENFORCE_RX_IDLE=@ENFORCE_RX_IDLE@
 NETMAP=@NETMAP@
 ONVM=@ONVM@
 LRO=@LRO@
@@ -80,6 +81,9 @@ DPDK_LIB=@DPDKLIBPATH@/lib/
 ifeq ($(DPDK), 1)
 DPDK_MACHINE_FLAGS = $(shell cat @DPDKLIBPATH@/include/cflags.txt)
 INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
+ifeq ($(ENFORCE_RX_IDLE), 1)
+INC += -DENFORCE_RX_IDLE -DRX_IDLE_THRESH=@RX_IDLE_THRESH@
+endif
 else
 INC += -DDISABLE_DPDK
 endif

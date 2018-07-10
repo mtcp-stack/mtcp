@@ -65,6 +65,9 @@ AC_CHECK_FUNCS([bzero getpagesize gettimeofday memmove memset munmap select sock
 
 # Reset DPDK to 0
 AC_SUBST(DPDK, 0)
+# Reset enforcement value
+AC_SUBST(ENFORCE_RX_IDLE, 0)
+AC_SUBST(RX_IDLE_THRESH, 0)
 # Reset DPDK's LRO to 0
 AC_SUBST(LRO, 0)
 # Reset PSIO to 0
@@ -82,6 +85,12 @@ if test "$with_dpdk_lib" != ""
 then
         AC_SUBST(DPDKLIBPATH, $with_dpdk_lib)
 	AC_SUBST(DPDK, 1)
+	AC_ARG_WITH(stuff, [  --with-rx-idle	how much idle cycles needed before enforcing timeout])
+	if test "$with_rx_idle" != ""
+	then
+		AC_SUBST(ENFORCE_RX_IDLE, 1)
+		AC_SUBST(RX_IDLE_THRESH, $with_rx_idle)
+	fi
 fi
 AM_CONDITIONAL([DPDK], [test x$DPDK = x1])
 

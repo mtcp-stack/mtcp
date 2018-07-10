@@ -45,9 +45,10 @@
 #define MBUF_SIZE 			(BUF_SIZE + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
 #define NB_MBUF				8192
 #define MEMPOOL_CACHE_SIZE		256
-//#define RX_IDLE_ENABLE			1
+#ifdef ENFORCE_RX_IDLE
+#define RX_IDLE_ENABLE			1
 #define RX_IDLE_TIMEOUT			1	/* in micro-seconds */
-#define RX_IDLE_THRESH			64
+#endif
 
 /*
  * RX and TX Prefetch, Host, and Write-back threshold values should be

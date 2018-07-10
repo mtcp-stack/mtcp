@@ -674,6 +674,8 @@ NETMAP
 ONVM
 PSIO
 LRO
+RX_IDLE_THRESH
+ENFORCE_RX_IDLE
 DPDK
 LIBOBJS
 EGREP
@@ -1374,6 +1376,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-dpdk-lib      path to the dpdk-17.08 install root
+  --with-rx-idle	how much idle cycles needed before enforcing timeout
   --with-psio-lib      path to the ioengine install root
   --with-onvm-lib      path to the onvm install root
 
@@ -4388,6 +4391,11 @@ done
 # Reset DPDK to 0
 DPDK=0
 
+# Reset enforcement value
+ENFORCE_RX_IDLE=0
+
+RX_IDLE_THRESH=0
+
 # Reset DPDK's LRO to 0
 LRO=0
 
@@ -4417,6 +4425,19 @@ then
 
 	DPDK=1
 
+
+# Check whether --with-stuff was given.
+if test "${with_stuff+set}" = set; then :
+  withval=$with_stuff;
+fi
+
+	if test "$with_rx_idle" != ""
+	then
+		ENFORCE_RX_IDLE=1
+
+		RX_IDLE_THRESH=$with_rx_idle
+
+	fi
 fi
  if test x$DPDK = x1; then
   DPDK_TRUE=

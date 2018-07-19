@@ -133,7 +133,7 @@ mTCP can be prepared in three ways.
   on this page: http://dpdk.org/doc/nics. Please make sure that your
   NIC is compatible before moving on to the next step.
 
-   - recent Linux kernels tend to rename Ethernet interfaces based on
+   - Systemd tends to rename Ethernet interfaces based on
   their PCI addresses. If you are using Intel based Ethernet adapters,
   please rename the interface with a ``dpdk`` prefix. You can do so
   using the following command:
@@ -154,25 +154,23 @@ mTCP can be prepared in three ways.
 
    This sets the IP address of your interfaces as 10.0.x.4.
 
-3. Create soft links for ``include/`` and ``lib/`` directories inside
-   empty ``dpdk/`` directory:
+3. Set RTE_SDK and RTE_TARGET environment variables
+
    ```bash
-      # cd dpdk/
-      # ln -s <path_to_dpdk_17_08_directory>/x86_64-native-linuxapp-gcc/lib lib
-      # ln -s <path_to_dpdk_17_08_directory>/x86_64-native-linuxapp-gcc/include include
+      # export RTE_SDK=`echo $PWD`/dpdk-17.08/
+      # export RTE_TARGET=x86_64-native-linuxapp-gcc
    ```
+   
 4. Setup mtcp library:
    ```bash
-         # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk
-	 ## And not dpdk-17.08!
-	 ## e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk
+         # ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET
    	 # make
     ```
 
   - By default, mTCP assumes that there are 16 CPUs in your system.
     You can set the CPU limit, e.g. on a 32-core system, by using the following command:
     ```bash
-    	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk CFLAGS="-DMAX_CPUS=32"
+    	   # ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET CFLAGS="-DMAX_CPUS=32"
     ```
     Please note that your NIC should support RSS queues equal to the MAX_CPUS value
     (since mTCP expects a one-to-one RSS queue to CPU binding).
@@ -183,7 +181,7 @@ mTCP can be prepared in three ways.
        ```# autoreconf -ivf```
    - checksum offloading in the NIC is now ENABLED (by default)!!!
    - this only works for dpdk at the moment
-   - use ```./configure --with-dpdk-lib=`echo $PWD`/dpdk --disable-hwcsum``` to disable checksum offloading.
+   - use ```./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET --disable-hwcsum``` to disable checksum offloading.
    - check libmtcp.a in mtcp/lib
    - check header files in mtcp/include
    - check example binary files in apps/example
@@ -212,25 +210,17 @@ ONVM basics are explained in https://github.com/sdnfv/openNetVM.
 
      ```# sudo $RTE_SDK/tools/dpdk-setup-iface.sh```
 
-3. Create soft links for ``include/`` and ``lib/`` directories inside
-   empty ``dpdk/`` directory:
-   ```bash
-      # cd dpdk/
-      # ln -s $RTE_SDK/$RTE_TARGET/lib lib
-      # ln -s $RTE_SDK/$RTE_TARGET/include include
-   ```
-
-4. Setup mtcp library
+3. Setup mtcp library
     ```bash
 	# ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
-	# e.g. ./configure --with-dpdk-lib=`echo $PWD`/dpdk --with-onvm-lib=`echo $ONVM_HOME`/onvm
+	# e.g. ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET --with-onvm-lib=`echo $ONVM_HOME`/onvm
 	# make
     ```
 
   - By default, mTCP assumes that there are 16 CPUs in your system.
     You can set the CPU limit, e.g. on a 32-core system, by using the following command:
     ```bash
-    	   # ./configure --with-dpdk-lib=$<path_to_mtcp_release_v3>/dpdk --with-onvm-lib=$<path_to_onvm_lib> CFLAGS="-DMAX_CPUS=32"
+    	   # ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET --with-onvm-lib=$<path_to_onvm_lib> CFLAGS="-DMAX_CPUS=32"
     ```
     Please note that your NIC should support RSS queues equal to the MAX_CPUS value
     (since mTCP expects a one-to-one RSS queue to CPU binding).
@@ -241,7 +231,7 @@ ONVM basics are explained in https://github.com/sdnfv/openNetVM.
        ```# autoreconf -ivf```
    - checksum offloading in the NIC is now ENABLED (by default)!!!
    - this only works for dpdk at the moment
-   - use ```./configure --with-dpdk-lib=`echo $PWD`/dpdk --with-onvm-lib=$<path_to_onvm_lib> --disable-hwcsum``` to disable checksum offloading.
+   - use ```./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET --with-onvm-lib=$<path_to_onvm_lib> --disable-hwcsum``` to disable checksum offloading.
    - check libmtcp.a in mtcp/lib
    - check header files in mtcp/include
    - check example binary files in apps/example

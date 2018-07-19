@@ -1456,11 +1456,6 @@ mtcp_init(const char *config_file)
 	int i;
 	int ret;
 
-	if (geteuid()) {
-		TRACE_CONFIG("[CAUTION] Run the app as root!\n");
-		exit(EXIT_FAILURE);
-	}
-
 	/* getting cpu and NIC */
 	/* set to max cpus only if user has not arbitrarily set it to lower # */
 	num_cpus = (CONFIG.num_cores == 0) ? GetNumCPUs() : CONFIG.num_cores;

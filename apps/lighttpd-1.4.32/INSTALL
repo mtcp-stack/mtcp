@@ -58,7 +58,7 @@ Configure the program with the following arguments:
 	$ ./configure --without-bzip2 CFLAGS="-g -O3" \
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
 	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
-	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/" \
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/$RTE_SDK/$RTE_TARGET" \
 	--with-libonvm="<$PATH_TO_ONVM>" \
 	--enable-netmap
   )
@@ -75,7 +75,7 @@ The path should be absolute.
 	$ ./configure --without-bzip2 CFLAGS="-g -DINFO -DDBGERR" \
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
 	--with-libpsio="<$PATH_TO_MTCP_RELEASE_V3>/io_engine/" \
-	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/" \
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/$RTE_SDK/$RTE_TARGET" \
 	--with-libonvm="<$PATH_TO_ONVM>" \
 	--enable-netmap
   )

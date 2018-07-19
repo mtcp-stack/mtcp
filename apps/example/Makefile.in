@@ -8,9 +8,10 @@ NETMAP=@NETMAP@
 ONVM=@ONVM@
 CFLAGS=@CFLAGS@
 
-# DPDK LIBRARY and HEADER
-DPDK_INC=@DPDKLIBPATH@/include
-DPDK_LIB=@DPDKLIBPATH@/lib/
+# Add arch-specific optimization
+ifeq ($(shell uname -m),x86_64)
+LIBS += -m64
+endif
 
 # mtcp library and header 
 MTCP_FLD    =../../mtcp/
@@ -22,40 +23,31 @@ UTIL_FLD = ../../util
 UTIL_INC = -I${UTIL_FLD}/include
 UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o ${UTIL_FLD}/netlib.o
 
-
-PS_DIR = ../../io_engine/
-PS_INC = ${PS_DIR}/include
+# util library and header
 INC = -I./include/ ${UTIL_INC} ${MTCP_INC} -I${UTIL_FLD}/include
 LIBS = ${MTCP_LIB}
+
+# psio-specific variables
 ifeq ($(PS),1)
+PS_DIR = ../../io_engine/
+PS_INC = ${PS_DIR}/include
 INC += -I{PS_INC}
 LIBS += -lmtcp -L${PS_DIR}/lib -lps -lpthread -lnuma -lrt
 endif
 
+# netmap-specific variables
 ifeq ($(NETMAP),1)
 LIBS += -lmtcp -lpthread -lnuma -lrt
 endif
 
-# CFLAGS for DPDK-related compilation
-INC += ${MTCP_INC}
+# dpdk-specific variables
 ifeq ($(DPDK),1)
-DPDK_MACHINE_FLAGS = $(shell cat @DPDKLIBPATH@/include/cflags.txt)
-INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
+DPDK_MACHINE_LINKER_FLAGS=$${RTE_SDK}/$${RTE_TARGET}/lib/ldflags.txt
+DPDK_MACHINE_LDFLAGS=$(shell cat ${DPDK_MACHINE_LINKER_FLAGS})
+LIBS += -g -O3 -pthread -lrt -march=native ${MTCP_FLD}/lib/libmtcp.a -lnuma -lmtcp -lpthread -lrt -ldl -lgmp -L${RTE_SDK}/${RTE_TARGET}/lib ${DPDK_MACHINE_LDFLAGS}
 endif
 
-ifeq ($(shell uname -m),x86_64)
-LIBS += -m64
-endif
-
-ifeq ($(DPDK),1)
-DPDK_LIB_FLAGS = $(shell cat @DPDKLIBPATH@/lib/ldflags.txt) -lgmp
-#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
-LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
-else
-#LIBS += -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -Wl,-lnuma -Wl,-lmtcp -Wl,-lpthread -Wl,-lrt -Wl,-ldl -Wl,${DPDK_LIB_FLAGS}
-LIBS += -g -O3 -pthread -lrt -march=native -export-dynamic ${MTCP_FLD}/lib/libmtcp.a -L../../dpdk/lib -lnuma -lmtcp -lpthread -lrt -ldl ${DPDK_LIB_FLAGS}
-endif
-
+# onvm-specific variables
 ifeq ($(ONVM),1)
 ifeq ($(RTE_TARGET),)
 $(error "Please define RTE_TARGET environment variable")

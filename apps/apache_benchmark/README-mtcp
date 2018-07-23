@@ -26,7 +26,7 @@ If you want to use ab with mTCP,
   (e.g.
 	$ ./configure CFLAGS="-g -O3" \
 	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
-	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/dpdk/"
+	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/$RTE_SDK/$RTE_TARGET"
   )
 
 -FOR NETMAP VERSION-

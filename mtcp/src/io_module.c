@@ -34,6 +34,9 @@
 /* for dpdk/onvm big ints */
 #include <gmp.h>
 #endif
+/* for file opening */
+#include <sys/stat.h>
+#include <fcntl.h>
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK
@@ -565,6 +568,25 @@ FetchEndianType()
 			return 1;
 	}
 #endif
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+int
+CheckIOModuleAccessPermissions()
+{
+	int fd;
+	/* check if netmap module can access I/O with sudo privileges */
+	if (current_iomodule_func == &netmap_module_func) {
+		fd = open(NETMAP_DEVICE_NAME, O_RDONLY);
+		if (fd != -1)
+			close(fd);
+		return fd;
+	}
+
+	/* sudo privileges are definitely needed otherwise */
+	if (geteuid())
+		return -1;
+
 	return 0;
 }
 /*----------------------------------------------------------------------------*/

@@ -5,6 +5,8 @@
 #include <stdint.h>
 /* for ps lib funcs */
 #include "ps.h"
+/* for netmap macros */
+#include "netmap_user.h"
 #ifndef DISABLE_DPDK
 /* for dpdk/onvm big ints */
 #include <gmp.h>
@@ -105,6 +107,10 @@ extern io_module_func netmap_module_func;
 
 /* registered onvm context */
 extern io_module_func onvm_module_func;
+
+/* check I/O module access permissions */
+int
+CheckIOModuleAccessPermissions();
 
 /* Macro to assign IO module */
 #define AssignIOModule(m) {						\

@@ -85,7 +85,7 @@ if test "$with_dpdk_lib" != ""
 then
         AC_SUBST(DPDKLIBPATH, $with_dpdk_lib)
 	AC_SUBST(DPDK, 1)
-	AC_ARG_WITH(stuff, [  --with-rx-idle	how much idle cycles needed before enforcing timeout])
+	AC_ARG_WITH(stuff, [  --with-rx-idle[=ARG]	how much idle cycles needed before enforcing timeout (dpdk-only)])
 	if test "$with_rx_idle" != ""
 	then
 		AC_SUBST(ENFORCE_RX_IDLE, 1)

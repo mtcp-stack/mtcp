@@ -606,6 +606,10 @@ ParseConfiguration(char *line)
 		}
 	} else if (strcmp(p, "io") == 0) {
 		AssignIOModule(q);
+		if (CheckIOModuleAccessPermissions() == -1) {
+			TRACE_CONFIG("[CAUTION] Run the app as root!\n");
+			exit(EXIT_FAILURE);
+		}
 	} else if (strcmp(p, "num_mem_ch") == 0) {
 		CONFIG.num_mem_ch = mystrtol(q, 10);
 #ifdef ENABLE_ONVM

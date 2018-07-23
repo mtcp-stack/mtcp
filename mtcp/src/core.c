@@ -1484,22 +1484,6 @@ mtcp_init(const char *config_file)
 	int ret;
 	struct rlimit r;
 
-	/* set mtcp_max_fds limit */
-	ret = getrlimit(RLIMIT_NOFILE, &r);
-	if (ret == -1) {
-		TRACE_CONFIG("Can't get max number of file descriptors!\n");
-		exit(EXIT_FAILURE);
-	} else {
-		mtcp_max_fds = r.rlim_cur;
-		TRACE_INFO("Setting mtcp_max_fds to: %u\n",
-			   mtcp_max_fds);
-	}
-	
-	if (geteuid()) {
-		TRACE_CONFIG("[CAUTION] Run the app as root!\n");
-		exit(EXIT_FAILURE);
-	}
-
 	/* getting cpu and NIC */
 	/* set to max cpus only if user has not arbitrarily set it to lower # */
 	num_cpus = (CONFIG.num_cores == 0) ? GetNumCPUs() : CONFIG.num_cores;

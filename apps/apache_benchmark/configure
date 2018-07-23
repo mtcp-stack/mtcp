@@ -5508,8 +5508,8 @@ LIBDPDK_CFLAGS=""
 LIBDPDK_LIBS=""
 
 if test "$WITH_LIBDPDK" != "no"; then
-	DPDK_MACHINE_FLAGS=`cat $WITH_LIBDPDK/include/cflags.txt`
-	LIBDPDK_CFLAGS="$DPDK_MACHINE_FLAGS -I$WITH_LIBDPDK/include/"
+#	DPDK_MACHINE_FLAGS=`cat $WITH_LIBDPDK/include/cflags.txt`
+#	LIBDPDK_CFLAGS="$DPDK_MACHINE_FLAGS -I$WITH_LIBDPDK/include/"
 	DPDK_MACHINE_LDFLAGS=`cat $WITH_LIBDPDK/lib/ldflags.txt`
 	LIBDPDK_LIBS="-L$WITH_LIBDPDK/lib/ -m64 -g -O3 -pthread -lrt -march=native -Wl,-export-dynamic -Wl,-lnuma -Wl,-lpthread -Wl,-lmtcp -Wl,-lrt -Wl,-ldl -Wl,-lgmp -Wl,$DPDK_MACHINE_LDFLAGS"
 	CFLAGS="${CFLAGS} ${LIBDPDK_CFLAGS}"

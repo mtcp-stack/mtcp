@@ -1,0 +1,4 @@
+[submodule "dpdk"]
+	path = dpdk
+	url = https://dpdk.org/git/dpdk
+	branch = devel

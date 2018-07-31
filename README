@@ -114,10 +114,10 @@ mTCP can be prepared in three ways.
        # cd usertools
        # ./dpdk-setup.sh
        
-   Press [17] to compile the package
-   Press [21] to install the driver
-   Press [23] to setup 1024 2MB hugepages
-   Press [34] to register the Ethernet ports
+   Press [17] to install the driver
+   Press [21] to setup 1024 2MB hugepages
+   Press [23] to register the Ethernet ports
+   Press [34] to quit the tool
 
   Only those devices will work with DPDK drivers that are listed
   on this page: http://dpdk.org/doc/nics. Please make sure that your

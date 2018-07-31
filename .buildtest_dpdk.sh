@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+git submodule init
+git submodule update
 cd dpdk/
 make install T=x86_64-native-linuxapp-gcc
 cd ..

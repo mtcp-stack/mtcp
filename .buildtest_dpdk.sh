@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-cd dpdk-17.08/
+cd dpdk/
 make install T=x86_64-native-linuxapp-gcc
 cd ..
-export RTE_SDK=`echo $PWD`/dpdk-17.08
+export RTE_SDK=`echo $PWD`/dpdk
 export RTE_TARGET=x86_64-native-linuxapp-gcc
 export MTCP_TARGET=`echo $PWD`/mtcp
 #cd dpdk

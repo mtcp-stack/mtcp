@@ -42,6 +42,9 @@ struct mtcp_conf
 
 typedef struct mtcp_context *mctx_t;
 
+int
+mtcp_app_init();
+
 int 
 mtcp_init(const char *config_file);
 

@@ -5,7 +5,6 @@
 #include <sys/poll.h>
 #include <sys/epoll.h>
 /*----------------------------------------------------------------------------*/
-int mtcp_app_init();
 typedef int (* l_socket)(int sock_domain, int sock_type, int sock_protocol);
 typedef int (*l_close)(int sock_fd);
 typedef int (*l_shutdown)(int sock_fd, int sock_how);

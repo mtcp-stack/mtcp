@@ -126,9 +126,9 @@ mTCP can be prepared in three ways.
 2. Next bring the dpdk-registered interfaces up. Please insert
    dpdk-iface-kmod kernel driver first.
 
-       # cd ..
+       # cd ../..
        # cd dpdk-iface-kmod
-       # sudo make run
+       # sudo -E make run
        # sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
 
 3. Setup mtcp library:

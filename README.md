@@ -126,8 +126,11 @@ mTCP can be prepared in three ways.
    ```
    
    Press [17] to install the driver
+
    Press [21] to setup 1024 2MB hugepages
+
    Press [23] to register the Ethernet ports
+
    Press [34] to quit the tool
 
    - Only those devices will work with DPDK drivers that are listed
@@ -138,9 +141,9 @@ mTCP can be prepared in three ways.
    kernel driver first.
 
      ```bash
-	# cd ..
+	# cd ../..
 	# cd dpdk-iface-kmod
-	# sudo make run
+	# sudo -E make run
 	# sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
      ```
 

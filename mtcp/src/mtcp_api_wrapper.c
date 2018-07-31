@@ -876,10 +876,10 @@ __mtcp_init(void)
 void
 __mtcp_fini(void)
 {
-	struct mtcp_context mctx;
-	mctx.cpu = current_core;
+	//	struct mtcp_context mctx;
+	//	mctx.cpu = current_core;
 	
-	mtcp_destroy_context(&mctx);
+	//	mtcp_destroy_context(&mctx);
 	mtcp_destroy();
 #ifndef RTLD_NEXT
 	dlclose( mtcp_libc_dl_handle );

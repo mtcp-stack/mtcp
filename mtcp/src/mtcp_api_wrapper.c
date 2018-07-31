@@ -828,6 +828,44 @@ sendfile(int sock_fd, int in_fd, off_t *offset, size_t count)
 	return -1;
 }
 /*----------------------------------------------------------------------------*/
+int
+mtcp_app_init()
+{
+	int ret;
+	mctx_t mctx;
+	int cpu;
+	char *mtcp_config_file, *cpu_str, *endptr;
+
+	ret = 0;
+	mtcp_config_file = getenv("MTCP_CONFIG");
+	if (mtcp_config_file == NULL) {
+		TRACE_ERROR("Error: Missing mtcp configuration file.\n");
+		return -1;
+	}
+
+	ret = mtcp_init(mtcp_config_file);
+	if (ret) {
+		TRACE_ERROR("Failed to iniialize mtcp.\n");
+		return -1;
+	}
+
+	cpu_str = getenv("MTCP_CORE_ID");
+	cpu = strtol(cpu_str, &endptr, 10);
+	if (cpu >= MAX_CPUS) {
+		TRACE_ERROR("CPU core id is invalid.\n");
+		return -1;
+	}
+
+	mtcp_core_affinitize(cpu);
+	mctx = mtcp_create_context(cpu);
+
+	if (!mctx) {
+		TRACE_ERROR("Failed to create mtcp context.\n");
+		return -1;
+	}
+	return ret;
+}
+/*----------------------------------------------------------------------------*/
 void
 __mtcp_init(void)
 {

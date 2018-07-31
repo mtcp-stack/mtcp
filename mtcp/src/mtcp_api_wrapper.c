@@ -837,23 +837,31 @@ mtcp_app_init()
 	char *mtcp_config_file, *cpu_str, *endptr;
 
 	ret = 0;
+
+	/* Fetch mTCP config file */
 	mtcp_config_file = getenv("MTCP_CONFIG");
 	if (mtcp_config_file == NULL) {
 		TRACE_ERROR("Error: Missing mtcp configuration file.\n");
 		return -1;
 	}
 
+	/* init mTCP stack */
 	ret = mtcp_init(mtcp_config_file);
 	if (ret) {
 		TRACE_ERROR("Failed to iniialize mtcp.\n");
 		return -1;
 	}
 
+	/* Fetch mTCP core id */
 	cpu_str = getenv("MTCP_CORE_ID");
-	cpu = strtol(cpu_str, &endptr, 10);
-	if (cpu >= MAX_CPUS) {
-		TRACE_ERROR("CPU core id is invalid.\n");
-		return -1;
+	if (cpu_str == NULL)
+		cpu = 0;
+	else {
+		cpu = strtol(cpu_str, &endptr, 10);
+		if (cpu >= MAX_CPUS) {
+			TRACE_ERROR("CPU core id is invalid.\n");
+			return -1;
+		}
 	}
 
 	mtcp_core_affinitize(cpu);

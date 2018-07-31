@@ -120,7 +120,7 @@ mTCP can be prepared in three ways.
 
    ```bash
 	# cd dpdk
-	# make -j install T=x86_64-native-linuxapp-gcc
+	# make -j install T=$RTE_TARGET
 	# cd usertools
 	# ./dpdk-setup.sh
    ```
@@ -143,6 +143,7 @@ mTCP can be prepared in three ways.
      ```bash
 	# cd ../..
 	# cd dpdk-iface-kmod
+	# make
 	# sudo insmod ./dpdk-iface.ko
 	# sudo -E make run
 	# sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up

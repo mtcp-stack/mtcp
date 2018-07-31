@@ -143,6 +143,7 @@ mTCP can be prepared in three ways.
      ```bash
 	# cd ../..
 	# cd dpdk-iface-kmod
+	# sudo insmod ./dpdk-iface.ko
 	# sudo -E make run
 	# sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
      ```

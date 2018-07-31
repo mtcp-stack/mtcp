@@ -21,12 +21,11 @@ We require the following libraries to run mTCP.
   - For Debian/Ubuntu, try apt-get install linux-headers-$(uname -r)
 
 
-* We have modified the dpdk-17.08 package to export net_device stat data 
-(for Intel-based Ethernet adapters only) to the OS. To achieve this, the 
-dpdk-17.08/lib/librte_eal/linuxapp/igb_uio/ directory was updated. We also
-modified mk/rte.app.mk and rte_cpuflags.mk files to ease the
-compilation process of mTCP applications. We recommend using our package
-for DPDK installation. 
+* We have modified the dpdk package to export net_device stat data 
+(for Intel-based Ethernet adapters only) to the OS. To achieve this, we have
+created a new LKM dpdk-iface-kmod. We also
+modified mk/rte.app.mk file to ease the compilation process of mTCP applications.
+We recommend using our package for DPDK installation. 
 
 ========================================================================
  INCLUDED DIRECTORIES
@@ -44,12 +43,8 @@ io_engine/lib - io_engine library
 io_engine/include - io_engine header files
 io_engine/samples - sample io_engine applications (not mTCP’s)
 
-dpdk-17.08 - Intel's Data Plane Development Kit* (modified)
-dpdk-17.08/...
-
-dpdk/ - Holds soft links to the compiled dpdk-17.08 include/ and lib/ paths
-dpdk/include - the header files
-dpdk/lib - the libraries that need to be linked
+dpdk - Intel's Data Plane Development Kit
+dpdk/...
 
 apps - mTCP applications
 apps/example - example applications (see README)
@@ -104,56 +99,43 @@ mTCP can be prepared in three ways.
 
 - DPDK VERSION -
 ----------------
-1. Set up Intel's DPDK driver. Please use our version of DPDK.
-   We have changed the lib/igb_uio/ submodule and a few makefiles
-   in DPDK's mk/ subdirectory. The best method to compile DPDK
-   package is to use DPDK's tools/setup.sh script. Please compile
-   your package based on your own hardware configuration. We
-   tested the mTCP stack on Intel Xeon E5-2690 (x86_64) machine
-   with Intel 82599 Ethernet adapters (10G). We used the following
-   steps in the dpdk-setup.sh script for our setup:
-   
-	   - Press [13] to compile the package
-      	   - Press [16] to install the driver
-      	   - Press [20] to setup 1024 2MB hugepages
-      	   - Press [22] to register the Ethernet ports
-      	   - Press [33] to quit the tool
+1. Set up DPDK first.
 
-  - check that DPDK package creates a new directory of compiled
-  libraries. For x86_64 machines, the new subdirectory should be
-  *dpdk-17.08/x86_64-native-linuxapp-gcc*
+       # git submodule init
+       # git submodule update
+       # export RTE_SDK=`echo $PWD`/dpdk
+       # export RTE_TARGET=x86_64-native-linuxapp-gcc
+       # bash export_dpdk_linker_flags.sh
 
-  - only those devices will work with DPDK drivers that are listed
+   Set up Intel's DPDK driver.
+
+       # cd dpdk
+       # make -j install T=x86_64-native-linuxapp-gcc
+       # cd usertools
+       # ./dpdk-setup.sh
+       
+   Press [17] to compile the package
+   Press [21] to install the driver
+   Press [23] to setup 1024 2MB hugepages
+   Press [34] to register the Ethernet ports
+
+  Only those devices will work with DPDK drivers that are listed
   on this page: http://dpdk.org/doc/nics. Please make sure that your
   NIC is compatible before moving on to the next step.
 
-  - Systemd tends to rename Ethernet interfaces based on
-  their PCI addresses. If you are using Intel based Ethernet adapters,
-  please rename the interface with a ``dpdk`` prefix. You can do so
-  using the following command:
-  
-	# sudo ifconfig <iface> down
-	## where X is an integer value.
-	## e.g. sudo ip link set ens786f0 name dpdk0
-	# sudo ip link set <iface> name dpdkX
+2. Next bring the dpdk-registered interfaces up. Please insert
+   dpdk-iface-kmod kernel driver first.
 
-2. Next bring the dpdk-registered interfaces up. Please use the
-   setup_iface_single_process.sh script file present in dpdk-17.08/tools/
-   directory for this purpose. Please change lines 49-51 to change the IP	
-   address. Under default settings, run the script as:
-   	   # ./setup_iface_single_process.sh 4
+       # cd ..
+       # cd dpdk-iface-kmod
+       # sudo make run
+       # sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
 
-   This sets the IP address of your interfaces as 10.0.x.4.
-
-3. Set RTE_SDK and RTE_TARGET environment variables
-
-   	   # export RTE_SDK=`echo $PWD`/dpdk-17.08/
-	   # export RTE_TARGET=x86_64-native-linuxapp-gcc
-
-4. Setup mtcp library:
+3. Setup mtcp library:
 	   # ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET
    	   # make
-  - By default, mTCP assumes that there are 16 CPUs in your system.
+
+- By default, mTCP assumes that there are 16 CPUs in your system.
     You can set the CPU limit, e.g. on a 32-core system, by using the following command:
     	   # ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET CFLAGS="-DMAX_CPUS=32"
     Please note that your NIC should support RSS queues equal to the MAX_CPUS value

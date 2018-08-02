@@ -91,7 +91,10 @@ mTCP can be prepared in three ways.
    - In case `./configure' script prints an error, run the
     following command; and then re-do step-3 (configure again):
 
-    ```# autoreconf -ivf```
+    ```bash
+	# autoreconf -ivf
+    ```
+
     - check libmtcp.a in mtcp/lib
     - check header files in mtcp/include
     - check example binary files in apps/example
@@ -109,22 +112,11 @@ mTCP can be prepared in three ways.
 1. Set up DPDK first.
 
    ```bash
-	# git submodule init
-	# git submodule update
-	# export RTE_SDK=`echo $PWD`/dpdk
-	# export RTE_TARGET=x86_64-native-linuxapp-gcc
-	# bash export_dpdk_linker_flags.sh
+	# bash setup_mtcp_env.sh
    ```
    
-   Set up Intel's DPDK driver.
+   Press [14] to compile x86_64-native-linuxapp-gcc version
 
-   ```bash
-	# cd dpdk
-	# make -j install T=$RTE_TARGET
-	# cd usertools
-	# ./dpdk-setup.sh
-   ```
-   
    Press [17] to install the driver
 
    Press [21] to setup 1024 2MB hugepages
@@ -137,16 +129,13 @@ mTCP can be prepared in three ways.
    on this page: http://dpdk.org/doc/nics. Please make sure that your
    NIC is compatible before moving on to the next step.
 
-2. Next bring the dpdk-registered interfaces up. Please insert dpdk-iface-kmod
-   kernel driver first.
+2. Next bring the dpdk-registered interfaces up, and then set RTE_SDK
+   and RTE_TARGET environment variables.
 
      ```bash
-	# cd ../..
-	# cd dpdk-iface-kmod
-	# make
-	# sudo insmod ./dpdk-iface.ko
-	# sudo -E make run
 	# sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
+	# export RTE_SDK=`echo $PWD`
+	# export RTE_TARGET=x86_64-native-linuxapp-gcc
      ```
 
 3. Setup mtcp library:
@@ -196,7 +185,7 @@ ONVM basics are explained in https://github.com/sdnfv/openNetVM.
 
 2. Next bring the dpdk-registered interfaces up. This can be setup using:  
 
-     ```# sudo $RTE_SDK/tools/dpdk-setup-iface.sh```
+     ```# sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up```
 
 3. Setup mtcp library
     ```bash

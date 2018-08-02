@@ -1,0 +1,51 @@
+#!/bin/bash
+
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# Get to script directory
+cd $(dirname ${BASH_SOURCE[0]})/
+
+# First download dpdk
+if [ -z "$(ls -A $PWD/dpdk)" ]; then
+    printf "${GREEN}Cloning dpdk...\n $NC"
+    git submodule init
+    git submodule udpate
+fi
+
+# Setup dpdk source for compilation
+export RTE_SDK=$PWD/dpdk
+printf "${GREEN}Running dpdk_setup.sh...\n $NC"
+if grep "ldflags.txt" $RTE_SDK/mk/rte.app.mk > /dev/null
+then
+    :
+else
+    sed -i -e 's/O_TO_EXE_STR =/\$(shell if [ \! -d \${RTE_SDK}\/\${RTE_TARGET}\/lib ]\; then mkdir \${RTE_SDK}\/\${RTE_TARGET}\/lib\; fi)\nLINKER_FLAGS = \$(call linkerprefix,\$(LDLIBS))\n\$(shell echo \${LINKER_FLAGS} \> \${RTE_SDK}\/\${RTE_TARGET}\/lib\/ldflags\.txt)\nO_TO_EXE_STR =/g' $RTE_SDK/mk/rte.app.mk
+fi
+
+# Compile dpdk and configure system
+bash $RTE_SDK/usertools/dpdk-setup.sh
+
+# Create interfaces
+printf "${GREEN}Create dpdk interface entries\n $NC"
+cd dpdk-iface-kmod
+make
+if lsmod | grep dpdk_iface &> /dev/null ; then
+    :
+else    
+    sudo insmod ./dpdk_iface.ko
+fi
+sudo -E make run
+cd ..
+
+# Print the user message
+printf "Set ${GREEN}RTE_SDK$NC env variable as $RTE_SDK\n"
+printf "Set ${GREEN}RTE_TARGET$NC env variable as one of:\n"
+cd $RTE_SDK
+CONFIG_NUM=1
+for cfg in config/defconfig_* ; do
+    cfg=${cfg/config\/defconfig_/}
+    printf "[${GREEN}$CONFIG_NUM$NC] $cfg\n"
+    let "CONFIG_NUM+=1"
+done
+cd ..

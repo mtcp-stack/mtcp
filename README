@@ -101,19 +101,9 @@ mTCP can be prepared in three ways.
 ----------------
 1. Set up DPDK first.
 
-       # git submodule init
-       # git submodule update
-       # export RTE_SDK=`echo $PWD`/dpdk
-       # export RTE_TARGET=x86_64-native-linuxapp-gcc
-       # bash export_dpdk_linker_flags.sh
+       # bash setup_mtcp_env.sh
 
-   Set up Intel's DPDK driver.
-
-       # cd dpdk
-       # make -j install T=$RTE_TARGET
-       # cd usertools
-       # ./dpdk-setup.sh
-       
+   Press [14] to compile x86_64-native-linuxapp-gcc version
    Press [17] to install the driver
    Press [21] to setup 1024 2MB hugepages
    Press [23] to register the Ethernet ports
@@ -123,15 +113,12 @@ mTCP can be prepared in three ways.
   on this page: http://dpdk.org/doc/nics. Please make sure that your
   NIC is compatible before moving on to the next step.
 
-2. Next bring the dpdk-registered interfaces up. Please insert
-   dpdk-iface-kmod kernel driver first.
-
-       # cd ../..
-       # cd dpdk-iface-kmod
-       # make
-       # sudo insmod ./dpdk-iface.ko
-       # sudo -E make run
+2. Next bring the dpdk-registered interfaces up, and then set RTE_SDK
+and RTE_TARGET environment variables.
+  
        # sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
+       # export RTE_SDK=`echo $PWD`
+       # export RTE_TARGET=x86_64-native-linuxapp-gcc
 
 3. Setup mtcp library:
 	   # ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET
@@ -177,7 +164,7 @@ Also, no core overlap between applications and onvm_mgr is allowed.
            https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md
 
 2. Next bring the dpdk-registered interfaces up. This can be setup using:
-	   # sudo $RTE_SDK/tools/dpdk-setup-iface.sh
+	   # sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
 
 3. Setup mtcp library
 	   # ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>

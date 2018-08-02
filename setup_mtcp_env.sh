@@ -10,7 +10,7 @@ cd $(dirname ${BASH_SOURCE[0]})/
 if [ -z "$(ls -A $PWD/dpdk)" ]; then
     printf "${GREEN}Cloning dpdk...\n $NC"
     git submodule init
-    git submodule udpate
+    git submodule update
 fi
 
 # Setup dpdk source for compilation
@@ -26,6 +26,21 @@ fi
 # Compile dpdk and configure system
 bash $RTE_SDK/usertools/dpdk-setup.sh
 
+# Print the user message
+cd $RTE_SDK
+CONFIG_NUM=1
+for cfg in config/defconfig_* ; do
+    cfg=${cfg/config\/defconfig_/}
+    if [ -d "$cfg" ]; then
+	printf "Setting RTE_TARGET as $cfg\n"
+	export RTE_TARGET=$cfg
+    fi
+    let "CONFIG_NUM+=1"
+done
+cd ..
+printf "Set ${GREEN}RTE_SDK$NC env variable as $RTE_SDK\n"
+printf "Set ${GREEN}RTE_TARGET$NC env variable as $RTE_TARGET\n"
+
 # Create interfaces
 printf "${GREEN}Create dpdk interface entries\n $NC"
 cd dpdk-iface-kmod
@@ -36,16 +51,4 @@ else
     sudo insmod ./dpdk_iface.ko
 fi
 sudo -E make run
-cd ..
-
-# Print the user message
-printf "Set ${GREEN}RTE_SDK$NC env variable as $RTE_SDK\n"
-printf "Set ${GREEN}RTE_TARGET$NC env variable as one of:\n"
-cd $RTE_SDK
-CONFIG_NUM=1
-for cfg in config/defconfig_* ; do
-    cfg=${cfg/config\/defconfig_/}
-    printf "[${GREEN}$CONFIG_NUM$NC] $cfg\n"
-    let "CONFIG_NUM+=1"
-done
 cd ..

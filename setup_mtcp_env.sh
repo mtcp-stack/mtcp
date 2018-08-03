@@ -42,7 +42,7 @@ printf "Set ${GREEN}RTE_SDK$NC env variable as $RTE_SDK\n"
 printf "Set ${GREEN}RTE_TARGET$NC env variable as $RTE_TARGET\n"
 
 # Create interfaces
-printf "${GREEN}Create dpdk interface entries\n $NC"
+printf "Creating ${GREEN}dpdk$NC interface entries\n"
 cd dpdk-iface-kmod
 make
 if lsmod | grep dpdk_iface &> /dev/null ; then

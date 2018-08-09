@@ -134,7 +134,7 @@ mTCP can be prepared in three ways.
 
      ```bash
 	# sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
-	# export RTE_SDK=`echo $PWD`
+	# export RTE_SDK=`echo $PWD`/dpdk
 	# export RTE_TARGET=x86_64-native-linuxapp-gcc
      ```
 

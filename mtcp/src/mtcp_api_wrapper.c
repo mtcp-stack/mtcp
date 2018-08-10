@@ -677,18 +677,6 @@ writev(int sock_fd, const struct iovec *sock_iov, int sock_iovcnt)
 }
 /*----------------------------------------------------------------------------*/
 static __attribute__((gnu_inline)) inline int
-mtcp_wrapper_epoll_create1(int sock_flags)
-{
-	return MTCP_KERNEL_CALL(epoll_create1)(sock_flags);
-}
-/*----------------------------------------------------------------------------*/
-__attribute__((gnu_inline)) inline int
-epoll_create1(int sock_flags)
-{
-	return mtcp_wrapper_epoll_create1(sock_flags);
-}
-/*----------------------------------------------------------------------------*/
-static __attribute__((gnu_inline)) inline int
 mtcp_wrapper_epoll_create(int sock_size)
 {
 	struct mtcp_context mctx;
@@ -717,6 +705,27 @@ __attribute__((gnu_inline)) inline int
 epoll_create(int sock_size)
 {
 	return mtcp_wrapper_epoll_create(sock_size);
+}
+/*----------------------------------------------------------------------------*/
+static __attribute__((gnu_inline)) inline int
+mtcp_wrapper_epoll_create1(int sock_flags)
+{
+	struct mtcp_conf mcfg;
+	mtcp_getconf(&mcfg);
+
+	switch (sock_flags) {
+	case EPOLL_CLOEXEC:
+		errno = ENOSYS;
+		return -1;
+		break;
+	}
+	return mtcp_wrapper_epoll_create(mcfg.max_concurrency * 2);
+}
+/*----------------------------------------------------------------------------*/
+__attribute__((gnu_inline)) inline int
+epoll_create1(int sock_flags)
+{
+	return mtcp_wrapper_epoll_create1(sock_flags);
 }
 /*----------------------------------------------------------------------------*/
 static __attribute__((gnu_inline)) inline int
@@ -838,6 +847,14 @@ mtcp_app_init()
 
 	ret = 0;
 
+	/* Set verbose level appropriately */
+#ifndef DISABLE_DPDK
+#if RTE_VERSION < RTE_VERSION_NUM(17, 05, 0, 16)
+	rte_set_log_level(RTE_LOG_ERR);
+#else
+	rte_log_set_global_level(RTE_LOG_ERR);
+#endif
+#endif
 	/* Fetch mTCP config file */
 	mtcp_config_file = getenv("MTCP_CONFIG");
 	if (mtcp_config_file == NULL) {

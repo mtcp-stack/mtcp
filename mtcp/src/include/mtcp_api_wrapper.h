@@ -4,6 +4,9 @@
 #include <sys/stat.h>
 #include <sys/poll.h>
 #include <sys/epoll.h>
+#ifndef DISABLE_DPDK
+#include "rte_version.h"
+#endif
 /*----------------------------------------------------------------------------*/
 typedef int (* l_socket)(int sock_domain, int sock_type, int sock_protocol);
 typedef int (*l_close)(int sock_fd);

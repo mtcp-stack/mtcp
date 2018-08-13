@@ -109,7 +109,6 @@ static struct rte_eth_conf port_conf = {
 					 DEV_RX_OFFLOAD_TCP_LRO
 #endif
 					 ),
-#if 0
 		.split_hdr_size = 	0,
 		.header_split   = 	0, /**< Header Split disabled */
 		.hw_ip_checksum = 	1, /**< IP checksum offload enabled */
@@ -118,7 +117,6 @@ static struct rte_eth_conf port_conf = {
 		.hw_strip_crc   = 	1, /**< CRC stripped by hardware */
 #ifdef ENABLELRO
 		.enable_lro	=	1, /**< Enable LRO */
-#endif
 #endif
 	},
 	.rx_adv_conf = {

@@ -37,7 +37,7 @@ endif
 
 # netmap-specific variables
 ifeq ($(NETMAP),1)
-LIBS += -lmtcp -lpthread -lnuma -lrt
+LIBS += -lmtcp -lpthread -lnuma -lrt -ldl -lgmp
 endif
 
 # dpdk-specific variables

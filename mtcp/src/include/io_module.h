@@ -5,8 +5,6 @@
 #include <stdint.h>
 /* for ps lib funcs */
 #include "ps.h"
-/* for netmap macros */
-#include "netmap_user.h"
 #ifndef DISABLE_DPDK
 /* for dpdk/onvm big ints */
 #include <gmp.h>

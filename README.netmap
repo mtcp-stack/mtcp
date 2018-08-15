@@ -1,11 +1,13 @@
 - NETMAP VERSION -
 ------------------
 
--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-
+-*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-*-*-*-
 -A- Tested with linux-3.13.0-121-generic & netmap commit: 8f3f79e4ca168c6d3220e7a5198a5778b030445e,
 and,
--B- Tested with linux-3.13.0-121-generic & netmap commit: 21227d47ae995812412d1de22855c7fa8260f53a
--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-
+-B- Tested with linux-3.13.0-121-generic & netmap commit: 21227d47ae995812412d1de22855c7fa8260f53a,
+and,
+-C- Tested with 4.11.12-200.fc25.x86_64+debug & netmap commit: 21227d47ae995812412d1de22855c7fa8260f53a
+-*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-*-*-*-
 
 FOR -A-
 --------------------------------------------------------------------------------------------------
@@ -34,7 +36,7 @@ FOR -A-
 FOR -B-
 --------------------------------------------------------------------------------------------------
 1. Install the netmap driver and the corresponding ixgbe-5.3.7/ driver
-  - please got through netmap's documentaiton for installation
+  - please go through netmap's documentaiton for installation
   instructions. We used the following command(s) to compile the driver
   	  # cd LINUX; ./configure; make
 
@@ -72,10 +74,60 @@ FOR -B-
 	   # make
 	   # sudo insmod ./netmap.ko
 	   # sudo insmod ./ixgbe/ixgbe.ko
+
+For -C-
 --------------------------------------------------------------------------------------------------
+1. Install the netmap driver and the corresponding i40e-2.4.6/ driver
+  - please go through netmap's documentation for installation
+  instructions. We used the following command(s) to compile the driver
+  	# cd LINIX; ./configure; make
+
+  - To run mTCP clients correctly, you need to modify the RSS seed in
+  i40e_main.c:i40e_config_rss_aq() & i40e_main.c:i40e_config_rss_reg()
+  functions. Our mTCP stack uses a specific RSS seed (mentioned below).
+
+  	     static unsigned char sym_seed[] = {
+             	    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        	    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        	    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        	    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        	    0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
+        	    0x05, 0x05
+	     };
+
+  	     static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+             	    	                   u8 *lut, u16 lut_size)
+	     {
+		struct i40e_pf *pf = vsi->back;
+       		struct i40e_hw *hw = &pf->hw;
+        	int ret = 0;
+
+        	seed = sym_seed;
+
+		...
+	     }
 
 
-FOR BOTH -A- & -B- (CONTINUED)
+	     static int i40e_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
+                              		   u8 *lut, u16 lut_size)
+	     {
+		struct i40e_pf *pf = vsi->back;
+        	struct i40e_hw *hw = &pf->hw;
+        	int ret = 0;
+
+        	seed = sym_seed;
+
+		...
+	     }
+
+  - Make sure that the underlying kernel module is correctly
+  working. You can use sample applications to validate your
+  setup.
+	# make
+	# sudo insmod ./netmap.ko
+	# sudo insmod ./i40e/i40e.ko
+	
+FOR BOTH -A- & -B- & -C- (CONTINUED)
 --------------------------------------------------------------------------------------------------
  2. For optimum performance you are suggested to bind NICS IRQs to arbitrary
     CPUs. Please use affinity-netmap.py script for this purpose. The current
@@ -86,6 +138,7 @@ FOR BOTH -A- & -B- (CONTINUED)
   - Disable flow control in Ethernet layer
     	   # sudo ethtool -A ${IFACE} rx off
     	   # sudo ethtool -A ${IFACE} tx off
+	   # sudo ethtool -K ${IFACE} gro off
 
   - Disable lro (large receive offload) in Ethernet device. mTCP
   does not support large packet sizes (> 1514B) yet)

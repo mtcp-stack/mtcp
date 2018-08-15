@@ -138,11 +138,11 @@ FOR BOTH -A- & -B- & -C- (CONTINUED)
   - Disable flow control in Ethernet layer
     	   # sudo ethtool -A ${IFACE} rx off
     	   # sudo ethtool -A ${IFACE} tx off
-	   # sudo ethtool -K ${IFACE} gro off
 
   - Disable lro (large receive offload) in Ethernet device. mTCP
   does not support large packet sizes (> 1514B) yet)
        	   # sudo ethtool -K ${IFACE} lro off
+	   # sudo ethtool -K ${IFACE} gro off	   
 
   - We used example/pktgen to test netmap raw network I/O
   performance. Netmap's pktgen can be used not only for

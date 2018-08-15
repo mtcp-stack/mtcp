@@ -170,6 +170,19 @@ mTCP can be prepared in three ways.
 
 5. Run the applications!
 
+6. You can revert back all your changes by running the following script.
+
+   ```bash
+       # bash setup_linux_env.sh
+   ```
+   
+   Press [29] to unbind the Ethernet ports
+
+   Press [30] to remove igb_uio.ko driver
+
+   Press [33] to remove hugepage mappings
+
+   Press [34] to quit the tool
 
 ***ONVM VERSION***
 
@@ -219,6 +232,20 @@ ONVM basics are explained in https://github.com/sdnfv/openNetVM.
    - you may write your own configuration file for your application
 
 6. Run the applications!
+
+7. You can revert back all your changes by running the following script.
+
+   ```bash
+       # bash setup_linux_env.sh
+   ```
+   
+   Press [29] to unbind the Ethernet ports
+
+   Press [30] to remove igb_uio.ko driver
+
+   Press [33] to remove hugepage mappings
+
+   Press [34] to quit the tool
 
 **Notes**
 

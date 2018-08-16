@@ -14,7 +14,12 @@ if [ -z "$(ls -A $PWD/dpdk)" ]; then
 fi
 
 # Setup dpdk source for compilation
-export RTE_SDK=$PWD/dpdk
+if [ "$#" -ne 1];
+then
+    export RTE_SDK=$PWD/dpdk
+else
+    export RTE_SDK=$1
+fi
 printf "${GREEN}Running dpdk_setup.sh...\n $NC"
 if grep "ldflags.txt" $RTE_SDK/mk/rte.app.mk > /dev/null
 then

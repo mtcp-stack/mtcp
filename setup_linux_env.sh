@@ -7,7 +7,12 @@ NC='\033[0m'
 cd $(dirname ${BASH_SOURCE[0]})/
 
 # Remove dpdk_iface.ko module
-export RTE_SDK=$PWD/dpdk
+if [$# -ne 1];
+then
+    export RTE_SDK=$1
+else
+    export RTE_SDK=$PWD/dpdk
+fi
 printf "${GREEN}Removing dpdk_iface module...\n $NC"
 if lsmod | grep dpdk_iface &> /dev/null ; then
     sudo rmmod dpdk_iface.ko

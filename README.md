@@ -112,7 +112,7 @@ mTCP can be prepared in three ways.
 1. Set up DPDK first.
 
    ```bash
-	# bash setup_mtcp_env.sh
+	# bash setup_mtcp_env.sh [<path to $RTE_SDK>]
    ```
    
    Press [14] to compile x86_64-native-linuxapp-gcc version
@@ -128,6 +128,9 @@ mTCP can be prepared in three ways.
    - Only those devices will work with DPDK drivers that are listed
    on this page: http://dpdk.org/doc/nics. Please make sure that your
    NIC is compatible before moving on to the next step.
+
+   - We use dpdk-18.02/ as our DPDK driver. FYI, you can pass a different
+   dpdk source directory as command line argument.
 
 2. Next bring the dpdk-registered interfaces up, and then set RTE_SDK
    and RTE_TARGET environment variables.
@@ -173,7 +176,7 @@ mTCP can be prepared in three ways.
 6. You can revert back all your changes by running the following script.
 
    ```bash
-       # bash setup_linux_env.sh
+       # bash setup_linux_env.sh [<path to $RTE_SDK]]
    ```
    
    Press [29] to unbind the Ethernet ports

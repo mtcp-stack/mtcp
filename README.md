@@ -112,7 +112,7 @@ mTCP can be prepared in three ways.
 1. Set up DPDK first.
 
    ```bash
-	# bash setup_mtcp_env.sh [<path to $RTE_SDK>]
+	# bash setup_mtcp_dpdk_env.sh [<path to $RTE_SDK>]
    ```
    
    Press [14] to compile x86_64-native-linuxapp-gcc version

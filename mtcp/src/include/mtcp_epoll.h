@@ -50,6 +50,9 @@ struct mtcp_epoll_event
 int 
 mtcp_epoll_create(mctx_t mctx, int size);
 /*----------------------------------------------------------------------------*/
+int
+mtcp_epoll_create1(mctx_t mctx, int flags);
+/*----------------------------------------------------------------------------*/
 int 
 mtcp_epoll_ctl(mctx_t mctx, int epid, 
 		int op, int sockid, struct mtcp_epoll_event *event);

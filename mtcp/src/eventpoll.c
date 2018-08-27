@@ -4,6 +4,7 @@
 #include <time.h>
 #include <signal.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include "mtcp.h"
 #include "tcp_stream.h"
@@ -84,6 +85,36 @@ DestroyEventQueue(struct event_queue *eq)
 		free(eq->events);
 
 	free(eq);
+}
+/*----------------------------------------------------------------------------*/
+int
+mtcp_epoll_create1(mctx_t mctx, int flags)
+{
+	int rc;
+	struct mtcp_conf mcfg;
+
+	rc = 0;
+	mtcp_getconf(&mcfg);
+	
+	switch (flags) {
+	case 0:
+		/* do nothing */
+	case O_CLOEXEC:
+		/*
+		 * this won't work since mTCP apps 
+		 * assume that user does not fork/exec
+		 */
+		rc = mtcp_epoll_create(mctx, mcfg.max_concurrency * 3);
+		break;
+	default:
+		TRACE_ERROR("[CPU %d] Invalid flags for %s set!\n",
+			    mctx->cpu, __FUNCTION__);
+		errno = EINVAL;
+		rc = -1;
+		break;
+	}
+	
+	return rc;
 }
 /*----------------------------------------------------------------------------*/
 int 

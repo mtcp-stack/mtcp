@@ -119,7 +119,7 @@ mTCP can be prepared in three ways.
 
    Press [17] to install the driver
 
-   Press [21] to setup 1024 2MB hugepages
+   Press [21] to setup 2048 2MB hugepages
 
    Press [23] to register the Ethernet ports
 

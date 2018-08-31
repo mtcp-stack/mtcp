@@ -37,8 +37,8 @@
 
 #define MAX_FILES 30
 
-#define NAME_LIMIT 128
-#define FULLNAME_LIMIT 256
+#define NAME_LIMIT 256
+#define FULLNAME_LIMIT 512
 
 #ifndef TRUE
 #define TRUE (1)

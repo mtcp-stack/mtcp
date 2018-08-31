@@ -14,7 +14,7 @@ if [ -z "$(ls -A $PWD/dpdk)" ]; then
 fi
 
 # Setup dpdk source for compilation
-if [ "$#" -ne 1];
+if [ "$#" -ne 1 ];
 then
     export RTE_SDK=$PWD/dpdk
 else

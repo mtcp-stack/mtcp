@@ -39,6 +39,13 @@ struct mtcp_thread_context;
  * 				      idx (=nif). 
  *				      Returns 0 on success; -1 on failure
  *
+ *		   send_lo_pkts()   : transmit batch of packet via `lo` interface
+ *				      Returns 0 on success; -1 on failure
+ *
+ *		   get_lo_wptr()    : retrieve the next empty pkt buffer for the
+ *				      application for packet writing. Returns
+ *				      ptr to pkt buffer.
+ *
  *		   get_rptr()	    : retrieve next pkt for application for
  *				      packet read.
  *				      Returns ptr to pkt buffer.
@@ -47,6 +54,15 @@ struct mtcp_thread_context;
  *				      ifidx.
  *				      Returns no. of packets that are read from
  *				      the iface.
+ *
+ *		   recv_lo_pkts()   : receive batch of packets from the `lo`
+ *				      interface.
+ *				      Returns no. of packets that are read from
+ *				      the iface.
+ *
+ *		   get_lo_rptr()    : retrieve next pkt for application for
+ *				      packet read.
+ *				      Returns ptr to pkt buffer.
  *
  *		   select()	    : for blocking I/O
  *
@@ -64,8 +80,12 @@ typedef struct io_module_func {
 	void      (*release_pkt)(struct mtcp_thread_context *ctx, int ifidx, unsigned char *pkt_data, int len);
 	uint8_t * (*get_wptr)(struct mtcp_thread_context *ctx, int ifidx, uint16_t len);
 	int32_t   (*send_pkts)(struct mtcp_thread_context *ctx, int nif);
+	uint8_t * (*get_lo_wptr)(struct mtcp_thread_context *ctx, uint16_t len);
+	int32_t   (*send_lo_pkts)(struct mtcp_thread_context *ctx);	
 	uint8_t * (*get_rptr)(struct mtcp_thread_context *ctx, int ifidx, int index, uint16_t *len);
 	int32_t   (*recv_pkts)(struct mtcp_thread_context *ctx, int ifidx);
+	uint8_t * (*get_lo_rptr)(struct mtcp_thread_context *ctx, int index, uint16_t *len);
+	int32_t   (*recv_lo_pkts)(struct mtcp_thread_context *ctx);	
 	int32_t	  (*select)(struct mtcp_thread_context *ctx);
 	void	  (*destroy_handle)(struct mtcp_thread_context *ctx);
 	int32_t	  (*dev_ioctl)(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp);

@@ -40,27 +40,37 @@ EthernetOutput(struct mtcp_manager *mtcp, uint16_t h_proto,
 	struct ethhdr *ethh;
 	int i, eidx;
 
-	/* 
- 	 * -sanity check- 
-	 * return early if no interface is set (if routing entry does not exist)
-	 */
-	if (nif < 0) {
-		TRACE_INFO("No interface set!\n");
-		return NULL;
+	if (nif == -1) {
+		/* kni packet */
+		eidx = 0;
+		buf = mtcp->iom->get_lo_wptr(mtcp->ctx, iplen + ETHERNET_HEADER_LEN);
+		if (!buf) {
+			TRACE_ERROR("Failed to get available write buffer\n");
+			return NULL;
+		}
+	} else {
+		/* 
+		 * -sanity check- 
+		 * return early if no interface is set (if routing entry does not exist)
+		 */
+		if (nif < 0) {
+			TRACE_INFO("No interface set!\n");
+			return NULL;
+		}
+		
+		eidx = CONFIG.nif_to_eidx[nif];
+		if (eidx < 0) {
+			TRACE_INFO("No interface selected!\n");
+			return NULL;
+		}
+		
+		buf = mtcp->iom->get_wptr(mtcp->ctx, eidx, iplen + ETHERNET_HEADER_LEN);
+		if (!buf) {
+			//TRACE_DBG("Failed to get available write buffer\n");
+			return NULL;
+		}
+		//memset(buf, 0, ETHERNET_HEADER_LEN + iplen);
 	}
-
-	eidx = CONFIG.nif_to_eidx[nif];
-	if (eidx < 0) {
-		TRACE_INFO("No interface selected!\n");
-		return NULL;
-	}
-	
-	buf = mtcp->iom->get_wptr(mtcp->ctx, eidx, iplen + ETHERNET_HEADER_LEN);
-	if (!buf) {
-		//TRACE_DBG("Failed to get available write buffer\n");
-		return NULL;
-	}
-	//memset(buf, 0, ETHERNET_HEADER_LEN + iplen);
 
 #if 0
 	TRACE_DBG("dst_hwaddr: %02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -72,7 +82,10 @@ EthernetOutput(struct mtcp_manager *mtcp, uint16_t h_proto,
 	ethh = (struct ethhdr *)buf;
 	for (i = 0; i < ETH_ALEN; i++) {
 		ethh->h_source[i] = CONFIG.eths[eidx].haddr[i];
-		ethh->h_dest[i] = dst_haddr[i];
+		if (dst_haddr == NULL) /* this is most likely kni packet */
+			ethh->h_dest[i] = CONFIG.eths[eidx].haddr[i];
+		else
+			ethh->h_dest[i] = dst_haddr[i];
 	}
 	ethh->h_proto = htons(h_proto);
 

@@ -772,12 +772,12 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) {
 
+			static uint16_t len;
+			static uint8_t *pktbuf;
 			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
 			STAT_COUNT(mtcp->runstat.rounds_rx_try);
 
 			for (i = 0; i < recv_cnt; i++) {
-				uint16_t len;
-				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
 				if (pktbuf != NULL)
 					ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
@@ -785,6 +785,17 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 				else
 					mtcp->nstat.rx_errors[rx_inf]++;
 #endif
+			}
+			if (ctx->cpu == 0) {
+				recv_cnt = mtcp->iom->recv_lo_pkts(ctx);
+				for (i = 0; i < recv_cnt; i++) {
+					pktbuf = mtcp->iom->get_lo_rptr(mtcp->ctx, i, &len);
+					(void)pktbuf;
+					if (pktbuf != NULL)
+						ProcessPacket(mtcp, -1, ts, pktbuf, len);
+					else
+						mtcp->nstat.rx_errors[rx_inf]++;
+				}
 			}
 		}
 		STAT_COUNT(mtcp->runstat.rounds_rx);
@@ -835,6 +846,9 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			mtcp->iom->send_pkts(ctx, tx_inf);
 		}
 
+		if (ctx->cpu == 0)
+			mtcp->iom->send_lo_pkts(ctx);
+		
 		if (ts != ts_prev) {
 			ts_prev = ts;
 			if (ctx->cpu == mtcp_master) {

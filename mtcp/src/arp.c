@@ -290,7 +290,10 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 
 	switch (ntohs(arph->ar_op)) {
 		case arp_op_request:
-		        nif = CONFIG.eths[ifidx].ifindex; // use the port index as argument
+			if (ifidx != -1)
+				nif = CONFIG.eths[ifidx].ifindex; // use the port index as argument
+			else
+				nif = ifidx;
 			ProcessARPRequest(mtcp, arph, nif, cur_ts);
 			break;
 

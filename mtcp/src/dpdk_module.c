@@ -32,6 +32,13 @@
 /* for ip defragging */
 #include <rte_ip_frag.h>
 #endif
+/* for kni operations */
+#include <rte_kni.h>
+/* for retrieving pci data */
+#include <rte_bus_pci.h>
+/* for ifreq struct */
+#include <net/if.h>
+#include <arpa/inet.h>
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
@@ -85,12 +92,14 @@
 #define	ETHER_PREAMBLE			8
 #define ETHER_OVR			(ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
 
-static uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
-static uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
-/*----------------------------------------------------------------------------*/
-/* packet memory pools for storing packet bufs */
-static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
+static const uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
+static const uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
 
+/* KNI specific macros */
+/* Total octets in ethernet header */
+#define KNI_ENET_HEADER_SIZE    	14
+#define KNI_ENET_FCS_SIZE		ETHER_CRC_LEN
+/*----------------------------------------------------------------------------*/
 //#define DEBUG				1
 #ifdef DEBUG
 /* ethernet addresses of ports */
@@ -156,7 +165,7 @@ static const struct rte_eth_txconf tx_conf = {
 };
 
 struct mbuf_table {
-	unsigned len; /* length of queued packets */
+	uint16_t len; /* length of queued packets */
 	struct rte_mbuf *m_table[MAX_PKT_BURST];
 };
 
@@ -205,6 +214,19 @@ struct stats_struct {
 #define RTE_LOGTYPE_IP_RSMBL 			RTE_LOGTYPE_USER1
 #define MAX_FRAG_NUM				RTE_LIBRTE_IP_FRAG_MAX_FRAG
 #endif /* !IP_DEFRAG */
+
+/* packet memory pools for storing packet bufs */
+static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
+static struct rte_kni *kni[RTE_MAX_ETHPORTS] = {NULL};
+struct rte_mbuf *lo_pkts_burst[MAX_PKT_BURST] = {NULL};
+static struct mbuf_table lo_wmbufs = {
+	.len			= 	0,
+	.m_table		= 	{NULL}
+};
+static struct mbuf_table lo_rmbufs = {
+	.len			=	0,
+	.m_table		=	{NULL}
+};
 /*----------------------------------------------------------------------------*/
 void
 dpdk_init_handle(struct mtcp_thread_context *ctxt)
@@ -238,6 +260,20 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 		}
 		/* set mbufs queue length to 0 to begin with */
 		dpc->wmbufs[j].len = 0;
+	}
+
+	/* set wmbufs for `lo' device */
+	if (ctxt->cpu == 0) {
+		for (i = 0; i < MAX_PKT_BURST; i++) {
+			lo_wmbufs.m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
+			if (lo_wmbufs.m_table[i] == NULL) {
+				TRACE_ERROR("Failed to allocate %d:lo_wmbuf[%d] on lo device!\n",
+					    ctxt->cpu, i);
+				exit(EXIT_FAILURE);
+			}
+		}
+		/* set mbufs queue length to 0 to begin with */
+		lo_wmbufs.len = 0;
 	}
 
 #ifdef IP_DEFRAG
@@ -366,8 +402,77 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 		/* reset the len of mbufs var after flushing of packets */
 		dpc->wmbufs[ifidx].len = 0;
 	}
+	
+	return ret;
+}
+/*----------------------------------------------------------------------------*/
+int
+dpdk_send_lo_pkts(struct mtcp_thread_context *ctxt)
+{
+	static const int portid = 0;
+	int ret = 0;
+	
+	/* if there are packets in the queue... flush them out to the kni */
+	if (ctxt->cpu == 0 && lo_wmbufs.len > 0) {
+		struct rte_mbuf **pkts;
+		int i;
+		int cnt = lo_wmbufs.len;
+		pkts = lo_wmbufs.m_table;
+
+		do {
+			if (ctxt->cpu != 0) {
+				TRACE_ERROR("Something is not right!\n");
+				exit(EXIT_FAILURE);
+			}
+			/* tx cnt # of packets */
+			ret = rte_kni_tx_burst(kni[portid], pkts, cnt);
+			pkts += ret;
+			cnt -= ret;
+			/* if not all pkts were sent... then repeat the cycle */
+		} while (cnt > 0);
+
+		rte_kni_handle_request(kni[portid]);
+		/* time to allocate fresh mbufs for the queue */
+		for (i = 0; i < lo_wmbufs.len; i++) {
+			lo_wmbufs.m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
+			/* error checking */
+			if (unlikely(lo_wmbufs.m_table[i] == NULL)) {
+				TRACE_ERROR("Failed to allocate %d:lo_wmbuf[%d] on lo device!\n",
+					    ctxt->cpu, i);
+				exit(EXIT_FAILURE);
+			}
+		}
+		/* reset the len of mbufs var after flushing of packets */
+		lo_wmbufs.len = 0;
+	}
 
 	return ret;
+}
+/*----------------------------------------------------------------------------*/
+uint8_t *
+dpdk_get_lo_wptr(struct mtcp_thread_context *ctxt, uint16_t pktsize)
+{
+	struct rte_mbuf *m;
+	uint8_t *ptr;
+	int len_of_mbuf;
+
+	/* sanity check */
+	if (unlikely(lo_wmbufs.len == MAX_PKT_BURST))
+		return NULL;
+
+	len_of_mbuf = lo_wmbufs.len;
+	m = lo_wmbufs.m_table[len_of_mbuf];
+
+	/* increment the len_of_mbuf var */
+	lo_wmbufs.len = len_of_mbuf + 1;
+
+	/* retrieve the right write offset */
+	ptr = (void *)rte_pktmbuf_mtod(m, struct ether_hdr *);
+	m->pkt_len = m->data_len = pktsize;
+	m->nb_segs = 1;
+	m->next = NULL;
+
+	return (uint8_t *)ptr;	
 }
 /*----------------------------------------------------------------------------*/
 uint8_t *
@@ -389,22 +494,21 @@ dpdk_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t pktsize)
 	/* sanity check */
 	if (unlikely(dpc->wmbufs[ifidx].len == MAX_PKT_BURST))
 		return NULL;
-
+	
 	len_of_mbuf = dpc->wmbufs[ifidx].len;
 	m = dpc->wmbufs[ifidx].m_table[len_of_mbuf];
+	
+#ifdef NETSTAT
+	mtcp->nstat.tx_bytes[ifidx] += pktsize + ETHER_OVR;
+#endif		
+	/* increment the len_of_mbuf var */
+	dpc->wmbufs[ifidx].len = len_of_mbuf + 1;
 
 	/* retrieve the right write offset */
 	ptr = (void *)rte_pktmbuf_mtod(m, struct ether_hdr *);
 	m->pkt_len = m->data_len = pktsize;
 	m->nb_segs = 1;
 	m->next = NULL;
-
-#ifdef NETSTAT
-	mtcp->nstat.tx_bytes[ifidx] += pktsize + ETHER_OVR;
-#endif
-
-	/* increment the len_of_mbuf var */
-	dpc->wmbufs[ifidx].len = len_of_mbuf + 1;
 
 	return (uint8_t *)ptr;
 }
@@ -419,6 +523,50 @@ free_pkts(struct rte_mbuf **mtable, unsigned len)
 		rte_pktmbuf_free(mtable[i]);
 		RTE_MBUF_PREFETCH_TO_FREE(mtable[i+1]);
 	}
+}
+/*----------------------------------------------------------------------------*/
+static void __attribute__((unused))
+kni_burst_free_mbufs(struct rte_mbuf **pkts, unsigned num)
+{
+	unsigned i;
+
+	if (pkts == NULL)
+		return;
+
+	for (i = 0; i < num; i++) {
+		rte_pktmbuf_free(pkts[i]);
+		pkts[i] = NULL;
+	}
+}
+/*----------------------------------------------------------------------------*/
+int32_t
+dpdk_recv_lo_pkts(struct mtcp_thread_context *ctxt)
+{
+	int ret, i;
+	static const int portid = 0;
+
+	ret = 0;
+	if (ctxt->cpu == 0) {
+		if (lo_rmbufs.len != 0) {
+			free_pkts(lo_rmbufs.m_table, lo_rmbufs.len);
+			lo_rmbufs.len = 0;
+		}
+		if (kni[portid] != NULL) {
+			ret = rte_kni_rx_burst(kni[portid],
+					       lo_pkts_burst,
+					       MAX_PKT_BURST);
+			if (unlikely(ret > MAX_PKT_BURST)) {
+				TRACE_ERROR("Error receiving from KNI!\n");
+				exit(EXIT_FAILURE);
+			}
+			for (i = 0; i < ret; i++) {
+				lo_rmbufs.m_table[i] = lo_pkts_burst[i];
+			}
+			lo_rmbufs.len += ret;
+			rte_kni_handle_request(kni[portid]);			
+		}
+	}
+	return ret;
 }
 /*----------------------------------------------------------------------------*/
 int32_t
@@ -489,6 +637,36 @@ ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
 #endif
 /*----------------------------------------------------------------------------*/
 uint8_t *
+dpdk_get_lo_rptr(struct mtcp_thread_context *ctxt, int index, uint16_t *len)
+{
+	uint8_t *pktbuf;
+	struct rte_mbuf *m;
+
+	m = lo_pkts_burst[index];
+	*len = m->pkt_len;
+	pktbuf = rte_pktmbuf_mtod(m, uint8_t *);
+
+	/* enqueue the pkt ptr in mbuf */
+	lo_rmbufs.m_table[index] = m;
+
+	/* verify checksum values from ol_flags */
+	if ((m->ol_flags & (PKT_RX_L4_CKSUM_BAD | PKT_RX_IP_CKSUM_BAD)) != 0) {
+		TRACE_ERROR("%s(%p, %d): mbuf with invalid checksum: "
+			    "%p(%lu);\n",
+			    __func__, ctxt, index, m, m->ol_flags);
+		pktbuf = NULL;
+	}
+#ifdef ENABLELRO
+	struct dpdk_private_context *dpc;
+	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
+	
+	dpc->cur_rx_m = m;
+#endif /* !ENABLELRO */
+
+	return pktbuf;
+}
+/*----------------------------------------------------------------------------*/
+uint8_t *
 dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *len)
 {
 	struct dpdk_private_context *dpc;
@@ -545,8 +723,16 @@ dpdk_destroy_handle(struct mtcp_thread_context *ctxt)
 	dpc = (struct dpdk_private_context *) ctxt->io_private_context;
 
 	/* free wmbufs */
-	for (i = 0; i < num_devices_attached; i++)
+	for (i = 0; i < num_devices_attached; i++) {
 		free_pkts(dpc->wmbufs[i].m_table, MAX_PKT_BURST);
+		if (ctxt->cpu == 0)
+			free_pkts(lo_wmbufs.m_table, MAX_PKT_BURST);
+		if (kni[i] != NULL) {
+			rte_kni_release(kni[i]);
+			kni[i] = NULL;
+		}
+		rte_eth_dev_stop(devices_attached[i]);
+	}
 
 #ifdef ENABLE_STATS_IOCTL
 	/* free fd */
@@ -556,6 +742,162 @@ dpdk_destroy_handle(struct mtcp_thread_context *ctxt)
 
 	/* free it all up */
 	free(dpc);
+}
+/*----------------------------------------------------------------------------*/
+/*
+ * Callback for request of configuring network interface up/down
+ */
+static int
+kni_config_network_interface(uint16_t port_id, uint8_t if_up)
+{
+	int ret;
+	struct ifreq ifreq;
+	int sock, value;
+	char ifrname[IFNAMSIZ];
+	struct sockaddr_in *addr;
+	
+	ret = value = 0;
+	addr = (struct sockaddr_in *)&ifreq.ifr_addr;
+	memset(&ifreq, 0, sizeof(ifreq));
+	inet_pton(AF_INET, "0.0.0.0", &addr->sin_addr);
+	
+	if (port_id >= rte_eth_dev_count() ||
+	    port_id >= RTE_MAX_ETHPORTS) {
+		TRACE_CONFIG("Invalid port id %d\n", port_id);
+		return -EINVAL;
+	}
+
+	sprintf(ifrname, "dpdk%u", port_id);
+	TRACE_CONFIG("Bringing %s down...\n", ifrname);
+	(void) strncpy(ifreq.ifr_name, ifrname, sizeof(ifreq.ifr_name));
+	ifreq.ifr_addr.sa_family = AF_INET;
+	
+	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if (sock == -1) {
+		TRACE_ERROR("socket error: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	if (ioctl(sock, SIOCSIFADDR, &ifreq) == -1) {
+		TRACE_ERROR("SIOCSIFADDR error\n");
+		close(sock);
+		exit(EXIT_FAILURE);
+	}
+
+	close(sock);
+	
+	TRACE_CONFIG("Configure network interface of %d %s\n",
+		     port_id, if_up ? "up" : "down");
+
+	if (if_up != 0) { /* configure network interface up */
+		rte_eth_dev_stop(port_id);
+		ret = rte_eth_dev_start(port_id);
+	} else /* configure network interface down */
+		rte_eth_dev_stop(port_id);
+
+	if (ret < 0)
+		TRACE_CONFIG("Failed to start port %d\n", port_id);
+
+	return ret;
+}
+/*----------------------------------------------------------------------------*/
+static int
+kni_config_mac_address(uint16_t port_id, uint8_t mac_addr[])
+{
+	int ret;
+	static char buf[ETHER_ADDR_FMT_SIZE];
+	
+	ret = 0;
+	if (port_id >= rte_eth_dev_count() ||
+	    port_id >= RTE_MAX_ETHPORTS) {
+		TRACE_CONFIG("Invalid port id %d\n", port_id);
+		return -EINVAL;
+	}
+
+	TRACE_CONFIG("Configuring mac address of %d to: ", port_id);
+	ether_format_addr(buf, ETHER_ADDR_FMT_SIZE,
+			  (struct ether_addr *)mac_addr);
+	TRACE_CONFIG("\t%s\n", buf);
+
+	ret = rte_eth_dev_default_mac_addr_set(port_id,
+					       (struct ether_addr *)mac_addr);
+	if (ret < 0)
+		TRACE_CONFIG("Failed to config mac_addr for port %d\n",
+			     port_id);
+
+	return ret;
+}
+/*----------------------------------------------------------------------------*/
+/* 
+ * Callback for request of changing MTU
+ * Taken directly from dpdk example kni.c
+ */
+static int
+kni_change_mtu(uint16_t port_id, unsigned int new_mtu)
+{
+	int ret;
+	
+	if (port_id >= rte_eth_dev_count()) {
+		TRACE_CONFIG("Invalid port id %d\n", port_id);
+		return -EINVAL;
+	}
+
+	TRACE_INFO("You cannot change MTU of port %d to %u\n", port_id, new_mtu);
+
+	/* stop specific port */
+	rte_eth_dev_stop(port_id);
+
+	/* restart specific port */
+	ret = rte_eth_dev_start(port_id);
+	if (ret < 0 ) {
+		TRACE_CONFIG("Failed to restart port %d\n", port_id);
+		return ret;
+	}
+	return 0;
+}
+/*----------------------------------------------------------------------------*/
+static int
+dpdk_kni_alloc(uint16_t portid, struct rte_mempool *pktmbuf_pool)
+{
+	struct rte_kni_conf conf;
+	struct rte_kni_ops ops;
+
+	/* clear conf */
+	memset(&conf, 0, sizeof(conf));
+
+	/* set virt-iface name */
+	snprintf(conf.name, RTE_KNI_NAMESIZE,
+		 "vdpdk%u", portid);
+	/* set id & size */
+	conf.group_id = portid;
+	conf.mbuf_size = BUF_SIZE;
+
+	/* set pci address + id */
+	if (dev_info[portid].pci_dev) {
+		conf.addr = dev_info[portid].pci_dev->addr;
+		conf.id = dev_info[portid].pci_dev->id;
+	}
+
+	/* set the interface default mac address */
+	rte_eth_macaddr_get(portid, (struct ether_addr *)&conf.mac_addr);
+
+	/* set mtu size */
+	rte_eth_dev_get_mtu(portid, &conf.mtu);
+
+	memset(&ops, 0, sizeof(ops));
+	ops.port_id = portid;
+	ops.change_mtu = kni_change_mtu;
+	ops.config_network_if = kni_config_network_interface;
+	ops.config_mac_address = kni_config_mac_address;
+
+	kni[portid] = rte_kni_alloc(pktmbuf_pool, &conf, &ops);
+
+	if (kni[portid] == NULL) {
+		TRACE_CONFIG("Failed to create kni for port %d\n", portid);
+		return -1;
+	}
+
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 static void
@@ -632,6 +974,9 @@ dpdk_load_module(void)
 	port_conf.rx_adv_conf.rss_conf.rss_key = (uint8_t *)&key;
 	port_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(key);
 
+	/* Invoke rte KNI init to pre-allocate the ports */
+	rte_kni_init(num_devices_attached);
+	
 	if (!CONFIG.multi_process || (CONFIG.multi_process && CONFIG.multi_process_is_master)) {
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
 			char name[RTE_MEMPOOL_NAMESIZE];
@@ -744,12 +1089,18 @@ dpdk_load_module(void)
 			       ports_eth_addr[portid].addr_bytes[4],
 			       ports_eth_addr[portid].addr_bytes[5]);
 #endif
+			/* Initialise port-specific kni fundamentals */
+			if (dpdk_kni_alloc(portid, pktmbuf_pool[portid]) == -1) {
+				TRACE_CONFIG("Failed to create kni extension for portid: %d\n",
+					     portid);
+			}
 		}
 		/* only check for link status if the thread is master */
 		check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
+		
 	} else { /* CONFIG.multi_process && !CONFIG.multi_process_is_master */
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
-                        char name[20];
+                        char name[RTE_MEMPOOL_NAMESIZE];
                         sprintf(name, "mbuf_pool-%d", rxlcore_id);
                         /* initialize the mbuf pools */
                         pktmbuf_pool[rxlcore_id] =
@@ -783,6 +1134,8 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 	int seg_off;
 #endif
 
+	if (nif == -1) return -1;
+	
 	if (cmd == DRV_NAME) {
 		*argpptr = (void *)dev_info[nif].driver_name;
 		return 0;
@@ -881,8 +1234,12 @@ io_module_func dpdk_module_func = {
 	.release_pkt		   = dpdk_release_pkt,
 	.send_pkts		   = dpdk_send_pkts,
 	.get_wptr   		   = dpdk_get_wptr,
+	.send_lo_pkts		   = dpdk_send_lo_pkts,
+	.get_lo_wptr   		   = dpdk_get_lo_wptr,	
 	.recv_pkts		   = dpdk_recv_pkts,
 	.get_rptr	   	   = dpdk_get_rptr,
+	.recv_lo_pkts		   = dpdk_recv_lo_pkts,
+	.get_lo_rptr		   = dpdk_get_lo_rptr,
 	.select			   = dpdk_select,
 	.destroy_handle		   = dpdk_destroy_handle,
 	.dev_ioctl		   = dpdk_dev_ioctl
@@ -896,8 +1253,12 @@ io_module_func dpdk_module_func = {
 	.release_pkt		   = NULL,
 	.send_pkts		   = NULL,
 	.get_wptr   		   = NULL,
+	.send_lo_pkts		   = NULL,
+	.get_lo_wptr   		   = NULL,	
 	.recv_pkts		   = NULL,
 	.get_rptr	   	   = NULL,
+	.recv_lo_pkts		   = NULL,
+	.get_lo_rptr		   = NULL,	
 	.select			   = NULL,
 	.destroy_handle		   = NULL,
 	.dev_ioctl		   = NULL

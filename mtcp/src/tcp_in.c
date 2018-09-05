@@ -1190,6 +1190,11 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 				seq, ack_seq, payloadlen, window);
 		if (!cur_stream)
 			return TRUE;
+
+		if (ifidx == -1) {
+			cur_stream->sndvar->nif_out = -1;
+			cur_stream->is_local = 1;
+		}
 	}
 
 	/* Validate sequence. if not valid, ignore the packet */

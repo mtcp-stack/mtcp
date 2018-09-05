@@ -182,7 +182,8 @@ typedef struct tcp_stream
 			sack_permit:1,		/* whether peer permits SACK */
 			control_list_waiting:1, 
 			have_reset:1,
-			is_external:1;		/* the peer node is locate outside of lan */
+			is_external:1,		/* the peer node is locate outside of lan */
+			is_local:1;		/* the peer application exists in the same machine */
 	
 	uint32_t snd_nxt;		/* send next */
 	uint32_t rcv_nxt;		/* receive next */

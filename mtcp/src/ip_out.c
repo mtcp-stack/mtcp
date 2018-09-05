@@ -47,6 +47,7 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 	int rc = -1;
 
 	nif = GetOutputInterface(daddr, &is_external);
+#if 0
 	if (nif < 0)
 		return NULL;
 
@@ -62,7 +63,10 @@ IPOutputStandalone(struct mtcp_manager *mtcp, uint8_t protocol,
 			   nif, mtcp->cur_ts);
 		return NULL;
 	}
-	
+#else
+	nif = -1;
+	haddr = NULL;
+#endif	
 	iph = (struct iphdr *)EthernetOutput(mtcp, 
 			ETH_P_IP, nif, haddr, payloadlen + IP_HEADER_LEN);
 	if (!iph) {
@@ -107,38 +111,41 @@ uint8_t *
 IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 {
 	struct iphdr *iph;
-	int nif;
+	int nif = -1;
 	unsigned char *haddr, is_external = 0;
 	int rc = -1;
 
 	if (stream->sndvar->nif_out >= 0) {
 		nif = stream->sndvar->nif_out;
-	} else {
+	} else if (!stream->is_local) {
 		nif = GetOutputInterface(stream->daddr, &is_external);
 		stream->sndvar->nif_out = nif;
 		stream->is_external = is_external;
 	}
-
-	haddr = GetDestinationHWaddr(stream->daddr, stream->is_external);
-	if (!haddr) {
+	
+	if (nif < 0)
+		haddr = NULL;
+	else {
+		haddr = GetDestinationHWaddr(stream->daddr, stream->is_external);
+		if (!haddr) {
 #if 0
-		uint8_t *da = (uint8_t *)&stream->daddr;
-		TRACE_INFO("[WARNING] The destination IP %u.%u.%u.%u "
-				"is not in ARP table!\n",
-				da[0], da[1], da[2], da[3]);
+			uint8_t *da = (uint8_t *)&stream->daddr;
+			TRACE_INFO("[WARNING] The destination IP %u.%u.%u.%u "
+				   "is not in ARP table!\n",
+				   da[0], da[1], da[2], da[3]);
 #endif
-		/* if not found in the arp table, send arp request and return NULL */
-		/* tcp will retry sending the packet later */
-		RequestARP(mtcp, (stream->is_external) ? (CONFIG.gateway)->daddr : stream->daddr,
-			   stream->sndvar->nif_out, mtcp->cur_ts);
-		return NULL;
+			/* if not found in the arp table, send arp request and return NULL */
+			/* tcp will retry sending the packet later */
+			RequestARP(mtcp, (stream->is_external) ? (CONFIG.gateway)->daddr : stream->daddr,
+				   stream->sndvar->nif_out, mtcp->cur_ts);
+			return NULL;
+		}
 	}
 	
 	iph = (struct iphdr *)EthernetOutput(mtcp, ETH_P_IP, 
 			stream->sndvar->nif_out, haddr, tcplen + IP_HEADER_LEN);
-	if (!iph) {
+	if (!iph)
 		return NULL;
-	}
 
 	iph->ihl = IP_HEADER_LEN >> 2;
 	iph->version = 4;
@@ -171,5 +178,6 @@ IPOutput(struct mtcp_manager *mtcp, tcp_stream *stream, uint16_t tcplen)
 	UNUSED(rc);
 	iph->check = ip_fast_csum(iph, iph->ihl);
 #endif
+
 	return (uint8_t *)(iph + 1);
 }

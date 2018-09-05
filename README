@@ -105,7 +105,7 @@ mTCP can be prepared in three ways.
 
    Press [14] to compile x86_64-native-linuxapp-gcc version
    Press [17] to install the driver
-   Press [21] to setup 1024 2MB hugepages
+   Press [21] to setup 2048 2MB hugepages
    Press [23] to register the Ethernet ports
    Press [34] to quit the tool
 

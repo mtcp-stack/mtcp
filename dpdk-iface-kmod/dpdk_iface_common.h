@@ -2,7 +2,7 @@
 #define __DPDK_IFACE_COMMON_H__
 /*--------------------------------------------------------------------------*/
 /* major number */
-#define MAJOR_NO		1110
+#define MAJOR_NO		511 //1110
 /* dev name */
 #define DEV_NAME		"dpdk-iface"
 #define DEV_PATH		"/dev/"DEV_NAME

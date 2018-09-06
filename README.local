@@ -1,0 +1,19 @@
+- KNI VERSION -
+---------------
+
+- This is a proof-of-concept implementation (single core version).
+- This version is still in active development.
+
+Here are the guidelines to run sample epserver/epwget applications in the same machine:
+
+Run epserver
+============
+
+$ sudo ifconfig dpdk0 192.168.0.3 netmask 255.255.255.0 up
+$ sudo ./epserver -p $PATH_TO_WWW -f epserver.conf -N 1
+
+Run epwget
+==========
+$ sudo ifconfig vdpdk0 183.0.0.1 netmask 255.255.255.0 up
+$ sudo route add -net 192.0.0.0/8 dev vdpdk0
+$ ab -n 1000000 -c 1024 http://192.168.0.3/index-8192.html

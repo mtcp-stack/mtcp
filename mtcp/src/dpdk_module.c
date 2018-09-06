@@ -85,8 +85,8 @@
 #define	ETHER_PREAMBLE			8
 #define ETHER_OVR			(ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
 
-static uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
-static uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
+static const uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
+static const uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
 /*----------------------------------------------------------------------------*/
 /* packet memory pools for storing packet bufs */
 static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
@@ -156,7 +156,7 @@ static const struct rte_eth_txconf tx_conf = {
 };
 
 struct mbuf_table {
-	unsigned len; /* length of queued packets */
+	uint16_t len; /* length of queued packets */
 	struct rte_mbuf *m_table[MAX_PKT_BURST];
 };
 
@@ -749,7 +749,7 @@ dpdk_load_module(void)
 		check_all_ports_link_status(num_devices_attached, 0xFFFFFFFF);
 	} else { /* CONFIG.multi_process && !CONFIG.multi_process_is_master */
 		for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
-                        char name[20];
+                        char name[RTE_MEMPOOL_NAMESIZE];
                         sprintf(name, "mbuf_pool-%d", rxlcore_id);
                         /* initialize the mbuf pools */
                         pktmbuf_pool[rxlcore_id] =

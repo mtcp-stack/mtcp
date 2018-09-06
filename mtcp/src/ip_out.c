@@ -29,8 +29,9 @@ GetOutputInterface(uint32_t daddr, uint8_t *is_external)
 
 	if (nif < 0) {
 		uint8_t *da = (uint8_t *)&daddr;
-		TRACE_ERROR("[WARNING] No route to %u.%u.%u.%u\n", 
-				da[0], da[1], da[2], da[3]);
+		TRACE_DBG("[WARNING] No route to %u.%u.%u.%u\n", 
+			  da[0], da[1], da[2], da[3]);
+		(void)da;
 		assert(0);
 	}
 	

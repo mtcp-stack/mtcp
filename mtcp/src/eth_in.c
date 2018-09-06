@@ -18,8 +18,10 @@ ProcessPacket(mtcp_manager_t mtcp, const int ifidx,
 #endif
 
 #ifdef NETSTAT
-	mtcp->nstat.rx_packets[ifidx]++;
-	mtcp->nstat.rx_bytes[ifidx] += len + 24;
+	//mtcp->nstat.rx_packets[ifidx]++;
+	//mtcp->nstat.rx_bytes[ifidx] += len + 24;
+	mtcp->nstat.rx_packets[0]++;
+	mtcp->nstat.rx_bytes[0] += len + 24;	
 #endif /* NETSTAT */
 
 #if 0
@@ -48,7 +50,8 @@ ProcessPacket(mtcp_manager_t mtcp, const int ifidx,
 
 #ifdef NETSTAT
 	if (ret < 0) {
-		mtcp->nstat.rx_errors[ifidx]++;
+		//mtcp->nstat.rx_errors[ifidx]++;
+		mtcp->nstat.rx_errors[0]++;
 	}
 #endif
 

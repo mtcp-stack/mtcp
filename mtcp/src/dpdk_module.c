@@ -76,13 +76,13 @@
 #define TX_HTHRESH			0  /**< Default values of TX host threshold reg. */
 #define TX_WTHRESH			0  /**< Default values of TX write-back threshold reg. */
 
-#define MAX_PKT_BURST			64/*128*/
+#define MAX_PKT_BURST			256
 
 /*
  * Configurable number of RX/TX ring descriptors
  */
-#define RTE_TEST_RX_DESC_DEFAULT	128
-#define RTE_TEST_TX_DESC_DEFAULT	128
+#define RTE_TEST_RX_DESC_DEFAULT	256
+#define RTE_TEST_TX_DESC_DEFAULT	256
 
 /*
  * Ethernet frame overhead
@@ -217,15 +217,18 @@ struct stats_struct {
 
 /* packet memory pools for storing packet bufs */
 static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
-static struct rte_kni *kni[RTE_MAX_ETHPORTS] = {NULL};
-struct rte_mbuf *lo_pkts_burst[MAX_PKT_BURST] = {NULL};
-static struct mbuf_table lo_wmbufs = {
-	.len			= 	0,
-	.m_table		= 	{NULL}
-};
-static struct mbuf_table lo_rmbufs = {
-	.len			=	0,
-	.m_table		=	{NULL}
+
+/* dpdk context for talking to local apps */
+static struct lo_context {
+	struct mbuf_table wmbufs;
+	struct mbuf_table rmbufs;
+	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
+	struct rte_kni *kni[RTE_MAX_ETHPORTS];	
+} lo_context = {
+	.wmbufs		=	{.len = 0, .m_table = {NULL}},
+	.rmbufs		=	{.len = 0, .m_table = {NULL}},
+	.pkts_burst	=	{NULL},
+	.kni		=	{NULL}
 };
 /*----------------------------------------------------------------------------*/
 void
@@ -265,15 +268,15 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 	/* set wmbufs for `lo' device */
 	if (ctxt->cpu == 0) {
 		for (i = 0; i < MAX_PKT_BURST; i++) {
-			lo_wmbufs.m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
-			if (lo_wmbufs.m_table[i] == NULL) {
+			lo_context.wmbufs.m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
+			if (lo_context.wmbufs.m_table[i] == NULL) {
 				TRACE_ERROR("Failed to allocate %d:lo_wmbuf[%d] on lo device!\n",
 					    ctxt->cpu, i);
 				exit(EXIT_FAILURE);
 			}
 		}
 		/* set mbufs queue length to 0 to begin with */
-		lo_wmbufs.len = 0;
+		lo_context.wmbufs.len = 0;
 	}
 
 #ifdef IP_DEFRAG
@@ -410,40 +413,47 @@ int
 dpdk_send_lo_pkts(struct mtcp_thread_context *ctxt)
 {
 	static const int portid = 0;
+#ifdef NETSTAT
+	mtcp_manager_t mtcp;
+#endif
 	int ret = 0;
 	
 	/* if there are packets in the queue... flush them out to the kni */
-	if (ctxt->cpu == 0 && lo_wmbufs.len > 0) {
+	if (ctxt->cpu == 0 && lo_context.wmbufs.len > 0) {
 		struct rte_mbuf **pkts;
 		int i;
-		int cnt = lo_wmbufs.len;
-		pkts = lo_wmbufs.m_table;
+		int cnt = lo_context.wmbufs.len;
+		pkts = lo_context.wmbufs.m_table;
 
+#ifdef NETSTAT
+		mtcp = ctxt->mtcp_manager;
+		mtcp->nstat.tx_packets[portid] += cnt;
+#endif
 		do {
 			if (ctxt->cpu != 0) {
 				TRACE_ERROR("Something is not right!\n");
 				exit(EXIT_FAILURE);
 			}
 			/* tx cnt # of packets */
-			ret = rte_kni_tx_burst(kni[portid], pkts, cnt);
+			ret = rte_kni_tx_burst(lo_context.kni[portid], pkts, cnt);
 			pkts += ret;
 			cnt -= ret;
 			/* if not all pkts were sent... then repeat the cycle */
 		} while (cnt > 0);
 
-		rte_kni_handle_request(kni[portid]);
+		rte_kni_handle_request(lo_context.kni[portid]);
 		/* time to allocate fresh mbufs for the queue */
-		for (i = 0; i < lo_wmbufs.len; i++) {
-			lo_wmbufs.m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
+		for (i = 0; i < lo_context.wmbufs.len; i++) {
+			lo_context.wmbufs.m_table[i] = rte_pktmbuf_alloc(pktmbuf_pool[ctxt->cpu]);
 			/* error checking */
-			if (unlikely(lo_wmbufs.m_table[i] == NULL)) {
+			if (unlikely(lo_context.wmbufs.m_table[i] == NULL)) {
 				TRACE_ERROR("Failed to allocate %d:lo_wmbuf[%d] on lo device!\n",
 					    ctxt->cpu, i);
 				exit(EXIT_FAILURE);
 			}
 		}
 		/* reset the len of mbufs var after flushing of packets */
-		lo_wmbufs.len = 0;
+		lo_context.wmbufs.len = 0;
 	}
 
 	return ret;
@@ -455,16 +465,25 @@ dpdk_get_lo_wptr(struct mtcp_thread_context *ctxt, uint16_t pktsize)
 	struct rte_mbuf *m;
 	uint8_t *ptr;
 	int len_of_mbuf;
+#ifdef NETSTAT
+	static const int portid = 0;
+	mtcp_manager_t mtcp;
+	mtcp = ctxt->mtcp_manager;
+#endif
 
 	/* sanity check */
-	if (unlikely(lo_wmbufs.len == MAX_PKT_BURST))
+	if (unlikely(lo_context.wmbufs.len == MAX_PKT_BURST))
 		return NULL;
 
-	len_of_mbuf = lo_wmbufs.len;
-	m = lo_wmbufs.m_table[len_of_mbuf];
+	len_of_mbuf = lo_context.wmbufs.len;
+	m = lo_context.wmbufs.m_table[len_of_mbuf];
 
+#ifdef NETSTAT
+	mtcp->nstat.tx_bytes[portid] += pktsize + ETHER_OVR;
+#endif
+	
 	/* increment the len_of_mbuf var */
-	lo_wmbufs.len = len_of_mbuf + 1;
+	lo_context.wmbufs.len = len_of_mbuf + 1;
 
 	/* retrieve the right write offset */
 	ptr = (void *)rte_pktmbuf_mtod(m, struct ether_hdr *);
@@ -547,23 +566,23 @@ dpdk_recv_lo_pkts(struct mtcp_thread_context *ctxt)
 
 	ret = 0;
 	if (ctxt->cpu == 0) {
-		if (lo_rmbufs.len != 0) {
-			free_pkts(lo_rmbufs.m_table, lo_rmbufs.len);
-			lo_rmbufs.len = 0;
+		if (lo_context.rmbufs.len != 0) {
+			free_pkts(lo_context.rmbufs.m_table, lo_context.rmbufs.len);
+			lo_context.rmbufs.len = 0;
 		}
-		if (kni[portid] != NULL) {
-			ret = rte_kni_rx_burst(kni[portid],
-					       lo_pkts_burst,
+		if (lo_context.kni[portid] != NULL) {
+			ret = rte_kni_rx_burst(lo_context.kni[portid],
+					       lo_context.pkts_burst,
 					       MAX_PKT_BURST);
 			if (unlikely(ret > MAX_PKT_BURST)) {
 				TRACE_ERROR("Error receiving from KNI!\n");
 				exit(EXIT_FAILURE);
 			}
 			for (i = 0; i < ret; i++) {
-				lo_rmbufs.m_table[i] = lo_pkts_burst[i];
+				lo_context.rmbufs.m_table[i] = lo_context.pkts_burst[i];
 			}
-			lo_rmbufs.len += ret;
-			rte_kni_handle_request(kni[portid]);			
+			lo_context.rmbufs.len += ret;
+			rte_kni_handle_request(lo_context.kni[portid]);			
 		}
 	}
 	return ret;
@@ -642,12 +661,12 @@ dpdk_get_lo_rptr(struct mtcp_thread_context *ctxt, int index, uint16_t *len)
 	uint8_t *pktbuf;
 	struct rte_mbuf *m;
 
-	m = lo_pkts_burst[index];
+	m = lo_context.pkts_burst[index];
 	*len = m->pkt_len;
 	pktbuf = rte_pktmbuf_mtod(m, uint8_t *);
 
 	/* enqueue the pkt ptr in mbuf */
-	lo_rmbufs.m_table[index] = m;
+	lo_context.rmbufs.m_table[index] = m;
 
 	/* verify checksum values from ol_flags */
 	if ((m->ol_flags & (PKT_RX_L4_CKSUM_BAD | PKT_RX_IP_CKSUM_BAD)) != 0) {
@@ -726,10 +745,10 @@ dpdk_destroy_handle(struct mtcp_thread_context *ctxt)
 	for (i = 0; i < num_devices_attached; i++) {
 		free_pkts(dpc->wmbufs[i].m_table, MAX_PKT_BURST);
 		if (ctxt->cpu == 0)
-			free_pkts(lo_wmbufs.m_table, MAX_PKT_BURST);
-		if (kni[i] != NULL) {
-			rte_kni_release(kni[i]);
-			kni[i] = NULL;
+			free_pkts(lo_context.wmbufs.m_table, MAX_PKT_BURST);
+		if (lo_context.kni[i] != NULL) {
+			rte_kni_release(lo_context.kni[i]);
+			lo_context.kni[i] = NULL;
 		}
 		rte_eth_dev_stop(devices_attached[i]);
 	}
@@ -752,11 +771,11 @@ kni_config_network_interface(uint16_t port_id, uint8_t if_up)
 {
 	int ret;
 	struct ifreq ifreq;
-	int sock, value;
+	int sock;
 	char ifrname[IFNAMSIZ];
 	struct sockaddr_in *addr;
 	
-	ret = value = 0;
+	ret = 0;
 	addr = (struct sockaddr_in *)&ifreq.ifr_addr;
 	memset(&ifreq, 0, sizeof(ifreq));
 	inet_pton(AF_INET, "0.0.0.0", &addr->sin_addr);
@@ -890,9 +909,9 @@ dpdk_kni_alloc(uint16_t portid, struct rte_mempool *pktmbuf_pool)
 	ops.config_network_if = kni_config_network_interface;
 	ops.config_mac_address = kni_config_mac_address;
 
-	kni[portid] = rte_kni_alloc(pktmbuf_pool, &conf, &ops);
+	lo_context.kni[portid] = rte_kni_alloc(pktmbuf_pool, &conf, &ops);
 
-	if (kni[portid] == NULL) {
+	if (lo_context.kni[portid] == NULL) {
 		TRACE_CONFIG("Failed to create kni for port %d\n", portid);
 		return -1;
 	}

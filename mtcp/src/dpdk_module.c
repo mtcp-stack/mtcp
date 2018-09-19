@@ -32,6 +32,8 @@
 /* for ip defragging */
 #include <rte_ip_frag.h>
 #endif
+/* for ioctl funcs */
+#include <dpdk_iface_common.h>
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
@@ -182,7 +184,6 @@ struct dpdk_private_context {
 } __rte_cache_aligned;
 
 #ifdef ENABLE_STATS_IOCTL
-#define DEV_NAME				"/dev/dpdk-iface"
 /**
  * stats struct passed on from user space to the driver
  */
@@ -263,9 +264,9 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 #endif	/* !IP_DEFRAG */
 
 #ifdef ENABLE_STATS_IOCTL
-	dpc->fd = open(DEV_NAME, O_RDWR);
+	dpc->fd = open(DEV_PATH, O_RDWR);
 	if (dpc->fd == -1) {
-		TRACE_ERROR("Can't open " DEV_NAME " for context->cpu: %d! "
+		TRACE_ERROR("Can't open " DEV_PATH " for context->cpu: %d! "
 			    "Are you using mlx4/mlx5 driver?\n",
 			    ctxt->cpu);
 	}
@@ -337,7 +338,8 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 			ss.qid = ctxt->cpu;
 			ss.dev = portid;
 			/* pass the info now */
-			ioctl(dpc->fd, 0, &ss);
+			if (ioctl(dpc->fd, SEND_STATS, &ss) == -1)
+				TRACE_ERROR("Can't update iface stats!\n");
 			dpc->cur_ts = mtcp->cur_ts;
 			if (ctxt->cpu == 0)
 				rte_eth_stats_reset(portid);
@@ -723,6 +725,7 @@ dpdk_load_module(void)
 
                         /* retrieve current flow control settings per port */
 			memset(&fc_conf, 0, sizeof(fc_conf));
+#ifndef CONTAINERIZED_SUPPORT
                         ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
 			if (ret != 0)
                                 rte_exit(EXIT_FAILURE, "Failed to get flow control info!\n");
@@ -733,6 +736,7 @@ dpdk_load_module(void)
                         if (ret != 0)
                                 rte_exit(EXIT_FAILURE, "Failed to set flow control info!: errno: %d\n",
                                          ret);
+#endif
 
 #ifdef DEBUG
 			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",

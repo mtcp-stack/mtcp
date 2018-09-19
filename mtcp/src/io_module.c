@@ -13,8 +13,10 @@
 /* for ioctl */
 #include <sys/ioctl.h>
 #ifndef DISABLE_DPDK
+#define RTE_ARGC_MAX		(RTE_MAX_ETHPORTS << 1) + 9
 /* for dpdk ethernet functions (get mac addresses) */
 #include <rte_ethdev.h>
+#include <dpdk_iface_common.h>
 #endif
 /* for TRACE_* */
 #include "debug.h"
@@ -84,6 +86,60 @@ GetNumQueues()
 	return queue_cnt;
 }
 #endif /* !PSIO */
+/*----------------------------------------------------------------------------*/
+#ifndef DISABLE_DPDK
+static void
+probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
+{
+	PciDevice pd;
+	int fd;
+	static char end[] = "";
+	static const char delim[] = " \t";
+	static char *dev_tokenizer;
+	char *dev_token, *saveptr;
+
+	dev_tokenizer = strdup(dev_name_list);
+	if (dev_tokenizer == NULL) {
+		TRACE_ERROR("Can't allocate memory for dev_tokenizer!\n");
+		exit(EXIT_FAILURE);
+	}
+	fd = open(DEV_PATH, O_RDONLY);
+	if (fd == -1) {
+		TRACE_ERROR("Error opening dpdk-face!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	dev_token = strtok_r(dev_tokenizer, delim, &saveptr);
+	while (dev_token != NULL) {
+		strcpy(pd.ifname, dev_token);
+		if (ioctl(fd, FETCH_PCI_ADDRESS, &pd) == -1) {
+			TRACE_DBG("Could not find pci info on dpdk "
+				  "device: %s. Is it a dpdk-attached "
+				  "interface?\n", dev_token);
+			goto loop_over;
+		}
+		argv[*argc] = strdup("-w");
+		argv[*argc + 1] = calloc(PCI_LENGTH, 1);
+		if (argv[*argc] == NULL ||
+		    argv[*argc + 1] == NULL) {
+			TRACE_ERROR("Memory allocation error!\n");
+			exit(EXIT_FAILURE);
+		}
+		sprintf(argv[*argc + 1], PCI_DOM":"PCI_BUS":"
+			PCI_DEVICE"."PCI_FUNC,
+			pd.pa.domain, pd.pa.bus, pd.pa.device,
+			pd.pa.function);
+		*argc += 2;
+	loop_over:
+		dev_token = strtok_r(NULL, delim, &saveptr);
+	}
+
+	/* add the terminating "" sequence */
+	argv[*argc] = end;
+	close(fd);
+	free(dev_tokenizer);
+}
+#endif /* !DISABLE_DPDK */
 /*----------------------------------------------------------------------------*/
 int
 SetInterfaceInfo(char* dev_name_list)
@@ -203,17 +259,24 @@ SetInterfaceInfo(char* dev_name_list)
 			exit(EXIT_FAILURE);
 		}
 		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
-		
-		/* initialize the rte env first, what a waste of implementation effort!  */
-		char *argv[] = {"",
-				"-c",
-				cpumaskbuf,
-				"-n",
-				mem_channels,
-				"--proc-type=auto",
-				""
+		/* initialize the rte env first, what a waste of implementation effort! */
+#ifdef CONTAINERIZED_SUPPORT
+		int argc = 8;
+#else
+		int argc = 6;
+#endif
+		char *argv[RTE_ARGC_MAX] = {"",
+					    "-c",
+					    cpumaskbuf,
+					    "-n",
+					    mem_channels,
+#ifdef CONTAINERIZED_SUPPORT
+					    "--socket-mem",
+					    "1024",
+#endif
+					    "--proc-type=auto"
 		};
-		const int argc = 6;
+		probe_all_rte_devices(argv, &argc, dev_name_list);
 
 		/*
 		 * re-set getopt extern variable optind.
@@ -314,7 +377,24 @@ SetInterfaceInfo(char* dev_name_list)
 		} while (iter_if != NULL);
 
 		freeifaddrs(ifap);
-
+#if 0
+		/*
+		 * XXX: It seems that there is a bug in the RTE SDK.
+		 * The dynamically allocated rte_argv params are left 
+		 * as dangling pointers. Freeing them causes program
+		 * to crash.
+		 */
+		
+		/* free up all resources */
+		for (; rte_argc >= 9; rte_argc--) {
+			if (rte_argv[rte_argc] != NULL) {
+				fprintf(stderr, "Cleaning up rte_argv[%d]: %s (%p)\n",
+					rte_argc, rte_argv[rte_argc], rte_argv[rte_argc]);
+				free(rte_argv[rte_argc]);
+				rte_argv[rte_argc] = NULL;
+			}
+		}
+#endif
 		/* check if process is primary or secondary */
 		CONFIG.multi_process_is_master = (eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
 			1 : 0;

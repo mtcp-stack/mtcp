@@ -36,7 +36,8 @@ $(OBJS): %.o: %.c Makefile
 	$(HIDE) ${CC} ${GCC_OPT} ${CFLAGS} $<
 
 clean:
-	rm -rf *~ *.o
+	$(MSG) "   CC *.o"
+	$(HIDE) rm -rf *~ *.o
 
 distclean: clean
 	rm -f Makefile

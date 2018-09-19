@@ -2,7 +2,9 @@
 #define __DPDK_IFACE_COMMON_H__
 /*--------------------------------------------------------------------------*/
 /* for ETH_ALEN */
-#include <linux/if.h>
+#ifndef __KERNEL__
+#include <net/if.h>
+#endif
 /*--------------------------------------------------------------------------*/
 /* major number */
 #define MAJOR_NO		511 //1110

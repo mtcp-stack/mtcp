@@ -134,10 +134,10 @@ onvm_init_handle(struct mtcp_thread_context *ctxt)
 	dpc->pktmbuf_pool = pktmbuf_pool;
 
 	/* Complete onvm handshake */
-	onvm_nflib_nf_ready(nf_info);
+	onvm_nflib_nf_ready(CONFIG.nf_info);
 	
 	/* Initialize onvm rings*/
-	nf = onvm_nflib_get_nf(nf_info->instance_id);	
+	nf = onvm_nflib_get_nf(CONFIG.nf_info->instance_id);
 	rx_ring = nf->rx_q;
 	tx_ring = nf->tx_q;
 

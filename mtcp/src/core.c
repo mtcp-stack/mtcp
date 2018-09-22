@@ -88,7 +88,7 @@ HandleSignal(int signal)
 
 #ifdef ENABLE_ONVM
 		if (current_iomodule_func == &onvm_module_func)
-			onvm_nflib_stop();
+			onvm_nflib_stop(CONFIG.nf_info);
 #endif
 		core = sched_getcpu();
 		clock_gettime(CLOCK_REALTIME, &cur_ts);

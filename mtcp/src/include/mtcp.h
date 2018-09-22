@@ -20,6 +20,10 @@
 #include "stat.h"
 #include "io_module.h"
 
+#ifdef ENABLE_ONVM
+#include "onvm_nflib.h"
+#endif
+
 #ifndef TRUE
 #define TRUE (1)
 #endif
@@ -163,6 +167,7 @@ struct mtcp_config
 	uint8_t multi_process_is_master;
 
 #ifdef ENABLE_ONVM
+	struct onvm_nf_info *nf_info;
 	/* onvm specific args */
 	uint16_t onvm_serv;
   	uint16_t onvm_inst;

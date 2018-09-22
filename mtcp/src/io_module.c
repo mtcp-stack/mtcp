@@ -460,7 +460,7 @@ SetInterfaceInfo(char* dev_name_list)
 		optind = 0;
 
 		/* initialize the dpdk eal env */
-		ret = onvm_nflib_init(argc, argv, "mtcp_nf");
+		ret = onvm_nflib_init(argc, argv, "mtcp_nf", &CONFIG.nf_info);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE, "Invalid EAL args!\n");
 		/* give me the count of 'detected' ethernet ports */

@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <poll.h>
 #include <sys/epoll.h>
+#include <sys/uio.h>
 /* 
  * pointers to this functions will be used when __sock_func table
  * will be not initialized 

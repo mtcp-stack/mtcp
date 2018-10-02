@@ -246,7 +246,7 @@ iface_pci_init_module(void)
 {
 	int ret;
 
-	ret = register_chrdev(0, /* MAJOR */,
+	ret = register_chrdev(0 /* MAJOR */,
 			      DEV_NAME /*NAME*/,
 			      &igb_net_fops);
 	if (ret < 0) {

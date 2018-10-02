@@ -314,6 +314,7 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
    2. Intel-82599	     ixgbe			(Max-queue-limit: 16)
    3. Intel-I350             igb   			(Max-queue-limit: 08)
    4. Intel-X710	     i40e			(Max-queue-limit: ~)
+   5. Intel-X722	     i40e			(Max-queue-limit: ~)
  
 ***FREQUENTLY ASKED QUESTIONS***
 

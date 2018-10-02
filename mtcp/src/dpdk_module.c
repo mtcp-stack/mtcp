@@ -631,7 +631,7 @@ dpdk_load_module(void)
 		0x05, 0x05  /* 60 - 8 */
 	};
 
-	port_conf.rx_adv_conf.rss_conf.rss_key = (uint8_t *)&key;
+	port_conf.rx_adv_conf.rss_conf.rss_key = (uint8_t *)key;
 	port_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(key);
 
 	if (!CONFIG.multi_process || (CONFIG.multi_process && CONFIG.multi_process_is_master)) {

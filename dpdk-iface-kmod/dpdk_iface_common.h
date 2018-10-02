@@ -5,12 +5,12 @@
 #ifndef __KERNEL__
 #include <net/if.h>
 #endif
+#include <asm/bitsperlong.h>
 /*--------------------------------------------------------------------------*/
-/* major number */
-#define MAJOR_NO		511 //1110
 /* dev name */
 #define DEV_NAME		"dpdk-iface"
 #define DEV_PATH		"/dev/"DEV_NAME
+#define DEV_PROC_PATH		"/proc/devices"
 /* ioctl# */
 #define SEND_STATS		 0
 #define CREATE_IFACE		 1
@@ -40,6 +40,6 @@ typedef struct PciDevice {
 		char ifname[IFNAMSIZ];
 	};
 	PciAddress pa;
-} PciDevice __attribute__((aligned(64)));
+} PciDevice __attribute__((aligned(__BITS_PER_LONG)));
 /*--------------------------------------------------------------------------*/
 #endif /* __DPDK_IFACE_COMMON_H__ */

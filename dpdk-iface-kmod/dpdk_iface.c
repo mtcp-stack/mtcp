@@ -33,6 +33,7 @@
 /*--------------------------------------------------------------------------*/
 struct stats_struct sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0, 0, 0, 0}}};
 struct stats_struct old_sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0, 0, 0, 0}}};
+static int major_no = -1;
 /*--------------------------------------------------------------------------*/
 static int
 update_stats(struct stats_struct *stats)
@@ -245,7 +246,7 @@ iface_pci_init_module(void)
 {
 	int ret;
 
-	ret = register_chrdev(MAJOR_NO /* MAJOR */,
+	ret = register_chrdev(0, /* MAJOR */,
 			      DEV_NAME /*NAME*/,
 			      &igb_net_fops);
 	if (ret < 0) {
@@ -256,6 +257,10 @@ iface_pci_init_module(void)
 
 	printk(KERN_INFO "%s: Loaded\n",
 	       THIS_MODULE->name);
+
+	/* record major number */
+	major_no = ret;
+	
 	return 0;
 }
 /*--------------------------------------------------------------------------*/
@@ -263,7 +268,7 @@ static void __exit
 iface_pci_exit_module(void)
 {
 	clear_all_netdevices();
-	unregister_chrdev(MAJOR_NO, DEV_NAME);
+	unregister_chrdev(major_no, DEV_NAME);
 }
 /*--------------------------------------------------------------------------*/
 module_init(iface_pci_init_module);

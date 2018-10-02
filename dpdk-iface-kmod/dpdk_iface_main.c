@@ -12,12 +12,12 @@
 #include <rte_ethdev.h>
 #include "dpdk_iface_common.h"
 /*--------------------------------------------------------------------------*/
-//#define DEBUG			1
-#define SYSFS_PCI_DRIVER_PATH	"/sys/bus/pci/drivers/"
-#define SYSFS_PCI_IGB_UIO	SYSFS_PCI_DRIVER_PATH"igb_uio"
-#define SYSFS_PCI_VFIO_PCI	SYSFS_PCI_DRIVER_PATH"vfio-pci"
-#define SYSFS_PCI_UIOPCIGEN	SYSFS_PCI_DRIVER_PATH"uio_pci_generic"
-#define RTE_ARGC_MAX		(RTE_MAX_ETHPORTS << 1) + 7
+//#define DEBUG				1
+#define SYSFS_PCI_DRIVER_PATH		"/sys/bus/pci/drivers/"
+#define SYSFS_PCI_IGB_UIO		SYSFS_PCI_DRIVER_PATH"igb_uio"
+#define SYSFS_PCI_VFIO_PCI		SYSFS_PCI_DRIVER_PATH"vfio-pci"
+#define SYSFS_PCI_UIOPCIGEN		SYSFS_PCI_DRIVER_PATH"uio_pci_generic"
+#define RTE_ARGC_MAX			(RTE_MAX_ETHPORTS << 1) + 7
 /*--------------------------------------------------------------------------*/
 typedef struct {
 	PciDevice pd;
@@ -144,6 +144,43 @@ probe_all_rte_devices(char **argv, int *argc)
 }
 /*--------------------------------------------------------------------------*/
 int
+fetch_major_no()
+{
+	FILE *f;
+	int major_no;
+	char *line;
+	size_t len;
+	char dummy[512];
+
+	major_no = -1;
+	len = 0;
+	line = NULL;
+	
+	f = fopen(DEV_PROC_PATH, "r");
+	if (f == NULL) {
+		fprintf(stderr, "Can't open %s file\n", DEV_PROC_PATH);
+		return -1;
+	}
+
+	while (getline(&line, &len, f) != -1) {
+		if (strstr(line, DEV_NAME) != NULL) {
+			if (sscanf(line, "%d %s", &major_no, dummy) == 2) {
+				free(line);
+				break;
+			}
+		}
+		free(line);
+		line = NULL;
+		len = 0;
+	}
+	
+	/* close the file descriptor */
+	fclose(f);
+
+	return major_no;
+}
+/*--------------------------------------------------------------------------*/
+int
 main(int argc, char **argv)
 {
 	int ret, fd, num_devices, i;
@@ -183,7 +220,11 @@ main(int argc, char **argv)
 		"\033[32m not present. \033[0m \n");
 
 	/* create dpdk-iface device node entry */
+#if 0
 	dev = makedev(MAJOR_NO, 0);
+#else
+	dev = makedev(fetch_major_no(), 0);
+#endif
 	ret = mknod(DEV_PATH, S_IFCHR | O_RDWR, dev);
 	if (ret == 0)
 		fprintf(stderr, "Creating device node entry...");

@@ -183,14 +183,11 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				ret = copy_to_user((unsigned char __user *)arg,
 						   netdev->name,
 						   IFNAMSIZ);
-				if (!ret) {
-					printk(KERN_INFO "%s: Copying %s name to userspace\n",
-					       THIS_MODULE->name, netdev->name);
-				} else {
+				if (ret) {
 					printk(KERN_INFO "%s: Interface %s copy to user failed!\n",
 					       THIS_MODULE->name, netdev->name);
+					ret = -1;
 				}
-				ret = 0;
 			}
 		}
 		break;

@@ -12,6 +12,7 @@
 #include <rte_ethdev.h>
 #include "dpdk_iface_common.h"
 /*--------------------------------------------------------------------------*/
+//#define DEBUG			1
 #define SYSFS_PCI_DRIVER_PATH	"/sys/bus/pci/drivers/"
 #define SYSFS_PCI_IGB_UIO	SYSFS_PCI_DRIVER_PATH"igb_uio"
 #define SYSFS_PCI_VFIO_PCI	SYSFS_PCI_DRIVER_PATH"vfio-pci"
@@ -160,6 +161,7 @@ main(int argc, char **argv)
 
 	ret = probe_all_rte_devices(rte_argv, &rte_argc);
 
+#if DEBUG
 	for (i = 0; i < ret; i++) {
 		fprintf(stderr, "Pci Address: %04hX:%02hhX:%02hhX.%01hhX\n",
 			di[i].pd.pa.domain,
@@ -167,6 +169,7 @@ main(int argc, char **argv)
 			di[i].pd.pa.device,
 			di[i].pd.pa.function);
 	}
+#endif
 	
 	if (geteuid()) {
 		fprintf(stderr, "[CAUTION] Run the app as root!\n");

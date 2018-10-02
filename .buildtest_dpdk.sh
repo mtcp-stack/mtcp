@@ -8,6 +8,9 @@ sed -i -e 's/O_TO_EXE_STR =/\$(shell if [ \! -d \${RTE_SDK}\/\${RTE_TARGET}\/lib
 cd dpdk/
 make install T=x86_64-native-linuxapp-gcc
 cd ..
+cd dpdk-iface-kmod
+make
+cd ..
 autoreconf -ivf
 ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET
 make

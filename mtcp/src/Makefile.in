@@ -121,12 +121,16 @@ $(MTCP_HDR):
 	cp $(INC_DIR)/$@ $(MTCP_HDR_DIR)/$@
 
 clean: clean-library
-	rm -f *.o *~ core
-	rm -f .*.d
+	$(MSG) "   CLEAN *.o's"
+	$(HIDE) rm -f *.o *~ core
+	$(MSG) "   CLEAN *.d's"
+	$(HIDE) rm -f .*.d
 
 clean-library:
-	rm -f $(MTCP_LIB_DIR)/*
-	rm -f $(MTCP_HDR_DIR)/*
+	$(MSG) "   CLEAN *.a"
+	$(HIDE) rm -f $(MTCP_LIB_DIR)/*
+	$(MSG) "   CLEAN *.h"
+	$(HIDE) rm -f $(MTCP_HDR_DIR)/*
 
 distclean: clean
 	rm -f Makefile

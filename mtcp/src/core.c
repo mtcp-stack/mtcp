@@ -796,12 +796,12 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) {
 
+			static uint16_t len;
+			static uint8_t *pktbuf;
 			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
 			STAT_COUNT(mtcp->runstat.rounds_rx_try);
 
 			for (i = 0; i < recv_cnt; i++) {
-				uint16_t len;
-				uint8_t *pktbuf;
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
 				if (pktbuf != NULL)
 					ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);

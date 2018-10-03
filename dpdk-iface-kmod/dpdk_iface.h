@@ -15,6 +15,7 @@ struct net_adapter {
 	u16 bd_number;
 	bool netdev_registered;
 	struct net_device_stats nstats;
+	struct PciAddress pa;
 };
 /*--------------------------------------------------------------------------*/
 /**

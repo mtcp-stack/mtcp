@@ -16,17 +16,27 @@ DPDK_INC=${RTE_SDK}/${RTE_TARGET}/include
 DPDK_LIB=${RTE_SDK}/${RTE_TARGET}/lib
 appname=dpdk_iface_main
 #-------------------------------------------------------------------------#
+ifeq ($V,) # no echo
+	export MSG=@echo
+	export HIDE=@
+else
+	export MSG=@\#
+	export HIDE=
+endif
+#-------------------------------------------------------------------------#
 all: dpdk_iface.c $(appname) $(appname).c
 	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) modules
 
 $(appname): $(appname).c
-	$(CC) $(CFLAGS) $(appname).c -g -o $(appname) -g \
+	$(MSG) "  CC $<"
+	$(HIDE) $(CC) -g $(CFLAGS) $(appname).c -g -o $(appname) -g \
 	-I${DPDK_INC} -include $(DPDK_INC)/rte_config.h \
 	-L$(DPDK_LIB) ${DPDK_MACHINE_LDFLAGS} -lpthread
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) clean
-	rm -rf *~ *.o *.ko dpdk_iface_main
+	$(MSG) "  CLEAN  $(appname)"
+	$(HIDE) rm -rf *~ *.o *.ko dpdk_iface_main
 
 run: all
 	sudo ./$(appname)

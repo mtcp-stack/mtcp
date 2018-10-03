@@ -85,7 +85,8 @@ epwget: epwget.o ${MTCP_FLD}/lib/libmtcp.a
 	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
 
 clean:
-	rm -f *~ *.o ${TARGETS} log_*
+	$(MSG) "   CLEAN $(TARGETS)"
+	$(HIDE) rm -f *~ *.o ${TARGETS} log_*
 
 distclean: clean
 	rm -rf Makefile

@@ -163,9 +163,9 @@ mtcp_wrapper_fcntl(int sock_fd, int sock_cmd, void *sock_arg)
 	if (not_mtcp_socket_fd(&mctx, sock_fd))
 		return MTCP_KERNEL_CALL(fcntl)(sock_fd, sock_cmd, sock_arg);
 
-	abort();
-	/* not supported */
-	return -1;
+	/* fcntl logistics are handled in setsockopt() */
+	/* (partially) supported */
+	return 0;
 }
 /*----------------------------------------------------------------------------*/
 __attribute__((gnu_inline)) inline int
@@ -847,6 +847,11 @@ mtcp_app_init()
 
 	ret = 0;
 
+	printf("PATH: %s\n", getenv("PATH"));
+	printf("MAIL: %s\n", getenv("MAIL"));
+	printf("USER: %s\n", getenv("USER"));
+	printf("MTCP_CONFIG: %s\n", getenv("MTCP_CONFIG"));
+	
 	/* Set verbose level appropriately */
 #ifndef DISABLE_DPDK
 #if RTE_VERSION < RTE_VERSION_NUM(17, 05, 0, 16)

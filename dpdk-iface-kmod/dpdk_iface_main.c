@@ -126,7 +126,7 @@ probe_all_rte_devices(char **argv, int *argc)
 			free(dirlist[i]);
 		}
 		
-		free(dirlist);
+		//free(dirlist);
 	}
 
 	/* now sort all recorded entries */

@@ -238,18 +238,22 @@ SetInterfaceInfo(char* dev_name_list)
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;
 		mpz_t _cpumask;
-		char cpumaskbuf[30];
-		char mem_channels[5];
+		char cpumaskbuf[32];
+		char mem_channels[8];
 		int ret;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
 		mpz_init(_cpumask);
 
-		/* get the cpu mask */
-		for (ret = 0; ret < cpu; ret++)
-			mpz_setbit(_cpumask, ret);
-		gmp_sprintf(cpumaskbuf, "%ZX", _cpumask);
-
+		if (!mpz_cmp(_cpumask, CONFIG._cpumask)) {
+			/* get the cpu mask */
+			for (ret = 0; ret < cpu; ret++)
+				mpz_setbit(_cpumask, ret);
+			
+			gmp_sprintf(cpumaskbuf, "%ZX", _cpumask);
+		} else
+			gmp_sprintf(cpumaskbuf, "%ZX", CONFIG._cpumask);
+		
 		mpz_clear(_cpumask);
 		
 		/* get the mem channels per socket */
@@ -291,12 +295,15 @@ SetInterfaceInfo(char* dev_name_list)
 
 		/* initialize the dpdk eal env */
 		ret = rte_eal_init(argc, argv);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Invalid EAL args!\n");
+		if (ret < 0) {
+			TRACE_ERROR("Invalid EAL args!\n");
+			exit(EXIT_FAILURE);
+		}
 		/* give me the count of 'detected' ethernet ports */
 		num_devices = rte_eth_dev_count();
 		if (num_devices == 0) {
-			rte_exit(EXIT_FAILURE, "No Ethernet port!\n");
+			TRACE_ERROR("No Ethernet port!\n");
+			exit(EXIT_FAILURE);
 		}
 
 		/* get mac addr entries of 'detected' dpdk ports */
@@ -487,8 +494,8 @@ SetInterfaceInfo(char* dev_name_list)
 #ifdef ENABLE_ONVM
 		int cpu = CONFIG.num_cores;
 		mpz_t cpumask;
-		char cpumaskbuf[30];
-		char mem_channels[5];
+		char cpumaskbuf[32];
+		char mem_channels[8];
 		char service[6];
 		char instance[6];
 		int ret;
@@ -541,12 +548,15 @@ SetInterfaceInfo(char* dev_name_list)
 
 		/* initialize the dpdk eal env */
 		ret = onvm_nflib_init(argc, argv, "mtcp_nf");
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Invalid EAL args!\n");
+		if (ret < 0) {
+			TRACE_ERROR("Invalid EAL args!\n");
+			exit(EXIT_FAILURE);
+		}
 		/* give me the count of 'detected' ethernet ports */
 		num_devices = ports->num_ports;
 		if (num_devices == 0) {
-			rte_exit(EXIT_FAILURE, "No Ethernet port!\n");
+			TRACE_ERROR("No Ethernet port!\n");
+			exit(EXIT_FAILURE);
 		}
 
 		num_queues = MIN(CONFIG.num_cores, MAX_CPUS);

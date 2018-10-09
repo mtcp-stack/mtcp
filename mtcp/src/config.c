@@ -21,15 +21,15 @@
 /* for if_nametoindex */
 #include <net/if.h>
 
-#define MAX_ROUTE_ENTRY 64
-#define MAX_OPTLINE_LEN 1024
-#define ALL_STRING "all"
+#define MAX_ROUTE_ENTRY 		64
+#define MAX_OPTLINE_LEN 		1024
+#define ALL_STRING 			"all"
 
-static const char *route_file = "config/route.conf";
-static const char *arp_file = "config/arp.conf";
+static const char *route_file = 	"config/route.conf";
+static const char *arp_file = 		"config/arp.conf";
 struct mtcp_manager *g_mtcp[MAX_CPUS] = {NULL};
-struct mtcp_config CONFIG = {0};
-addr_pool_t ap[ETH_NUM] = {NULL};
+struct mtcp_config CONFIG = 		{0};
+addr_pool_t ap[ETH_NUM] = 		{NULL};
 /* total cpus detected in the mTCP stack*/
 int num_cpus;
 /* this should be equal to num_cpus */
@@ -556,6 +556,10 @@ ParseConfiguration(char *line)
 			return -1;
 		}
 		num_cpus = CONFIG.num_cores;
+	} else if (strcmp(p, "core_mask") == 0) {
+#ifndef DISABLE_DPDK
+		mpz_set_str(CONFIG._cpumask, q, 16);
+#endif
 	} else if (strcmp(p, "max_concurrency") == 0) {
 		CONFIG.max_concurrency = mystrtol(q, 10);
 		if (CONFIG.max_concurrency < 0) {
@@ -656,6 +660,9 @@ LoadConfiguration(const char *fname)
 	CONFIG.tcp_timeout = TCP_TIMEOUT;
 	CONFIG.tcp_timewait = TCP_TIMEWAIT;
 	CONFIG.num_mem_ch = 0;
+#ifndef DISABLE_DPDK
+	mpz_init(CONFIG._cpumask);
+#endif
 #ifdef ENABLE_ONVM
   	CONFIG.onvm_inst = (uint16_t) -1;
   	CONFIG.onvm_dest = (uint16_t) -1;

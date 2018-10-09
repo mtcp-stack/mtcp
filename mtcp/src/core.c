@@ -1180,8 +1180,8 @@ mtcp_create_context(int cpu)
 
 	if (cpu >=  CONFIG.num_cores) {
 		TRACE_ERROR("Failed initialize new mtcp context. "
-					"Requested cpu id %d exceed the number of cores %d configured to use.\n",
-					cpu, CONFIG.num_cores);
+			    "Requested cpu id %d exceed the number of cores %d configured to use.\n",
+			    cpu, CONFIG.num_cores);
 		return NULL;
 	}
 
@@ -1229,7 +1229,7 @@ mtcp_create_context(int cpu)
 		int master;
 		master = rte_get_master_lcore();
 		
-		if (master == cpu) {
+		if (master == whichCoreID(cpu)) {
 			lcore_config[master].ret = 0;
 			lcore_config[master].state = FINISHED;
 			
@@ -1239,7 +1239,7 @@ mtcp_create_context(int cpu)
 				return NULL;
 			}
 		} else
-			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, cpu);
+			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, whichCoreID(cpu));
 	} else
 #endif
 		{
@@ -1553,6 +1553,9 @@ mtcp_destroy()
 	for (i = 0; i < CONFIG.eths_num; i++)
 		DestroyAddressPool(ap[i]);
 
+#ifndef DISABLE_DPDK
+	mpz_clear(CONFIG._cpumask);
+#endif
 	TRACE_INFO("All MTCP threads are joined.\n");
 }
 /*----------------------------------------------------------------------------*/

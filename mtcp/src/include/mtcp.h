@@ -6,6 +6,9 @@
 #include <sys/time.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#ifndef DISABLE_DPDK
+#include <gmp.h>
+#endif
 
 #include "memory_mgt.h"
 #include "tcp_ring_buffer.h"
@@ -150,6 +153,9 @@ struct mtcp_config
 	int num_cores;
 	int num_mem_ch;
 	int max_concurrency;
+#ifndef DISABLE_DPDK
+	mpz_t _cpumask;
+#endif
 
 	int max_num_buffers;
 	int rcvbuf_size;

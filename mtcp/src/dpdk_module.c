@@ -725,18 +725,16 @@ dpdk_load_module(void)
 
                         /* retrieve current flow control settings per port */
 			memset(&fc_conf, 0, sizeof(fc_conf));
-#ifndef CONTAINERIZED_SUPPORT
                         ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
 			if (ret != 0)
-                                rte_exit(EXIT_FAILURE, "Failed to get flow control info!\n");
+                                TRACE_INFO("Failed to get flow control info!\n");
 
 			/* and just disable the rx/tx flow control */
 			fc_conf.mode = RTE_FC_NONE;
 			ret = rte_eth_dev_flow_ctrl_set(portid, &fc_conf);
                         if (ret != 0)
-                                rte_exit(EXIT_FAILURE, "Failed to set flow control info!: errno: %d\n",
+                                TRACE_INFO("Failed to set flow control info!: errno: %d\n",
                                          ret);
-#endif
 
 #ifdef DEBUG
 			printf("Port %u, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",

@@ -11,9 +11,19 @@
 #include "debug.h"
 /* for num_devices_* */
 #include "config.h"
+/* for ETHER_CRC_LEN */
+#include <net/ethernet.h>
 /*----------------------------------------------------------------------------*/
 #define PS_CHUNK_SIZE 			64
 #define PS_SELECT_TIMEOUT 		100		/* in us */
+
+/*
+ * Ethernet frame overhead
+ */
+
+#define ETHER_IFG			12
+#define	ETHER_PREAMBLE			8
+#define ETHER_OVR			(ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
 /*----------------------------------------------------------------------------*/
 struct ps_device devices[MAX_DEVICES];
 /*----------------------------------------------------------------------------*/
@@ -159,7 +169,7 @@ psio_flush_pkts(struct mtcp_thread_context *ctx, int nif)
 		
 		for (i = 0; i < send_cnt; i++) {
 #ifdef NETSTAT
-			mtcp->nstat.tx_bytes[nif] += c_buf->info[start_idx].len + 24;
+			mtcp->nstat.tx_bytes[nif] += c_buf->info[start_idx].len + ETHER_OVR;
 #endif
 #if PKTDUMP
 			DumpPacket(mtcp, c_buf->buf + c_buf->info[start_idx].offset, 

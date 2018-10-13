@@ -142,7 +142,7 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 #endif /* !DISABLE_DPDK */
 /*----------------------------------------------------------------------------*/
 int
-SetInterfaceInfo(char* dev_name_list)
+SetNetEnv(char *dev_name_list, char *port_stat_list)
 {
 	int eidx = 0;
 	int i, j;
@@ -240,6 +240,7 @@ SetInterfaceInfo(char* dev_name_list)
 		mpz_t _cpumask;
 		char cpumaskbuf[32];
 		char mem_channels[8];
+		char socket_mem[8];
 		int ret;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
@@ -263,6 +264,15 @@ SetInterfaceInfo(char* dev_name_list)
 			exit(EXIT_FAILURE);
 		}
 		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
+
+		/* get socket memory threshold (in MB) */
+		sprintf(socket_mem, "%d",
+			(CONFIG.num_cores *
+			(CONFIG.rcvbuf_size +
+			 CONFIG.sndbuf_size) *
+			 CONFIG.max_concurrency) >> 19);
+
+		TRACE_DBG("socket_mem: %s\n", socket_mem);
 		/* initialize the rte env first, what a waste of implementation effort! */
 #ifdef CONTAINERIZED_SUPPORT
 		int argc = 8;
@@ -276,6 +286,7 @@ SetInterfaceInfo(char* dev_name_list)
 					    mem_channels,
 #ifdef CONTAINERIZED_SUPPORT
 					    "--socket-mem",
+					    //socket_mem,
 					    "1024",
 #endif
 					    "--proc-type=auto"
@@ -465,7 +476,7 @@ SetInterfaceInfo(char* dev_name_list)
 						    ETH_ALEN))
 						CONFIG.eths[eidx].ifindex = ifr.ifr_ifindex;
 #endif
-				CONFIG.eths[eidx].ifindex = eidx;//if_nametoindex(ifr.ifr_name);
+				CONFIG.eths[eidx].ifindex = eidx;
 				TRACE_INFO("Ifindex of interface %s is: %d\n",
 					   ifr.ifr_name, CONFIG.eths[eidx].ifindex);
 #if 0
@@ -478,7 +489,7 @@ SetInterfaceInfo(char* dev_name_list)
 						break;
 					}
 				}
-				devices_attached[num_devices_attached] = if_nametoindex(ifr.ifr_name);//CONFIG.eths[eidx].ifindex;
+				devices_attached[num_devices_attached] = if_nametoindex(ifr.ifr_name);
 				num_devices_attached++;
 				fprintf(stderr, "Total number of attached devices: %d\n",
 					num_devices_attached);
@@ -642,6 +653,10 @@ SetInterfaceInfo(char* dev_name_list)
 
 		/* the physic port index of the i-th port listed in the config file is j*/
 		CONFIG.nif_to_eidx[j] = i;
+
+		/* finally set the port stats option `on' */
+		if (strcmp(CONFIG.eths[i].dev_name, port_stat_list) == 0)
+			CONFIG.eths[i].stat_print = TRUE;
 	}
 
 	return 0;

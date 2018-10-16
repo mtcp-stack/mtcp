@@ -28,7 +28,21 @@
 static const char *route_file = 		"config/route.conf";
 static const char *arp_file = 			"config/arp.conf";
 struct mtcp_manager *g_mtcp[MAX_CPUS] = 	{NULL};
-struct mtcp_config CONFIG = 			{0};
+struct mtcp_config CONFIG = {
+	/* set default configuration */
+	.max_concurrency  =			10000,
+	.max_num_buffers  =			10000,
+	.rcvbuf_size	  =			-1,
+	.sndbuf_size	  =			-1,
+	.tcp_timeout	  =			TCP_TIMEOUT,
+	.tcp_timewait	  =			TCP_TIMEWAIT,
+	.num_mem_ch	  =			0,
+#ifdef ENABLE_ONVM
+	.onvm_inst	  =			(uint16_t) -1,
+	.onvm_dest	  =			(uint16_t) -1,
+	.onvm_serv	  =			(uint16_t) -1
+#endif
+};
 addr_pool_t ap[ETH_NUM] = 			{NULL};
 static char port_list[MAX_OPTLINE_LEN] = 	"";
 static char port_stat_list[MAX_OPTLINE_LEN] = 	"";
@@ -658,22 +672,8 @@ LoadConfiguration(const char *fname)
 		return -1;
 	}
 
-	/* set default configuration */
-	CONFIG.num_cores = 		num_cpus;
-	CONFIG.max_concurrency = 	10000;
-	CONFIG.max_num_buffers = 	10000;
-	CONFIG.rcvbuf_size = 		-1;
-	CONFIG.sndbuf_size = 		-1;
-	CONFIG.tcp_timeout = 		TCP_TIMEOUT;
-	CONFIG.tcp_timewait = 		TCP_TIMEWAIT;
-	CONFIG.num_mem_ch = 		0;
 #ifndef DISABLE_DPDK
 	mpz_init(CONFIG._cpumask);
-#endif
-#ifdef ENABLE_ONVM
-  	CONFIG.onvm_inst = 		(uint16_t) -1;
-  	CONFIG.onvm_dest = 		(uint16_t) -1;
-  	CONFIG.onvm_serv = 		(uint16_t) -1;
 #endif
 	while (1) {
 		char *p;

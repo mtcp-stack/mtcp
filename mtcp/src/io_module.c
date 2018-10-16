@@ -17,6 +17,8 @@
 /* for dpdk ethernet functions (get mac addresses) */
 #include <rte_ethdev.h>
 #include <dpdk_iface_common.h>
+/* for ceil func */
+#include <math.h>
 #endif
 /* for TRACE_* */
 #include "debug.h"
@@ -45,6 +47,13 @@
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK
 enum rte_proc_type_t eal_proc_type_detect(void);
+/**
+ * DPDK's RTE consumes some huge pages for internal bookkeeping.
+ * Therefore, it is not always safe to reserve the exact amount
+ * of pages for our stack (e.g. dividing requested mem, in MB, by
+ * (1<<20) would be insufficient). Hence, the following value.
+ */
+#define RTE_SOCKET_MEM_SHIFT		((1<<19)|(1<<18))
 #endif
 /*----------------------------------------------------------------------------*/
 #define ALL_STRING			"all"
@@ -264,31 +273,29 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 			exit(EXIT_FAILURE);
 		}
 		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
-
+		
 		/* get socket memory threshold (in MB) */
-		sprintf(socket_mem, "%d",
-			(CONFIG.num_cores *
-			(CONFIG.rcvbuf_size +
-			 CONFIG.sndbuf_size) *
-			 CONFIG.max_concurrency) >> 19);
-
+		sprintf(socket_mem, "%ld",
+			RTE_ALIGN_CEIL((unsigned long)ceil((CONFIG.num_cores *
+							    (CONFIG.rcvbuf_size +
+							     CONFIG.sndbuf_size +
+							     sizeof(struct tcp_stream) +
+							     sizeof(struct tcp_recv_vars) +
+							     sizeof(struct tcp_send_vars) +
+							     sizeof(struct fragment_ctx)) *
+							    CONFIG.max_concurrency)/RTE_SOCKET_MEM_SHIFT),
+				       RTE_CACHE_LINE_SIZE));
+		
 		TRACE_DBG("socket_mem: %s\n", socket_mem);
 		/* initialize the rte env first, what a waste of implementation effort! */
-#ifdef CONTAINERIZED_SUPPORT
 		int argc = 8;
-#else
-		int argc = 6;
-#endif
 		char *argv[RTE_ARGC_MAX] = {"",
 					    "-c",
 					    cpumaskbuf,
 					    "-n",
 					    mem_channels,
-#ifdef CONTAINERIZED_SUPPORT
 					    "--socket-mem",
-					    //socket_mem,
-					    "1024",
-#endif
+					    socket_mem,
 					    "--proc-type=auto"
 		};
 		probe_all_rte_devices(argv, &argc, dev_name_list);

@@ -134,9 +134,6 @@ struct arp_table
 /*----------------------------------------------------------------------------*/
 struct mtcp_config
 {
-	/* socket mode */
-	int8_t socket_mode;
-
 	/* network interface config */
 	struct eth_table *eths;
 	int *nif_to_eidx; // mapping physic port indexes to that of the configured port-list

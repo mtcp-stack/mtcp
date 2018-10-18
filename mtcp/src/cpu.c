@@ -23,7 +23,7 @@
 #define MAX_FILE_NAME 1024
 
 /*----------------------------------------------------------------------------*/
-int 
+inline int 
 GetNumCPUs() 
 {
 	return sysconf(_SC_NPROCESSORS_ONLN);

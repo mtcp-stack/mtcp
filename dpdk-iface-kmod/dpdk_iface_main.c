@@ -272,6 +272,11 @@ main(int argc, char **argv)
 		rte_eth_macaddr_get(ret, &di[ret].ports_eth_addr);
 		/* check port capabailties/info */
 		rte_eth_dev_info_get(ret, &di[ret].dev_details);
+		/* get numa socket location for future socket-mem field */
+		if ((di[ret].pd.numa_socket=rte_eth_dev_socket_id(ret)) == -1) {
+			fprintf(stderr, "Can't determine socket ID!\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	fprintf(stderr, "\033[32m done. \033[0m \n");

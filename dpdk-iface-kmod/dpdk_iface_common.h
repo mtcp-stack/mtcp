@@ -40,6 +40,7 @@ typedef struct PciDevice {
 		char ifname[IFNAMSIZ];
 	};
 	PciAddress pa;
+	int numa_socket;
 } PciDevice __attribute__((aligned(__BITS_PER_LONG)));
 /*--------------------------------------------------------------------------*/
 #endif /* __DPDK_IFACE_COMMON_H__ */

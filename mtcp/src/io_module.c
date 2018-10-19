@@ -97,11 +97,14 @@ GetNumQueues()
 #endif /* !PSIO */
 /*----------------------------------------------------------------------------*/
 #ifndef DISABLE_DPDK
-static void
+/**
+ * returns max numa ID while probing for rte devices
+ */
+static int
 probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 {
 	PciDevice pd;
-	int fd;
+	int fd, numa_id = -1;
 	static char end[] = "";
 	static const char delim[] = " \t";
 	static char *dev_tokenizer;
@@ -139,6 +142,7 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 			pd.pa.domain, pd.pa.bus, pd.pa.device,
 			pd.pa.function);
 		*argc += 2;
+		if (pd.numa_socket > numa_id) numa_id = pd.numa_socket;
 	loop_over:
 		dev_token = strtok_r(NULL, delim, &saveptr);
 	}
@@ -147,6 +151,8 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 	argv[*argc] = end;
 	close(fd);
 	free(dev_tokenizer);
+
+	return numa_id;
 }
 #endif /* !DISABLE_DPDK */
 /*----------------------------------------------------------------------------*/
@@ -247,12 +253,13 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;
 		mpz_t _cpumask;
-		char cpumaskbuf[32];
-		char mem_channels[8];
-		char socket_mem[8];
-		int ret;
+		char cpumaskbuf[32] = "";
+		char mem_channels[8] = "";
+		char socket_mem_str[32] = "";
+		int i, ret, socket_mem;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
+		/* STEP 1: first determine CPU mask */
 		mpz_init(_cpumask);
 
 		if (!mpz_cmp(_cpumask, CONFIG._cpumask)) {
@@ -265,7 +272,8 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 			gmp_sprintf(cpumaskbuf, "%ZX", CONFIG._cpumask);
 		
 		mpz_clear(_cpumask);
-		
+
+		/* STEP 2: determine memory channels per socket */
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {
 			TRACE_ERROR("DPDK module requires # of memory channels "
@@ -273,9 +281,10 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 			exit(EXIT_FAILURE);
 		}
 		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
-		
+
+		/* STEP 3: determine socket memory */
 		/* get socket memory threshold (in MB) */
-		sprintf(socket_mem, "%ld",
+		socket_mem = 
 			RTE_ALIGN_CEIL((unsigned long)ceil((CONFIG.num_cores *
 							    (CONFIG.rcvbuf_size +
 							     CONFIG.sndbuf_size +
@@ -284,10 +293,9 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 							     sizeof(struct tcp_send_vars) +
 							     sizeof(struct fragment_ctx)) *
 							    CONFIG.max_concurrency)/RTE_SOCKET_MEM_SHIFT),
-				       RTE_CACHE_LINE_SIZE));
+				       RTE_CACHE_LINE_SIZE);
 		
-		TRACE_DBG("socket_mem: %s\n", socket_mem);
-		/* initialize the rte env first, what a waste of implementation effort! */
+		/* initialize the rte env, what a waste of implementation effort! */
 		int argc = 8;
 		char *argv[RTE_ARGC_MAX] = {"",
 					    "-c",
@@ -295,11 +303,20 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 					    "-n",
 					    mem_channels,
 					    "--socket-mem",
-					    socket_mem,
+					    socket_mem_str,
 					    "--proc-type=auto"
 		};
-		probe_all_rte_devices(argv, &argc, dev_name_list);
+		ret = probe_all_rte_devices(argv, &argc, dev_name_list);
 
+		/* STEP 4: build up socket mem parameter */
+		sprintf(socket_mem_str, "%d", socket_mem);
+		char *smsptr = socket_mem_str + strlen(socket_mem_str);
+		for (i = 1; i < ret + 1; i++) {
+			sprintf(smsptr, ",%d", socket_mem);
+			smsptr += strlen(smsptr);
+		}
+		TRACE_DBG("socket_mem: %s\n", socket_mem_str);
+		
 		/*
 		 * re-set getopt extern variable optind.
 		 * this issue was a bitch to debug

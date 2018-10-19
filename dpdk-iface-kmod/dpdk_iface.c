@@ -188,7 +188,10 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					printk(KERN_INFO "%s: Interface %s copy to user failed!\n",
 					       THIS_MODULE->name, netdev->name);
 					ret = -1;
+					goto fail_pciaddr;
 				}
+				/* set numa locality */
+				adapter->numa_socket = pd.numa_socket;
 			}
 		}
 		break;
@@ -212,7 +215,12 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					ret = copy_to_user(&((PciDevice __user *)arg)->pa,
 							   &adapter->pa,
 							   sizeof(struct PciAddress));
-					return -ret;
+					if (ret) return -1;
+					ret = copy_to_user(&((PciDevice __user *)arg)->numa_socket,
+							   &adapter->numa_socket,
+							   sizeof(adapter->numa_socket));
+					if (ret) return -1;
+					return 0;
 				}
 				netdev = next_net_device(netdev);
 			}
@@ -227,7 +235,7 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 
 	return ret;
-
+ fail_pciaddr:
  fail_bdnumber:
 	unregister_netdev(netdev);
  fail_ioremap:

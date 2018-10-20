@@ -13,7 +13,7 @@
 #define IP_NEXT_PTR(iph) ((uint8_t *)iph + (iph->ihl << 2))
 /*----------------------------------------------------------------------------*/
 void 
-DumpICMPPacket(struct icmphdr *icmph, uint32_t saddr, uint32_t daddr);
+DumpICMPPacket(mtcp_manager_t mtcp, struct icmphdr *icmph, uint32_t saddr, uint32_t daddr);
 /*----------------------------------------------------------------------------*/
 static uint16_t
 ICMPChecksum(uint16_t *icmph, int len)
@@ -69,7 +69,7 @@ ICMPOutput(struct mtcp_manager *mtcp, uint32_t saddr, uint32_t daddr,
 		ICMPChecksum((uint16_t *)icmph, sizeof(struct icmphdr) + len);
 	
 #if DBGMSG
-	DumpICMPPacket(icmph, saddr, daddr);
+	DumpICMPPacket(mtcp, icmph, saddr, daddr);
 #endif
 	return 0;
 }
@@ -142,23 +142,23 @@ ProcessICMPPacket(mtcp_manager_t mtcp, struct iphdr *iph, int len)
 }
 /*----------------------------------------------------------------------------*/
 void 
-DumpICMPPacket(struct icmphdr *icmph, uint32_t saddr, uint32_t daddr)
+DumpICMPPacket(mtcp_manager_t mtcp, struct icmphdr *icmph, uint32_t saddr, uint32_t daddr)
 {
 	uint8_t *t;
 	
-	fprintf(stderr, "ICMP header: \n");
-	fprintf(stderr, "Type: %d, "
-		"Code: %d, ID: %d, Sequence: %d\n", 
-		icmph->icmp_type, icmph->icmp_code,
-		ntohs(ICMP_ECHO_GET_ID(icmph)), ntohs(ICMP_ECHO_GET_SEQ(icmph)));
+	thread_printf(mtcp, mtcp->log_fp, "ICMP header: \n");
+	thread_printf(mtcp, mtcp->log_fp, "Type: %d, "
+		      "Code: %d, ID: %d, Sequence: %d\n", 
+		      icmph->icmp_type, icmph->icmp_code,
+		      ntohs(ICMP_ECHO_GET_ID(icmph)), ntohs(ICMP_ECHO_GET_SEQ(icmph)));
 	
 	t = (uint8_t *)&saddr;
-	fprintf(stderr, "Sender IP: %u.%u.%u.%u\n",
-		t[0], t[1], t[2], t[3]);
+	thread_printf(mtcp, mtcp->log_fp, "Sender IP: %u.%u.%u.%u\n",
+		      t[0], t[1], t[2], t[3]);
 	
 	t = (uint8_t *)&daddr;
-	fprintf(stderr, "Target IP: %u.%u.%u.%u\n",
-		t[0], t[1], t[2], t[3]);
+	thread_printf(mtcp, mtcp->log_fp, "Target IP: %u.%u.%u.%u\n",
+		      t[0], t[1], t[2], t[3]);
 }
 /*----------------------------------------------------------------------------*/
 #undef IP_NEXT_PTR

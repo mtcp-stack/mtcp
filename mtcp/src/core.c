@@ -64,7 +64,11 @@ struct mtcp_thread_context *g_pctx[MAX_CPUS] = {0};
 struct log_thread_context *g_logctx[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 static pthread_t g_thread[MAX_CPUS] = {0};
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) ||		\
+	(STREAM) || (STATE) || (STAT) || (APP) || (EPOLL)	\
+	|| (DUMP_STREAM)
 static pthread_t log_thread[MAX_CPUS]  = {0};
+#endif
 /*----------------------------------------------------------------------------*/
 static sem_t g_init_sem[MAX_CPUS];
 static int running[MAX_CPUS] = {0};
@@ -1215,6 +1219,9 @@ mtcp_create_context(int cpu)
 		return NULL;
 	}
 	InitLogThreadContext(g_logctx[cpu], cpu);
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || \
+	(STREAM) || (STATE) || (STAT) || (APP) || \
+	(EPOLL) || (DUMP_STREAM)
 	if (pthread_create(&log_thread[cpu], 
 				NULL, ThreadLogMain, (void *)g_logctx[cpu])) {
 		perror("pthread_create");
@@ -1223,6 +1230,7 @@ mtcp_create_context(int cpu)
 		free(mctx);
 		return NULL;
 	}
+#endif
 #ifndef DISABLE_DPDK
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
@@ -1317,7 +1325,10 @@ mtcp_free_context(mctx_t mctx)
 	ret = write(log_ctx->pair_sp_fd, "F", 1);
 	assert(ret == 1);
 	UNUSED(ret);
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || (STREAM)\
+	|| (STATE) || (STAT) || (APP) || (EPOLL) || (DUMP_STREAM)
 	pthread_join(log_thread[ctx->cpu], NULL);
+#endif
 	fclose(mtcp->log_fp);
 	TRACE_LOG("Log thread %d joined.\n", mctx->cpu);
 

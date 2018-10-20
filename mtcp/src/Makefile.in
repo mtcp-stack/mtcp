@@ -24,6 +24,22 @@ GCC_OPT = -m64
 else
 GCC_OPT =
 endif
+
+#
+# DBGMSG      	= Enable macro to print all ingress icmp, ip & ip packets (in _log file)
+# DBGFUNC     	= Enable macro to print func trace as followed by an ingress packet (in _log file)
+# STREAM      	= Enable macro to print tcp_streams module operations (in _log file)
+# STATE       	= Enable macro to print change in tcp states (in _log file)
+# STAT        	= Not used
+# APP         	= Enable macro to print app-specific debug statements (in _log file)
+# EPOLL       	= Enable macro to print epoll-related operations (in _log file)
+# DUMP_STREAM 	= Enable macro to print tcp_streams (in _log file)
+# NETSTAT     	= Enable macro to print net stats
+# INFO        	= Enable macro to print general statements
+# DBGERR      	= Enable macro to print error statements
+# DBGCERR     	= Enable macro to print error statements
+#
+
 GCC_OPT += -Wall -fPIC -fgnu89-inline -Werror
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE -DTSTAT -DAPP -DEPOLL
 #DBG_OPT = -DDBGMSG -DDBGFUNC -DSTREAM -DSTATE

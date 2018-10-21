@@ -20,6 +20,7 @@
 #define EVENT_ECN        4
 
 void setup_ccp_connection(mtcp_manager_t mtcp);
+void setup_ccp_send_socket(mtcp_manager_t mtcp);
 void destroy_ccp_connection(mtcp_manager_t mtcp);
 void ccp_create(mtcp_manager_t mtcp, tcp_stream *stream);
 void ccp_cong_control(mtcp_manager_t mtcp, tcp_stream *stream, uint32_t ack, uint64_t bytes_delivered, uint64_t packets_delivered);

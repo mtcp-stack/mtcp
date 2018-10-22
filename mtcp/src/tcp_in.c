@@ -448,6 +448,8 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #endif
 		TRACE_LOSS("Updating snd_nxt from %u to %u\n", 
 				cur_stream->snd_nxt, ack_seq);
+		// fast retransmission exit: cwnd=ssthresh
+		cur_stream->sndvar->cwnd = cur_stream->sndvar->ssthresh;
 		cur_stream->snd_nxt = ack_seq;
 		if (sndvar->sndbuf->len == 0) {
 			RemoveFromSendList(mtcp, cur_stream);

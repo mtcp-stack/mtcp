@@ -298,6 +298,7 @@ EstimateRTT(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t mrtt)
 			rcvvar->srtt, TS_TO_MSEC((rcvvar->srtt) >> 3), rcvvar->mdev, 
 			rcvvar->mdev_max, rcvvar->rttvar, rcvvar->rtt_seq);
 }
+
 /*----------------------------------------------------------------------------*/
 static inline void
 ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts, 
@@ -384,16 +385,26 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		}
 	}
 	if (!dup) {
+		if (cur_stream->rcvvar->dup_acks >= 3) {
+			TRACE_DBG("passed dup_acks, ack=%u, snd_nxt=%u, last_ack=%u len=%u wl2=%u peer_wnd=%u right=%u\n", ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss, cur_stream->rcvvar->last_ack_seq-sndvar->iss, payloadlen, cur_stream->rcvvar->snd_wl2-sndvar->iss, sndvar->peer_wnd / sndvar->mss, right_wnd_edge - sndvar->iss);
+		}
 		cur_stream->rcvvar->dup_acks = 0;
 		cur_stream->rcvvar->last_ack_seq = ack_seq;
 	}
 
+		if(cur_stream->wait_for_acks) {
+			TRACE_DBG("got ack, but waiting to send... ack=%u, snd_next=%u cwnd=%u\n", ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss, sndvar->cwnd / sndvar->mss);
+		}
+
 	/* Fast retransmission */
 	if (dup && cur_stream->rcvvar->dup_acks == 3) {
 		TRACE_LOSS("Triple duplicated ACKs!! ack_seq: %u\n", ack_seq);
+		fprintf(stderr, "tridup ack %u (%u)!\n", ack_seq - cur_stream->sndvar->iss, ack_seq);
 		if (TCP_SEQ_LT(ack_seq, cur_stream->snd_nxt)) {
-			TRACE_LOSS("Reducing snd_nxt from %u to %u\n", 
-					cur_stream->snd_nxt, ack_seq);
+			TRACE_LOSS("Reducing snd_nxt from %u to %u\n",
+                                        cur_stream->snd_nxt-sndvar->iss,
+                                        ack_seq - cur_stream->sndvar->iss);
+
 #if RTM_STAT
 			sndvar->rstat.tdp_ack_cnt++;
 			sndvar->rstat.tdp_ack_bytes += (cur_stream->snd_nxt - ack_seq);
@@ -404,6 +415,8 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 						ack_seq, sndvar->snd_una);
 			}
 			cur_stream->snd_nxt = ack_seq;
+			cur_stream->wait_for_acks = TRUE;
+			cur_stream->seq_at_last_loss = ack_seq;
 		}
 
 		/* update congestion control variables */
@@ -413,8 +426,10 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			sndvar->ssthresh = 2 * sndvar->mss;
 		}
 		sndvar->cwnd = sndvar->ssthresh + 3 * sndvar->mss;
-		TRACE_CONG("Fast retransmission. cwnd: %u, ssthresh: %u\n", 
-				sndvar->cwnd, sndvar->ssthresh);
+
+		TRACE_CONG("fast retrans: cwnd = ssthresh(%u)+3*mss = %u\n",
+                                sndvar->ssthresh / sndvar->mss,
+                                sndvar->cwnd / sndvar->mss);
 
 		/* count number of retransmissions */
 		if (sndvar->nrtx < TCP_MAX_RTX) {
@@ -441,18 +456,25 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 
 #if RECOVERY_AFTER_LOSS
 	/* updating snd_nxt (when recovered from loss) */
-	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt)) {
+	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) || (cur_stream->wait_for_acks && TCP_SEQ_GT(ack_seq, cur_stream->seq_at_last_loss))) {
 #if RTM_STAT
 		sndvar->rstat.ack_upd_cnt++;
 		sndvar->rstat.ack_upd_bytes += (ack_seq - cur_stream->snd_nxt);
 #endif
-		TRACE_LOSS("Updating snd_nxt from %u to %u\n", 
-				cur_stream->snd_nxt, ack_seq);
 		// fast retransmission exit: cwnd=ssthresh
 		cur_stream->sndvar->cwnd = cur_stream->sndvar->ssthresh;
+
+		TRACE_LOSS("Updating snd_nxt from %u to %u\n", cur_stream->snd_nxt, ack_seq);
+		cur_stream->wait_for_acks = FALSE;
 		cur_stream->snd_nxt = ack_seq;
+		TRACE_DBG("Sending again..., ack_seq=%u sndlen=%u cwnd=%u\n",
+                        ack_seq-sndvar->iss,
+                        sndvar->sndbuf->len,
+                        sndvar->cwnd / sndvar->mss);
 		if (sndvar->sndbuf->len == 0) {
 			RemoveFromSendList(mtcp, cur_stream);
+		} else {
+			AddtoSendList(mtcp, cur_stream);
 		}
 	}
 #endif
@@ -799,6 +821,7 @@ Handle_TCP_ST_SYN_RCVD (mtcp_manager_t mtcp, uint32_t cur_ts,
 		prior_cwnd = sndvar->cwnd;
 		sndvar->cwnd = ((prior_cwnd == 1)? 
 				(sndvar->mss * 2): sndvar->mss);
+		TRACE_DBG("sync_recvd: updating cwnd from %u to %u\n", prior_cwnd, sndvar->cwnd);
 		
 		//UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 		sndvar->nrtx = 0;

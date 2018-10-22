@@ -182,10 +182,12 @@ typedef struct tcp_stream
 			sack_permit:1,		/* whether peer permits SACK */
 			control_list_waiting:1, 
 			have_reset:1,
-			is_external:1;		/* the peer node is locate outside of lan */
+			is_external:1,		/* the peer node is locate outside of lan */
+			wait_for_acks:1;	/* if true, the sender should wait for acks to catch up before sending again */
 	
 	uint32_t snd_nxt;		/* send next */
 	uint32_t rcv_nxt;		/* receive next */
+	uint32_t seq_at_last_loss;	/* the sequence number we left off at before we stopped at wait_for_acks (due to loss) */ 
 
 	struct tcp_recv_vars *rcvvar;
 	struct tcp_send_vars *sndvar;

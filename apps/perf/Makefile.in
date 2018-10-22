@@ -66,6 +66,11 @@ else
 	export HIDE=
 endif
 
+# LIBCCP
+LIBCCP=/home/frank/mtcp/mtcp/src/libccp
+LIBS += -L$(LIBCCP) -lccp
+INC += -I$(LIBCCP)
+
 
 all: client
 

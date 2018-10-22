@@ -486,7 +486,12 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 	}
 	
 	while (1) {
-		seq = cur_stream->snd_nxt;
+		if (sndvar->missing_seq) {
+			seq = sndvar->missing_seq;
+		} else {
+			seq = cur_stream->snd_nxt;
+		}
+		//seq = cur_stream->snd_nxt;
 		data = sndvar->sndbuf->head + (seq - sndvar->sndbuf->head_seq);
 		len = sndvar->sndbuf->len - (seq - sndvar->sndbuf->head_seq);
 
@@ -579,6 +584,9 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 			/* there is no available tx buf */
 			packets = -3;
 			goto out;
+		}
+		if (sndvar->missing_seq) {
+			sndvar->missing_seq = 0;
 		}
 		packets++;
 	}

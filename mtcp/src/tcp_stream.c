@@ -313,6 +313,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 
 	stream->snd_nxt = stream->sndvar->iss;
 	stream->sndvar->snd_una = stream->sndvar->iss;
+	stream->sndvar->missing_seq = 0;
 	stream->sndvar->snd_wnd = CONFIG.sndbuf_size;
 	stream->rcv_nxt = 0;
 	stream->rcvvar->rcv_wnd = TCP_INITIAL_WINDOW;

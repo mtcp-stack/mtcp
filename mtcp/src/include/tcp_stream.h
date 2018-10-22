@@ -113,6 +113,7 @@ struct tcp_send_vars
 	/* congestion control variables */
 	uint32_t cwnd;				/* congestion window */
 	uint32_t ssthresh;			/* slow start threshold */
+	uint32_t missing_seq;
 
 	/* timestamp */
 	uint32_t ts_lastack_sent;	/* last ack sent time */

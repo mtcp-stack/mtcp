@@ -62,8 +62,8 @@
 /*----------------------------------------------------------------------------*/
 /* Statistics */
 #ifdef NETSTAT
-#define NETSTAT_PERTHREAD	TRUE
-#define NETSTAT_TOTAL		TRUE
+#define NETSTAT_PERTHREAD		TRUE
+#define NETSTAT_TOTAL			TRUE
 #endif /* NETSTAT */
 #define RTM_STAT			FALSE
 /*----------------------------------------------------------------------------*/

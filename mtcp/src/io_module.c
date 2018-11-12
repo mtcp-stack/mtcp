@@ -296,14 +296,16 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 				       RTE_CACHE_LINE_SIZE);
 		
 		/* initialize the rte env, what a waste of implementation effort! */
-		int argc = 8;
+		int argc = 6;//8;
 		char *argv[RTE_ARGC_MAX] = {"",
 					    "-c",
 					    cpumaskbuf,
 					    "-n",
 					    mem_channels,
+#if 0
 					    "--socket-mem",
 					    socket_mem_str,
+#endif
 					    "--proc-type=auto"
 		};
 		ret = probe_all_rte_devices(argv, &argc, dev_name_list);

@@ -256,7 +256,8 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		char cpumaskbuf[32] = "";
 		char mem_channels[8] = "";
 		char socket_mem_str[32] = "";
-		int i, ret, socket_mem;
+		// int i;
+		int ret, socket_mem;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
 		/* STEP 1: first determine CPU mask */
@@ -310,15 +311,17 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		};
 		ret = probe_all_rte_devices(argv, &argc, dev_name_list);
 
+
 		/* STEP 4: build up socket mem parameter */
 		sprintf(socket_mem_str, "%d", socket_mem);
+#if 0
 		char *smsptr = socket_mem_str + strlen(socket_mem_str);
 		for (i = 1; i < ret + 1; i++) {
 			sprintf(smsptr, ",%d", socket_mem);
 			smsptr += strlen(smsptr);
 		}
 		TRACE_DBG("socket_mem: %s\n", socket_mem_str);
-		
+#endif
 		/*
 		 * re-set getopt extern variable optind.
 		 * this issue was a bitch to debug

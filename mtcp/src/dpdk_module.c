@@ -103,12 +103,15 @@ static struct rte_eth_conf port_conf = {
 	.rxmode = {
 		.mq_mode	= 	ETH_MQ_RX_RSS,
 		.max_rx_pkt_len = 	ETHER_MAX_LEN,
+//onvm is not yet support this dpdk version
+#ifndef ENABLE_ONVM
 		.offloads	=	(DEV_RX_OFFLOAD_CRC_STRIP |
 					 DEV_RX_OFFLOAD_CHECKSUM
 #ifdef ENABLELRO
 					 DEV_RX_OFFLOAD_TCP_LRO
 #endif
 					 ),
+#endif
 		.split_hdr_size = 	0,
 		.header_split   = 	0, /**< Header Split disabled */
 		.hw_ip_checksum = 	1, /**< IP checksum offload enabled */

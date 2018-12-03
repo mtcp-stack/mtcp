@@ -54,8 +54,10 @@ $(error "Please define RTE_TARGET environment variable")
 endif
 
 INC += -I@ONVMLIBPATH@/onvm_nflib
+INC += -I@ONVMLIBPATH@/lib
 INC += -DENABLE_ONVM
 LIBS += @ONVMLIBPATH@/onvm_nflib/$(RTE_TARGET)/libonvm.a
+LIBS += @ONVMLIBPATH@/lib/$(RTE_TARGET)/lib/libonvmhelper.a -lm
 endif
 
 ifeq ($V,) # no echo

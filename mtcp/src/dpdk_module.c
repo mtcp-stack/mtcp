@@ -32,6 +32,8 @@
 /* for ip defragging */
 #include <rte_ip_frag.h>
 #endif
+/* for ioctl funcs */
+#include <dpdk_iface_common.h>
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
@@ -185,7 +187,6 @@ struct dpdk_private_context {
 } __rte_cache_aligned;
 
 #ifdef ENABLE_STATS_IOCTL
-#define DEV_NAME				"/dev/dpdk-iface"
 /**
  * stats struct passed on from user space to the driver
  */
@@ -266,9 +267,9 @@ dpdk_init_handle(struct mtcp_thread_context *ctxt)
 #endif	/* !IP_DEFRAG */
 
 #ifdef ENABLE_STATS_IOCTL
-	dpc->fd = open(DEV_NAME, O_RDWR);
+	dpc->fd = open(DEV_PATH, O_RDWR);
 	if (dpc->fd == -1) {
-		TRACE_ERROR("Can't open " DEV_NAME " for context->cpu: %d! "
+		TRACE_ERROR("Can't open " DEV_PATH " for context->cpu: %d! "
 			    "Are you using mlx4/mlx5 driver?\n",
 			    ctxt->cpu);
 	}
@@ -340,7 +341,8 @@ dpdk_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 			ss.qid = ctxt->cpu;
 			ss.dev = portid;
 			/* pass the info now */
-			ioctl(dpc->fd, 0, &ss);
+			if (ioctl(dpc->fd, SEND_STATS, &ss) == -1)
+				TRACE_ERROR("Can't update iface stats!\n");
 			dpc->cur_ts = mtcp->cur_ts;
 			if (ctxt->cpu == 0)
 				rte_eth_stats_reset(portid);
@@ -623,7 +625,7 @@ dpdk_load_module(void)
 	/* for Ethernet flow control settings */
 	struct rte_eth_fc_conf fc_conf;
 	/* setting the rss key */
-	static const uint8_t key[] = {
+	static uint8_t key[] = {
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, /* 10 */
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, /* 20 */
 		0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, /* 30 */
@@ -632,7 +634,7 @@ dpdk_load_module(void)
 		0x05, 0x05  /* 60 - 8 */
 	};
 
-	port_conf.rx_adv_conf.rss_conf.rss_key = (uint8_t *)&key;
+	port_conf.rx_adv_conf.rss_conf.rss_key = (uint8_t *)key;
 	port_conf.rx_adv_conf.rss_conf.rss_key_len = sizeof(key);
 
 	if (!CONFIG.multi_process || (CONFIG.multi_process && CONFIG.multi_process_is_master)) {
@@ -728,13 +730,13 @@ dpdk_load_module(void)
 			memset(&fc_conf, 0, sizeof(fc_conf));
                         ret = rte_eth_dev_flow_ctrl_get(portid, &fc_conf);
 			if (ret != 0)
-                                rte_exit(EXIT_FAILURE, "Failed to get flow control info!\n");
+                                TRACE_INFO("Failed to get flow control info!\n");
 
 			/* and just disable the rx/tx flow control */
 			fc_conf.mode = RTE_FC_NONE;
 			ret = rte_eth_dev_flow_ctrl_set(portid, &fc_conf);
                         if (ret != 0)
-                                rte_exit(EXIT_FAILURE, "Failed to set flow control info!: errno: %d\n",
+                                TRACE_INFO("Failed to set flow control info!: errno: %d\n",
                                          ret);
 
 #ifdef DEBUG

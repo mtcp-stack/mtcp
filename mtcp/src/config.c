@@ -21,15 +21,31 @@
 /* for if_nametoindex */
 #include <net/if.h>
 
-#define MAX_ROUTE_ENTRY 64
-#define MAX_OPTLINE_LEN 1024
-#define ALL_STRING "all"
+#define MAX_ROUTE_ENTRY 			64
+#define MAX_OPTLINE_LEN 			1024
+#define ALL_STRING 				"all"
 
-static const char *route_file = "config/route.conf";
-static const char *arp_file = "config/arp.conf";
-struct mtcp_manager *g_mtcp[MAX_CPUS] = {NULL};
-struct mtcp_config CONFIG = {0};
-addr_pool_t ap[ETH_NUM] = {NULL};
+static const char *route_file = 		"config/route.conf";
+static const char *arp_file = 			"config/arp.conf";
+struct mtcp_manager *g_mtcp[MAX_CPUS] = 	{NULL};
+struct mtcp_config CONFIG = {
+	/* set default configuration */
+	.max_concurrency  =			10000,
+	.max_num_buffers  =			10000,
+	.rcvbuf_size	  =			-1,
+	.sndbuf_size	  =			-1,
+	.tcp_timeout	  =			TCP_TIMEOUT,
+	.tcp_timewait	  =			TCP_TIMEWAIT,
+	.num_mem_ch	  =			0,
+#ifdef ENABLE_ONVM
+	.onvm_inst	  =			(uint16_t) -1,
+	.onvm_dest	  =			(uint16_t) -1,
+	.onvm_serv	  =			(uint16_t) -1
+#endif
+};
+addr_pool_t ap[ETH_NUM] = 			{NULL};
+static char port_list[MAX_OPTLINE_LEN] = 	"";
+static char port_stat_list[MAX_OPTLINE_LEN] = 	"";
 /* total cpus detected in the mTCP stack*/
 int num_cpus;
 /* this should be equal to num_cpus */
@@ -475,14 +491,14 @@ LoadARPTable()
 			numEntry = GetIntValue(p + sizeof(ARP_ENTRY));
 			if (numEntry <= 0) {
 				fprintf(stderr, "Wrong entry in arp.conf: %s\n", p);
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 #if 0
 			CONFIG.arp.entry = (struct arp_entry *)
 				calloc(numEntry + MAX_ARPENTRY, sizeof(struct arp_entry));
 			if (CONFIG.arp.entry == NULL) {
 				fprintf(stderr, "Wrong entry in arp.conf: %s\n", p);
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 #endif
 			hasNumEntry = 1;
@@ -491,7 +507,7 @@ LoadARPTable()
 				fprintf(stderr, 
 						"Error in arp.conf: more entries than "
 						"are specifed, entry=%s\n", p);
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			EnrollARPTableEntry(p);
 			numEntry--;
@@ -519,6 +535,18 @@ SetMultiProcessSupport(char *multiprocess_details)
 	TRACE_CONFIG("Loading multi-process configuration: %d\n",
 		     CONFIG.multi_process);	
 	return 0;
+}
+/*----------------------------------------------------------------------------*/
+static inline void
+SaveInterfaceInfo(char *dev_name_list)
+{
+	strcpy(port_list, dev_name_list);
+}
+/*----------------------------------------------------------------------------*/
+static inline void
+SaveInterfaceStatList(char *dev_name_list)
+{
+	strcpy(port_stat_list, dev_name_list);
 }
 /*----------------------------------------------------------------------------*/
 static int 
@@ -556,6 +584,10 @@ ParseConfiguration(char *line)
 			return -1;
 		}
 		num_cpus = CONFIG.num_cores;
+	} else if (strcmp(p, "core_mask") == 0) {
+#ifndef DISABLE_DPDK
+		mpz_set_str(CONFIG._cpumask, q, 16);
+#endif
 	} else if (strcmp(p, "max_concurrency") == 0) {
 		CONFIG.max_concurrency = mystrtol(q, 10);
 		if (CONFIG.max_concurrency < 0) {
@@ -591,19 +623,12 @@ ParseConfiguration(char *line)
 			CONFIG.tcp_timewait = SEC_TO_USEC(CONFIG.tcp_timewait) / TIME_TICK;
 		}
 	} else if (strcmp(p, "stat_print") == 0) {
-		int i;
-
-		for (i = 0; i < CONFIG.eths_num; i++) {
-			if (strcmp(CONFIG.eths[i].dev_name, q) == 0) {
-				CONFIG.eths[i].stat_print = TRUE;
-			}
-		}
+		SaveInterfaceStatList(q);
 	} else if (strcmp(p, "port") == 0) {
-		if(strncmp(q, ALL_STRING, sizeof(ALL_STRING)) == 0) {
-			SetInterfaceInfo(q);
-		} else {
-			SetInterfaceInfo(line + strlen(p) + 1);
-		}
+		if(strncmp(q, ALL_STRING, sizeof(ALL_STRING)) == 0)
+			SaveInterfaceInfo(q);
+		else
+			SaveInterfaceInfo(line + strlen(p) + 1);
 	} else if (strcmp(p, "io") == 0) {
 		AssignIOModule(q);
 		if (CheckIOModuleAccessPermissions() == -1) {
@@ -647,19 +672,8 @@ LoadConfiguration(const char *fname)
 		return -1;
 	}
 
-	/* set default configuration */
-	CONFIG.num_cores = num_cpus;
-	CONFIG.max_concurrency = 10000;
-	CONFIG.max_num_buffers = 10000;
-	CONFIG.rcvbuf_size = -1;
-	CONFIG.sndbuf_size = -1;
-	CONFIG.tcp_timeout = TCP_TIMEOUT;
-	CONFIG.tcp_timewait = TCP_TIMEWAIT;
-	CONFIG.num_mem_ch = 0;
-#ifdef ENABLE_ONVM
-  	CONFIG.onvm_inst = (uint16_t) -1;
-  	CONFIG.onvm_dest = (uint16_t) -1;
-  	CONFIG.onvm_serv = (uint16_t) -1;
+#ifndef DISABLE_DPDK
+	mpz_init(CONFIG._cpumask);
 #endif
 	while (1) {
 		char *p;
@@ -699,6 +713,8 @@ LoadConfiguration(const char *fname)
 	/* if sndbuf & rcvbuf are not set, rcvbuf = sndbuf = 8192 */
 	if (CONFIG.rcvbuf_size == -1 && CONFIG.sndbuf_size == -1)
 		CONFIG.sndbuf_size = CONFIG.rcvbuf_size = 8192;
+	
+	return SetNetEnv(port_list, port_stat_list);
 	
 	return 0;
 }

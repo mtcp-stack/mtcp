@@ -72,7 +72,7 @@ typedef struct io_module_func {
 } io_module_func __attribute__((aligned(__WORDSIZE)));
 /*----------------------------------------------------------------------------*/
 /* set I/O module context */
-int SetInterfaceInfo(char *);
+int SetNetEnv(char *port_list, char *port_stat_list);
 
 /* retrive device-specific endian type */
 int FetchEndianType();

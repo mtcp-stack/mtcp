@@ -64,7 +64,11 @@ struct mtcp_thread_context *g_pctx[MAX_CPUS] = {0};
 struct log_thread_context *g_logctx[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 static pthread_t g_thread[MAX_CPUS] = {0};
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) ||		\
+	(STREAM) || (STATE) || (STAT) || (APP) || (EPOLL)	\
+	|| (DUMP_STREAM)
 static pthread_t log_thread[MAX_CPUS]  = {0};
+#endif
 /*----------------------------------------------------------------------------*/
 static sem_t g_init_sem[MAX_CPUS];
 static int running[MAX_CPUS] = {0};
@@ -1180,8 +1184,8 @@ mtcp_create_context(int cpu)
 
 	if (cpu >=  CONFIG.num_cores) {
 		TRACE_ERROR("Failed initialize new mtcp context. "
-					"Requested cpu id %d exceed the number of cores %d configured to use.\n",
-					cpu, CONFIG.num_cores);
+			    "Requested cpu id %d exceed the number of cores %d configured to use.\n",
+			    cpu, CONFIG.num_cores);
 		return NULL;
 	}
 
@@ -1215,6 +1219,9 @@ mtcp_create_context(int cpu)
 		return NULL;
 	}
 	InitLogThreadContext(g_logctx[cpu], cpu);
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || \
+	(STREAM) || (STATE) || (STAT) || (APP) || \
+	(EPOLL) || (DUMP_STREAM)
 	if (pthread_create(&log_thread[cpu], 
 				NULL, ThreadLogMain, (void *)g_logctx[cpu])) {
 		perror("pthread_create");
@@ -1223,13 +1230,14 @@ mtcp_create_context(int cpu)
 		free(mctx);
 		return NULL;
 	}
+#endif
 #ifndef DISABLE_DPDK
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
 		int master;
 		master = rte_get_master_lcore();
 		
-		if (master == cpu) {
+		if (master == whichCoreID(cpu)) {
 			lcore_config[master].ret = 0;
 			lcore_config[master].state = FINISHED;
 			
@@ -1239,7 +1247,7 @@ mtcp_create_context(int cpu)
 				return NULL;
 			}
 		} else
-			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, cpu);
+			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, whichCoreID(cpu));
 	} else
 #endif
 		{
@@ -1317,7 +1325,10 @@ mtcp_free_context(mctx_t mctx)
 	ret = write(log_ctx->pair_sp_fd, "F", 1);
 	assert(ret == 1);
 	UNUSED(ret);
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || (STREAM)\
+	|| (STATE) || (STAT) || (APP) || (EPOLL) || (DUMP_STREAM)
 	pthread_join(log_thread[ctx->cpu], NULL);
+#endif
 	fclose(mtcp->log_fp);
 	TRACE_LOG("Log thread %d joined.\n", mctx->cpu);
 
@@ -1553,6 +1564,9 @@ mtcp_destroy()
 	for (i = 0; i < CONFIG.eths_num; i++)
 		DestroyAddressPool(ap[i]);
 
+#ifndef DISABLE_DPDK
+	mpz_clear(CONFIG._cpumask);
+#endif
 	TRACE_INFO("All MTCP threads are joined.\n");
 }
 /*----------------------------------------------------------------------------*/

@@ -6,6 +6,9 @@
 #include <sys/time.h>
 #include <sys/queue.h>
 #include <pthread.h>
+#ifndef DISABLE_DPDK
+#include <gmp.h>
+#endif
 
 #include "memory_mgt.h"
 #include "tcp_ring_buffer.h"
@@ -39,32 +42,32 @@
 #define ETHERNET_HEADER_LEN		14	// sizeof(struct ethhdr)
 #define IP_HEADER_LEN			20	// sizeof(struct iphdr)
 #define TCP_HEADER_LEN			20	// sizeof(struct tcphdr)
-#define TOTAL_TCP_HEADER_LEN	54	// total header length
+#define TOTAL_TCP_HEADER_LEN		54	// total header length
 
 /* configrations */
-#define BACKLOG_SIZE (10*1024)
-#define MAX_PKT_SIZE (2*1024)
-#define ETH_NUM 4
+#define BACKLOG_SIZE 			(10*1024)
+#define MAX_PKT_SIZE 			(2*1024)
+#define ETH_NUM 			MAX_DEVICES
 
-#define TCP_OPT_TIMESTAMP_ENABLED   TRUE	/* enabled for rtt measure */
-#define TCP_OPT_SACK_ENABLED        FALSE	/* not implemented */
+#define TCP_OPT_TIMESTAMP_ENABLED   	TRUE	/* enabled for rtt measure */
+#define TCP_OPT_SACK_ENABLED        	FALSE	/* not implemented */
 
-#define LOCK_STREAM_QUEUE	FALSE
-#define USE_SPIN_LOCK		TRUE
-#define INTR_SLEEPING_MTCP	TRUE
-#define PROMISCUOUS_MODE	TRUE
+#define LOCK_STREAM_QUEUE		FALSE
+#define USE_SPIN_LOCK			TRUE
+#define INTR_SLEEPING_MTCP		TRUE
+#define PROMISCUOUS_MODE		TRUE
 
 /* blocking api became obsolete */
-#define BLOCKING_SUPPORT	FALSE
+#define BLOCKING_SUPPORT		FALSE
 
 #ifndef MAX_CPUS
-#define MAX_CPUS		16
+#define MAX_CPUS			16
 #endif
 /*----------------------------------------------------------------------------*/
 /* Statistics */
 #ifdef NETSTAT
-#define NETSTAT_PERTHREAD	TRUE
-#define NETSTAT_TOTAL		TRUE
+#define NETSTAT_PERTHREAD		TRUE
+#define NETSTAT_TOTAL			TRUE
 #endif /* NETSTAT */
 #define RTM_STAT			FALSE
 /*----------------------------------------------------------------------------*/
@@ -135,9 +138,6 @@ struct arp_table
 /*----------------------------------------------------------------------------*/
 struct mtcp_config
 {
-	/* socket mode */
-	int8_t socket_mode;
-
 	/* network interface config */
 	struct eth_table *eths;
 	int *nif_to_eidx; // mapping physic port indexes to that of the configured port-list
@@ -154,6 +154,9 @@ struct mtcp_config
 	int num_cores;
 	int num_mem_ch;
 	int max_concurrency;
+#ifndef DISABLE_DPDK
+	mpz_t _cpumask;
+#endif
 
 	int max_num_buffers;
 	int rcvbuf_size;

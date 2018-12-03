@@ -33,6 +33,7 @@
 /*--------------------------------------------------------------------------*/
 struct stats_struct sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0, 0, 0, 0}}};
 struct stats_struct old_sarrays[MAX_DEVICES][MAX_QID] = {{{0, 0, 0, 0, 0, 0, 0, 0, 0}}};
+static int major_no = -1;
 /*--------------------------------------------------------------------------*/
 static int
 update_stats(struct stats_struct *stats)
@@ -123,6 +124,7 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct net_device *netdev;
 	struct stats_struct ss;	
 	struct net_adapter *adapter = NULL;
+	struct PciDevice pd;
 
 	switch (cmd) {
 	case SEND_STATS:
@@ -134,8 +136,11 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = update_stats(&ss);
 		break;
 	case CREATE_IFACE:
+		ret = copy_from_user(&pd,
+				     (PciDevice __user *)arg,
+				     sizeof(PciDevice));
 		ret = copy_from_user(mac_addr,
-				     (unsigned char __user *)arg,
+				     (unsigned char __user *)pd.ports_eth_addr,
 				     ETH_ALEN);
 		if (!ret) {
 			/* first check whether the entry does not exist */
@@ -174,14 +179,55 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				       THIS_MODULE->name, adapter->bd_number);
 				/* reset nstats */
 				memset(&adapter->nstats, 0, sizeof(struct net_device_stats));
-				ret = 0;
+				/* set 'fake' pci address */
+				memcpy(&adapter->pa, &pd.pa, sizeof(struct PciAddress));
+				ret = copy_to_user((unsigned char __user *)arg,
+						   netdev->name,
+						   IFNAMSIZ);
+				if (ret) {
+					printk(KERN_INFO "%s: Interface %s copy to user failed!\n",
+					       THIS_MODULE->name, netdev->name);
+					ret = -1;
+					goto fail_pciaddr;
+				}
+				/* set numa locality */
+				adapter->numa_socket = pd.numa_socket;
 			}
 		}
 		break;
 	case CLEAR_IFACE:
 		clear_all_netdevices();
 		break;
-		
+
+	case FETCH_PCI_ADDRESS:
+		ret = copy_from_user(&pd,
+				     (PciDevice __user *)arg,
+				     sizeof(PciDevice));
+		if (!ret) {
+			read_lock(&dev_base_lock);
+			netdev = first_net_device(&init_net);
+			while (netdev) {
+				if (strcmp(netdev->name, pd.ifname) == 0) {
+					read_unlock(&dev_base_lock);
+					printk(KERN_INFO "%s: Passing PCI info of %s to user\n",
+					       THIS_MODULE->name, pd.ifname);
+					adapter = netdev_priv(netdev);
+					ret = copy_to_user(&((PciDevice __user *)arg)->pa,
+							   &adapter->pa,
+							   sizeof(struct PciAddress));
+					if (ret) return -1;
+					ret = copy_to_user(&((PciDevice __user *)arg)->numa_socket,
+							   &adapter->numa_socket,
+							   sizeof(adapter->numa_socket));
+					if (ret) return -1;
+					return 0;
+				}
+				netdev = next_net_device(netdev);
+			}
+			read_unlock(&dev_base_lock);
+			ret = -1;
+		}
+		break;
 	default:
 		ret = -ENOTTY;
 		break;
@@ -189,7 +235,7 @@ igb_net_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 
 	return ret;
-
+ fail_pciaddr:
  fail_bdnumber:
 	unregister_netdev(netdev);
  fail_ioremap:
@@ -208,7 +254,7 @@ iface_pci_init_module(void)
 {
 	int ret;
 
-	ret = register_chrdev(MAJOR_NO /* MAJOR */,
+	ret = register_chrdev(0 /* MAJOR */,
 			      DEV_NAME /*NAME*/,
 			      &igb_net_fops);
 	if (ret < 0) {
@@ -216,6 +262,12 @@ iface_pci_init_module(void)
 		       THIS_MODULE->name);
 		return ret;
 	}
+
+	printk(KERN_INFO "%s: Loaded\n",
+	       THIS_MODULE->name);
+
+	/* record major number */
+	major_no = ret;
 	
 	return 0;
 }
@@ -224,7 +276,7 @@ static void __exit
 iface_pci_exit_module(void)
 {
 	clear_all_netdevices();
-	unregister_chrdev(MAJOR_NO, DEV_NAME);
+	unregister_chrdev(major_no, DEV_NAME);
 }
 /*--------------------------------------------------------------------------*/
 module_init(iface_pci_init_module);

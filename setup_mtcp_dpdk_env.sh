@@ -29,7 +29,11 @@ else
 fi
 
 # Compile dpdk and configure system
-bash $RTE_SDK/usertools/dpdk-setup.sh
+if [ -f $RTE_SDK/usertools/dpdk-setup.sh ]; then
+    bash $RTE_SDK/usertools/dpdk-setup.sh
+else
+    bash $RTE_SDK/tools/setup.sh
+fi
 
 # Print the user message
 cd $RTE_SDK

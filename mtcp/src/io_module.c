@@ -13,8 +13,12 @@
 /* for ioctl */
 #include <sys/ioctl.h>
 #ifndef DISABLE_DPDK
+#define RTE_ARGC_MAX		(RTE_MAX_ETHPORTS << 1) + 9
 /* for dpdk ethernet functions (get mac addresses) */
 #include <rte_ethdev.h>
+#include <dpdk_iface_common.h>
+/* for ceil func */
+#include <math.h>
 #endif
 /* for TRACE_* */
 #include "debug.h"
@@ -43,6 +47,13 @@
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK
 enum rte_proc_type_t eal_proc_type_detect(void);
+/**
+ * DPDK's RTE consumes some huge pages for internal bookkeeping.
+ * Therefore, it is not always safe to reserve the exact amount
+ * of pages for our stack (e.g. dividing requested mem, in MB, by
+ * (1<<20) would be insufficient). Hence, the following value.
+ */
+#define RTE_SOCKET_MEM_SHIFT		((1<<19)|(1<<18))
 #endif
 /*----------------------------------------------------------------------------*/
 #define ALL_STRING			"all"
@@ -85,8 +96,68 @@ GetNumQueues()
 }
 #endif /* !PSIO */
 /*----------------------------------------------------------------------------*/
+#ifndef DISABLE_DPDK
+/**
+ * returns max numa ID while probing for rte devices
+ */
+static int
+probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
+{
+	PciDevice pd;
+	int fd, numa_id = -1;
+	static char end[] = "";
+	static const char delim[] = " \t";
+	static char *dev_tokenizer;
+	char *dev_token, *saveptr;
+
+	dev_tokenizer = strdup(dev_name_list);
+	if (dev_tokenizer == NULL) {
+		TRACE_ERROR("Can't allocate memory for dev_tokenizer!\n");
+		exit(EXIT_FAILURE);
+	}
+	fd = open(DEV_PATH, O_RDONLY);
+	if (fd == -1) {
+		TRACE_ERROR("Error opening dpdk-face!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	dev_token = strtok_r(dev_tokenizer, delim, &saveptr);
+	while (dev_token != NULL) {
+		strcpy(pd.ifname, dev_token);
+		if (ioctl(fd, FETCH_PCI_ADDRESS, &pd) == -1) {
+			TRACE_DBG("Could not find pci info on dpdk "
+				  "device: %s. Is it a dpdk-attached "
+				  "interface?\n", dev_token);
+			goto loop_over;
+		}
+		argv[*argc] = strdup("-w");
+		argv[*argc + 1] = calloc(PCI_LENGTH, 1);
+		if (argv[*argc] == NULL ||
+		    argv[*argc + 1] == NULL) {
+			TRACE_ERROR("Memory allocation error!\n");
+			exit(EXIT_FAILURE);
+		}
+		sprintf(argv[*argc + 1], PCI_DOM":"PCI_BUS":"
+			PCI_DEVICE"."PCI_FUNC,
+			pd.pa.domain, pd.pa.bus, pd.pa.device,
+			pd.pa.function);
+		*argc += 2;
+		if (pd.numa_socket > numa_id) numa_id = pd.numa_socket;
+	loop_over:
+		dev_token = strtok_r(NULL, delim, &saveptr);
+	}
+
+	/* add the terminating "" sequence */
+	argv[*argc] = end;
+	close(fd);
+	free(dev_tokenizer);
+
+	return numa_id;
+}
+#endif /* !DISABLE_DPDK */
+/*----------------------------------------------------------------------------*/
 int
-SetInterfaceInfo(char* dev_name_list)
+SetNetEnv(char *dev_name_list, char *port_stat_list)
 {
 	int eidx = 0;
 	int i, j;
@@ -182,20 +253,28 @@ SetInterfaceInfo(char* dev_name_list)
 #ifndef DISABLE_DPDK
 		int cpu = CONFIG.num_cores;
 		mpz_t _cpumask;
-		char cpumaskbuf[30];
-		char mem_channels[5];
-		int ret;
+		char cpumaskbuf[32] = "";
+		char mem_channels[8] = "";
+		char socket_mem_str[32] = "";
+		// int i;
+		int ret, socket_mem;
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
 
+		/* STEP 1: first determine CPU mask */
 		mpz_init(_cpumask);
 
-		/* get the cpu mask */
-		for (ret = 0; ret < cpu; ret++)
-			mpz_setbit(_cpumask, ret);
-		gmp_sprintf(cpumaskbuf, "%ZX", _cpumask);
-
-		mpz_clear(_cpumask);
+		if (!mpz_cmp(_cpumask, CONFIG._cpumask)) {
+			/* get the cpu mask */
+			for (ret = 0; ret < cpu; ret++)
+				mpz_setbit(_cpumask, ret);
+			
+			gmp_sprintf(cpumaskbuf, "%ZX", _cpumask);
+		} else
+			gmp_sprintf(cpumaskbuf, "%ZX", CONFIG._cpumask);
 		
+		mpz_clear(_cpumask);
+
+		/* STEP 2: determine memory channels per socket */
 		/* get the mem channels per socket */
 		if (CONFIG.num_mem_ch == 0) {
 			TRACE_ERROR("DPDK module requires # of memory channels "
@@ -203,18 +282,46 @@ SetInterfaceInfo(char* dev_name_list)
 			exit(EXIT_FAILURE);
 		}
 		sprintf(mem_channels, "%d", CONFIG.num_mem_ch);
-		
-		/* initialize the rte env first, what a waste of implementation effort!  */
-		char *argv[] = {"",
-				"-c",
-				cpumaskbuf,
-				"-n",
-				mem_channels,
-				"--proc-type=auto",
-				""
-		};
-		const int argc = 6;
 
+		/* STEP 3: determine socket memory */
+		/* get socket memory threshold (in MB) */
+		socket_mem = 
+			RTE_ALIGN_CEIL((unsigned long)ceil((CONFIG.num_cores *
+							    (CONFIG.rcvbuf_size +
+							     CONFIG.sndbuf_size +
+							     sizeof(struct tcp_stream) +
+							     sizeof(struct tcp_recv_vars) +
+							     sizeof(struct tcp_send_vars) +
+							     sizeof(struct fragment_ctx)) *
+							    CONFIG.max_concurrency)/RTE_SOCKET_MEM_SHIFT),
+				       RTE_CACHE_LINE_SIZE);
+		
+		/* initialize the rte env, what a waste of implementation effort! */
+		int argc = 6;//8;
+		char *argv[RTE_ARGC_MAX] = {"",
+					    "-c",
+					    cpumaskbuf,
+					    "-n",
+					    mem_channels,
+#if 0
+					    "--socket-mem",
+					    socket_mem_str,
+#endif
+					    "--proc-type=auto"
+		};
+		ret = probe_all_rte_devices(argv, &argc, dev_name_list);
+
+
+		/* STEP 4: build up socket mem parameter */
+		sprintf(socket_mem_str, "%d", socket_mem);
+#if 0
+		char *smsptr = socket_mem_str + strlen(socket_mem_str);
+		for (i = 1; i < ret + 1; i++) {
+			sprintf(smsptr, ",%d", socket_mem);
+			smsptr += strlen(smsptr);
+		}
+		TRACE_DBG("socket_mem: %s\n", socket_mem_str);
+#endif
 		/*
 		 * re-set getopt extern variable optind.
 		 * this issue was a bitch to debug
@@ -228,12 +335,15 @@ SetInterfaceInfo(char* dev_name_list)
 
 		/* initialize the dpdk eal env */
 		ret = rte_eal_init(argc, argv);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Invalid EAL args!\n");
+		if (ret < 0) {
+			TRACE_ERROR("Invalid EAL args!\n");
+			exit(EXIT_FAILURE);
+		}
 		/* give me the count of 'detected' ethernet ports */
 		num_devices = rte_eth_dev_count();
 		if (num_devices == 0) {
-			rte_exit(EXIT_FAILURE, "No Ethernet port!\n");
+			TRACE_ERROR("No Ethernet port!\n");
+			exit(EXIT_FAILURE);
 		}
 
 		/* get mac addr entries of 'detected' dpdk ports */
@@ -314,7 +424,24 @@ SetInterfaceInfo(char* dev_name_list)
 		} while (iter_if != NULL);
 
 		freeifaddrs(ifap);
-
+#if 0
+		/*
+		 * XXX: It seems that there is a bug in the RTE SDK.
+		 * The dynamically allocated rte_argv params are left 
+		 * as dangling pointers. Freeing them causes program
+		 * to crash.
+		 */
+		
+		/* free up all resources */
+		for (; rte_argc >= 9; rte_argc--) {
+			if (rte_argv[rte_argc] != NULL) {
+				fprintf(stderr, "Cleaning up rte_argv[%d]: %s (%p)\n",
+					rte_argc, rte_argv[rte_argc], rte_argv[rte_argc]);
+				free(rte_argv[rte_argc]);
+				rte_argv[rte_argc] = NULL;
+			}
+		}
+#endif
 		/* check if process is primary or secondary */
 		CONFIG.multi_process_is_master = (eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
 			1 : 0;
@@ -378,7 +505,7 @@ SetInterfaceInfo(char* dev_name_list)
 						    ETH_ALEN))
 						CONFIG.eths[eidx].ifindex = ifr.ifr_ifindex;
 #endif
-				CONFIG.eths[eidx].ifindex = eidx;//if_nametoindex(ifr.ifr_name);
+				CONFIG.eths[eidx].ifindex = eidx;
 				TRACE_INFO("Ifindex of interface %s is: %d\n",
 					   ifr.ifr_name, CONFIG.eths[eidx].ifindex);
 #if 0
@@ -391,7 +518,7 @@ SetInterfaceInfo(char* dev_name_list)
 						break;
 					}
 				}
-				devices_attached[num_devices_attached] = if_nametoindex(ifr.ifr_name);//CONFIG.eths[eidx].ifindex;
+				devices_attached[num_devices_attached] = if_nametoindex(ifr.ifr_name);
 				num_devices_attached++;
 				fprintf(stderr, "Total number of attached devices: %d\n",
 					num_devices_attached);
@@ -407,8 +534,8 @@ SetInterfaceInfo(char* dev_name_list)
 #ifdef ENABLE_ONVM
 		int cpu = CONFIG.num_cores;
 		mpz_t cpumask;
-		char cpumaskbuf[30];
-		char mem_channels[5];
+		char cpumaskbuf[32];
+		char mem_channels[8];
 		char service[6];
 		char instance[6];
 		int ret;
@@ -461,12 +588,15 @@ SetInterfaceInfo(char* dev_name_list)
 
 		/* initialize the dpdk eal env */
 		ret = onvm_nflib_init(argc, argv, "mtcp_nf", &CONFIG.nf_info);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Invalid EAL args!\n");
+		if (ret < 0) {
+			TRACE_ERROR("Invalid EAL args!\n");
+			exit(EXIT_FAILURE);
+		}
 		/* give me the count of 'detected' ethernet ports */
 		num_devices = ports->num_ports;
 		if (num_devices == 0) {
-			rte_exit(EXIT_FAILURE, "No Ethernet port!\n");
+			TRACE_ERROR("No Ethernet port!\n");
+			exit(EXIT_FAILURE);
 		}
 
 		num_queues = MIN(CONFIG.num_cores, MAX_CPUS);
@@ -552,6 +682,10 @@ SetInterfaceInfo(char* dev_name_list)
 
 		/* the physic port index of the i-th port listed in the config file is j*/
 		CONFIG.nif_to_eidx[j] = i;
+
+		/* finally set the port stats option `on' */
+		if (strcmp(CONFIG.eths[i].dev_name, port_stat_list) == 0)
+			CONFIG.eths[i].stat_print = TRUE;
 	}
 
 	return 0;

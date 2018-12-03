@@ -35,10 +35,6 @@ PrintInterfaceInfo();
 void 
 PrintRoutingTable();
 
-/* set socket modes */
-int
-SetSocketMode(int8_t socket_mode);
-
 /* fetch mask from prefix */
 uint32_t 
 MaskFromPrefix(int prefix);

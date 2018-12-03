@@ -77,7 +77,7 @@ static int flows[MAX_CPUS];
 static int flowcnt = 0;
 static int concurrency;
 static int max_fds;
-static int response_size = 0;
+static uint64_t response_size = 0;
 /*----------------------------------------------------------------------------*/
 struct wget_stat
 {
@@ -292,10 +292,10 @@ DownloadComplete(thread_context_t ctx, int sockid, struct wget_vars *wv)
 	ctx->stat.completes++;
 	if (response_size == 0) {
 		response_size = wv->recv;
-		fprintf(stderr, "Response size set to %d\n", response_size);
+		fprintf(stderr, "Response size set to %lu\n", response_size);
 	} else {
 		if (wv->recv != response_size) {
-			fprintf(stderr, "Response size mismatch! mine: %ld, theirs: %d\n", 
+			fprintf(stderr, "Response size mismatch! mine: %lu, theirs: %lu\n", 
 					wv->recv, response_size);
 		}
 	}

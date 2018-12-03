@@ -16,12 +16,14 @@
 #include <rte_eal.h>
 #include <rte_launch.h>
 #include <rte_lcore.h>
+#include <gmp.h>
+#include <mtcp.h>
 #endif
 
 #define MAX_FILE_NAME 1024
 
 /*----------------------------------------------------------------------------*/
-int 
+inline int 
 GetNumCPUs() 
 {
 	return sysconf(_SC_NPROCESSORS_ONLN);
@@ -33,6 +35,27 @@ Gettid()
 	return syscall(__NR_gettid);
 }
 /*----------------------------------------------------------------------------*/
+inline int
+whichCoreID(int thread_no)
+{
+#ifndef DISABLE_DPDK
+	int i, cpu_id;
+	if (mpz_get_ui(CONFIG._cpumask) == 0)
+		return thread_no;
+	else {
+		int limit =  mpz_popcount(CONFIG._cpumask);
+		
+		for (cpu_id = 0, i = 0; i < limit; cpu_id++)
+			if (mpz_tstbit(CONFIG._cpumask, cpu_id)) {
+				if (thread_no == i)
+					return cpu_id;
+				i++;
+			}
+	}
+#endif
+	return thread_no;
+}
+/*----------------------------------------------------------------------------*/
 int 
 mtcp_core_affinitize(int cpu)
 {
@@ -42,6 +65,8 @@ mtcp_core_affinitize(int cpu)
 
 	n = GetNumCPUs();
 
+	cpu = whichCoreID(cpu);
+	
 	if (cpu < 0 || cpu >= (int) n) {
 		errno = -EINVAL;
 		return -1;

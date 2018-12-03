@@ -14,6 +14,8 @@
 #include "netmap_user.h"
 /* for poll */
 #include <sys/poll.h>
+/* for ETHER_CRC_LEN */
+#include <net/ethernet.h>
 /*----------------------------------------------------------------------------*/
 #define MAX_PKT_BURST			64
 #define ETHERNET_FRAME_SIZE		1514
@@ -22,6 +24,14 @@
 #define IDLE_POLL_WAIT			1 /* msecs */
 #define IDLE_POLL_COUNT			10
 //#define CONST_POLLING			1
+
+/*
+ * Ethernet frame overhead
+ */
+
+#define ETHER_IFG			12
+#define	ETHER_PREAMBLE			8
+#define ETHER_OVR			(ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
 /*----------------------------------------------------------------------------*/
 
 struct netmap_private_context {
@@ -115,7 +125,7 @@ netmap_send_pkts(struct mtcp_thread_context *ctxt, int nif)
 
 #ifdef NETSTAT
 	mtcp->nstat.tx_packets[nif]++;
-	mtcp->nstat.tx_bytes[nif] += pkt_size + 24;
+	mtcp->nstat.tx_bytes[nif] += pkt_size + ETHER_OVR;
 #endif
 	
  tx_again:

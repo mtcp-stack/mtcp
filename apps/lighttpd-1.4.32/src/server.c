@@ -1595,16 +1595,13 @@ main(int argc, char **argv) {
 	 */
 	mtcp_getconf(&mcfg);
 	mcfg.num_cores = cpus;
+	mcfg.max_concurrency = mcfg.max_num_buffers = srv->max_conns;
 	mtcp_setconf(&mcfg);
 	/* initialize the mtcp context */
 	if (mtcp_init("mtcp.conf")) {
 		fprintf(stderr, "Failed to initialize mtcp\n");
 		goto clean_up;
 	}
-
-	mtcp_getconf(&mcfg);
-	mcfg.max_concurrency = mcfg.max_num_buffers = srv_states[0]->max_conns;
-	mtcp_setconf(&mcfg);
 
 	/* register SIGINT signal handler */
 	mtcp_register_signal(SIGINT, signal_handler);
@@ -1619,6 +1616,7 @@ main(int argc, char **argv) {
 				   start_server, (void *)srv_states[i])) {
 		  goto clean_up;
 		}
+		sleep(1);
 	}
 
 	/*

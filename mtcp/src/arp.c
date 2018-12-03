@@ -59,7 +59,7 @@ struct arp_manager
 struct arp_manager g_arpm;
 /*----------------------------------------------------------------------------*/
 void 
-DumpARPPacket(struct arphdr *arph);
+DumpARPPacket(mtcp_manager_t mtcp, struct arphdr *arph);
 /*----------------------------------------------------------------------------*/
 int 
 InitARPTable()
@@ -161,7 +161,7 @@ ARPOutput(struct mtcp_manager *mtcp, int nif, int opcode,
 	memset(arph->pad, 0, ARP_PAD_LEN);
 
 #if DBGMSG
-	DumpARPPacket(arph);
+	DumpARPPacket(mtcp, arph);
 #endif
 
 	return 0;
@@ -285,7 +285,7 @@ ProcessARPPacket(mtcp_manager_t mtcp, uint32_t cur_ts,
 		return TRUE;
 	
 #if DBGMSG
-	DumpARPPacket(arph);
+	DumpARPPacket(mtcp, arph);
 #endif
 
 	switch (ntohs(arph->ar_op)) {
@@ -357,26 +357,26 @@ PrintARPTable()
 }
 /*----------------------------------------------------------------------------*/
 void 
-DumpARPPacket(struct arphdr *arph)
+DumpARPPacket(mtcp_manager_t mtcp, struct arphdr *arph)
 {
 	uint8_t *t;
 
-	fprintf(stderr, "ARP header: \n");
-	fprintf(stderr, "Hardware type: %d (len: %d), "
-			"protocol type: %d (len: %d), opcode: %d\n", 
-			ntohs(arph->ar_hrd), arph->ar_hln, 
-			ntohs(arph->ar_pro), arph->ar_pln, ntohs(arph->ar_op));
+	thread_printf(mtcp, mtcp->log_fp, "ARP header: \n");
+	thread_printf(mtcp, mtcp->log_fp, "Hardware type: %d (len: %d), "
+		      "protocol type: %d (len: %d), opcode: %d\n", 
+		      ntohs(arph->ar_hrd), arph->ar_hln, 
+		      ntohs(arph->ar_pro), arph->ar_pln, ntohs(arph->ar_op));
 	t = (uint8_t *)&arph->ar_sip;
-	fprintf(stderr, "Sender IP: %u.%u.%u.%u, "
-			"haddr: %02X:%02X:%02X:%02X:%02X:%02X\n", 
-			t[0], t[1], t[2], t[3], 
-			arph->ar_sha[0], arph->ar_sha[1], arph->ar_sha[2], 
-			arph->ar_sha[3], arph->ar_sha[4], arph->ar_sha[5]);
+	thread_printf(mtcp, mtcp->log_fp, "Sender IP: %u.%u.%u.%u, "
+		      "haddr: %02X:%02X:%02X:%02X:%02X:%02X\n", 
+		      t[0], t[1], t[2], t[3], 
+		      arph->ar_sha[0], arph->ar_sha[1], arph->ar_sha[2], 
+		      arph->ar_sha[3], arph->ar_sha[4], arph->ar_sha[5]);
 	t = (uint8_t *)&arph->ar_tip;
-	fprintf(stderr, "Target IP: %u.%u.%u.%u, "
-			"haddr: %02X:%02X:%02X:%02X:%02X:%02X\n", 
-			t[0], t[1], t[2], t[3], 
-			arph->ar_tha[0], arph->ar_tha[1], arph->ar_tha[2], 
-			arph->ar_tha[3], arph->ar_tha[4], arph->ar_tha[5]);
+	thread_printf(mtcp, mtcp->log_fp, "Target IP: %u.%u.%u.%u, "
+		      "haddr: %02X:%02X:%02X:%02X:%02X:%02X\n", 
+		      t[0], t[1], t[2], t[3], 
+		      arph->ar_tha[0], arph->ar_tha[1], arph->ar_tha[2], 
+		      arph->ar_tha[3], arph->ar_tha[4], arph->ar_tha[5]);
 }
 /*----------------------------------------------------------------------------*/

@@ -1,3 +1,15 @@
+# mtcp-specific files
+Makefile
+autom4te.cache/
+config.h
+config.log
+config.status
+dpdk-iface-kmod/dpdk_iface_main
+io_engine/lib/Makefile
+mtcp/src/Makefile
+util/Makefile
+stamp-h1
+
 # Prerequisites
 *.d
 

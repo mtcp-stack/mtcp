@@ -14,7 +14,9 @@ struct net_adapter {
 	unsigned char mac_addr[ETH_ALEN];	
 	u16 bd_number;
 	bool netdev_registered;
+	int numa_socket;
 	struct net_device_stats nstats;
+	struct PciAddress pa;
 };
 /*--------------------------------------------------------------------------*/
 /**

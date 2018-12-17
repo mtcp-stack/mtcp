@@ -67,7 +67,7 @@ else
 endif
 
 # LIBCCP
-LIBCCP=/home/frank/mtcp/mtcp/src/libccp
+LIBCCP=${MTCP_FLD}/src/libccp
 LIBS += -L$(LIBCCP) -lccp
 INC += -I$(LIBCCP)
 

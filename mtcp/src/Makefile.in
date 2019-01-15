@@ -79,8 +79,10 @@ ifeq ($(RTE_TARGET),)
 $(error "Please define RTE_SDK environment variable")
 endif
 INC += -I@ONVMLIBPATH@/onvm_nflib
+INC += -I@ONVMLIBPATH@/lib
 INC += -DENABLE_ONVM
 LDFLAGS += @ONVMLIBPATH@/onvm_nflib/$(RTE_TARGET)/libonvm.a
+LDFLAGS += @ONVMLIBPATH@/lib/$(RTE_TARGET)/lib/libonvmhelper.a -lm
 endif
 
 

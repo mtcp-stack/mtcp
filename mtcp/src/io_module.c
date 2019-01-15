@@ -587,7 +587,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		optind = 0;
 
 		/* initialize the dpdk eal env */
-		ret = onvm_nflib_init(argc, argv, "mtcp_nf");
+		ret = onvm_nflib_init(argc, argv, "mtcp_nf", &CONFIG.nf_info);
 		if (ret < 0) {
 			TRACE_ERROR("Invalid EAL args!\n");
 			exit(EXIT_FAILURE);

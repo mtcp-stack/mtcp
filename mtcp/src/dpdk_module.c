@@ -107,10 +107,13 @@ static struct rte_eth_conf port_conf = {
 	.rxmode = {
 		.mq_mode	= 	ETH_MQ_RX_RSS,
 		.max_rx_pkt_len = 	ETHER_MAX_LEN,
-		.offloads	=	(DEV_RX_OFFLOAD_CRC_STRIP |
+		.offloads	=	(
+#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
+					 DEV_RX_OFFLOAD_CRC_STRIP |
+#endif
 					 DEV_RX_OFFLOAD_CHECKSUM
 #ifdef ENABLELRO
-					 DEV_RX_OFFLOAD_TCP_LRO
+					 | DEV_RX_OFFLOAD_TCP_LRO
 #endif
 					 ),
 		.split_hdr_size = 	0,
@@ -134,7 +137,7 @@ static struct rte_eth_conf port_conf = {
 	},
 	.txmode = {
 		.mq_mode = 		ETH_MQ_TX_NONE,
-#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH > 02)
+#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH >= 02)
 		.offloads	=	(DEV_TX_OFFLOAD_IPV4_CKSUM |
 					 DEV_TX_OFFLOAD_UDP_CKSUM |
 					 DEV_TX_OFFLOAD_TCP_CKSUM)
@@ -690,7 +693,7 @@ dpdk_load_module(void)
 
 			/* check port capabilities */
 			rte_eth_dev_info_get(portid, &dev_info[portid]);
-#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH > 02)
+#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH >= 02)
 			/* re-adjust rss_hf */
 			port_conf.rx_adv_conf.rss_conf.rss_hf &= dev_info[portid].flow_type_rss_offloads;
 #endif

@@ -19,7 +19,9 @@
 #include <dpdk_iface_common.h>
 /* for ceil func */
 #include <math.h>
-#endif
+/* for retrieving rte version(s) */
+#include <rte_version.h>
+#endif /* DISABLE_DPDK */
 /* for TRACE_* */
 #include "debug.h"
 /* for inet_* */
@@ -333,6 +335,11 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		 */
 		optind = 0;
 
+#ifdef DEBUG
+		/* print argv's */
+		for (i = 0; i < argc; i++)
+			TRACE_INFO("argv[%d]: %s\n", i, argv[i]);
+#endif
 		/* initialize the dpdk eal env */
 		ret = rte_eal_init(argc, argv);
 		if (ret < 0) {
@@ -340,7 +347,11 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 			exit(EXIT_FAILURE);
 		}
 		/* give me the count of 'detected' ethernet ports */
+#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
 		num_devices = rte_eth_dev_count();
+#else
+		num_devices = rte_eth_dev_count_avail();
+#endif
 		if (num_devices == 0) {
 			TRACE_ERROR("No Ethernet port!\n");
 			exit(EXIT_FAILURE);

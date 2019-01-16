@@ -2,5 +2,6 @@
 	path = dpdk
 	url = https://dpdk.org/git/dpdk
 	branch = devel
-	commit = 92924b207b124c156f7b6dff75110d6af83d971f
+	commit = ac5a5eac11e4008f48f992ea2d6fafc0b9b74f34
+#	commit = 92924b207b124c156f7b6dff75110d6af83d971f
 	

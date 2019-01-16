@@ -34,6 +34,8 @@
 #endif
 /* for ioctl funcs */
 #include <dpdk_iface_common.h>
+/* for retrieving rte version(s) */
+#include <rte_version.h>
 /*----------------------------------------------------------------------------*/
 /* Essential macros */
 #define MAX_RX_QUEUE_PER_LCORE		MAX_CPUS
@@ -112,11 +114,13 @@ static struct rte_eth_conf port_conf = {
 #endif
 					 ),
 		.split_hdr_size = 	0,
+#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
 		.header_split   = 	0, /**< Header Split disabled */
 		.hw_ip_checksum = 	1, /**< IP checksum offload enabled */
 		.hw_vlan_filter = 	0, /**< VLAN filtering disabled */
 		.jumbo_frame    = 	0, /**< Jumbo Frame Support disabled */
 		.hw_strip_crc   = 	1, /**< CRC stripped by hardware */
+#endif
 #ifdef ENABLELRO
 		.enable_lro	=	1, /**< Enable LRO */
 #endif
@@ -130,6 +134,11 @@ static struct rte_eth_conf port_conf = {
 	},
 	.txmode = {
 		.mq_mode = 		ETH_MQ_TX_NONE,
+#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH > 02)
+		.offloads	=	(DEV_TX_OFFLOAD_IPV4_CKSUM |
+					 DEV_TX_OFFLOAD_UDP_CKSUM |
+					 DEV_TX_OFFLOAD_TCP_CKSUM)
+#endif
 	},
 };
 
@@ -150,11 +159,13 @@ static const struct rte_eth_txconf tx_conf = {
 	},
 	.tx_free_thresh = 		0, /* Use PMD default values */
 	.tx_rs_thresh = 		0, /* Use PMD default values */
+#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
 	/*
 	 * As the example won't handle mult-segments and offload cases,
 	 * set the flag by default.
 	 */
 	.txq_flags = 			0x0,
+#endif
 };
 
 struct mbuf_table {
@@ -677,21 +688,25 @@ dpdk_load_module(void)
 		        /* get portid form the index of attached devices */
 		        portid = devices_attached[i];
 
+			/* check port capabilities */
+			rte_eth_dev_info_get(portid, &dev_info[portid]);
+#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH > 02)
+			/* re-adjust rss_hf */
+			port_conf.rx_adv_conf.rss_conf.rss_hf &= dev_info[portid].flow_type_rss_offloads;
+#endif
 			/* init port */
 			printf("Initializing port %u... ", (unsigned) portid);
 			fflush(stdout);
 			ret = rte_eth_dev_configure(portid, CONFIG.num_cores, CONFIG.num_cores, &port_conf);
 			if (ret < 0)
-				rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
-					 ret, (unsigned) portid);
+				rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u, cores: %d\n",
+					 ret, (unsigned) portid, CONFIG.num_cores);
 
 			/* init one RX queue per CPU */
 			fflush(stdout);
 #ifdef DEBUG
 			rte_eth_macaddr_get(portid, &ports_eth_addr[portid]);
 #endif
-			/* check port capabilities */
-			rte_eth_dev_info_get(portid, &dev_info[portid]);
 
 			for (rxlcore_id = 0; rxlcore_id < CONFIG.num_cores; rxlcore_id++) {
 				ret = rte_eth_rx_queue_setup(portid, rxlcore_id, nb_rxd,

@@ -50,6 +50,15 @@ cd ..
 printf "Set ${GREEN}RTE_SDK$NC env variable as $RTE_SDK\n"
 printf "Set ${GREEN}RTE_TARGET$NC env variable as $RTE_TARGET\n"
 
+# Check if you are using an Intel NIC
+while true; do
+    read -p "Are you using an Intel NIC (y/n)? " response
+    case $response in
+	[Yy]* ) break;;
+	[Nn]* ) exit;;
+    esac
+done
+
 # Create interfaces
 printf "Creating ${GREEN}dpdk$NC interface entries\n"
 cd dpdk-iface-kmod

@@ -73,8 +73,8 @@ mTCP can be prepared in four ways.
 	./setup_mtcp_dpdk_env.sh [<path to $RTE_SDK>]
     ```
 
-    - Press [14] to compile x86_64-native-linuxapp-gcc version
-    - Press [17] to install the driver
+    - Press [15] to compile x86_64-native-linuxapp-gcc version
+    - Press [17] to install igb_uio driver for Intel NICs
     - Press [21] to setup 2048 2MB hugepages
     - Press [23] to register the Ethernet ports
     - Press [34] to quit the tool
@@ -86,8 +86,9 @@ mTCP can be prepared in four ways.
     - We use `dpdk/` submodule as our DPDK driver. FYI, you can pass a different
       dpdk source directory as command line argument.
 
-3. Next bring the dpdk-registered interfaces up, and then set RTE_SDK
-   and RTE_TARGET environment variables.
+3. Bring the dpdk compatible interfaces up, and
+   then set RTE_SDK and RTE_TARGET environment variables. If you are using Intel
+   NICs, the interfaces will have dpdk prefix.
 
      ```bash
     sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up

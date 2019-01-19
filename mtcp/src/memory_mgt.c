@@ -199,13 +199,21 @@ MPFreeChunk(mem_pool_t mp, void *p)
 void
 MPDestroy(mem_pool_t mp)
 {
+#if RTE_VERSION < RTE_VERSION_NUM(16, 7, 0, 0)
+	/* do nothing.. old versions don't have a method to reclaim back mem */
+#else
 	rte_mempool_free(mp);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 int
 MPGetFreeChunks(mem_pool_t mp)
 {
+#if RTE_VERSION <= RTE_VERSION_NUM(16, 7, 0, 0)
+	return (int)rte_mempool_free_count(mp);
+#else
 	return (int)rte_mempool_avail_count(mp);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 #endif

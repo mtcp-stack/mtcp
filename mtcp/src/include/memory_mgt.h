@@ -4,6 +4,8 @@
 #if ! defined(DISABLE_DPDK) && !defined(ENABLE_ONVM)
 #include <rte_common.h>
 #include <rte_mempool.h>
+/* for rte_versions retrieval */
+#include <rte_version.h>
 /*----------------------------------------------------------------------------*/
 typedef struct rte_mempool mem_pool;
 typedef struct rte_mempool* mem_pool_t;

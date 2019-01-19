@@ -46,7 +46,7 @@ for cfg in config/defconfig_* ; do
     fi
     let "CONFIG_NUM+=1"
 done
-cd ..
+cd -
 printf "Set ${GREEN}RTE_SDK$NC env variable as $RTE_SDK\n"
 printf "Set ${GREEN}RTE_TARGET$NC env variable as $RTE_TARGET\n"
 

@@ -107,23 +107,25 @@ static struct rte_eth_conf port_conf = {
 	.rxmode = {
 		.mq_mode	= 	ETH_MQ_RX_RSS,
 		.max_rx_pkt_len = 	ETHER_MAX_LEN,
+#if RTE_VERSION > RTE_VERSION_NUM(17, 8, 0, 0)
 		.offloads	=	(
-#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
+#if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
 					 DEV_RX_OFFLOAD_CRC_STRIP |
-#endif
+#endif /* !18.05 */
 					 DEV_RX_OFFLOAD_CHECKSUM
 #ifdef ENABLELRO
 					 | DEV_RX_OFFLOAD_TCP_LRO
 #endif
 					 ),
+#endif /* !17.08 */
 		.split_hdr_size = 	0,
-#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
+#if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
 		.header_split   = 	0, /**< Header Split disabled */
 		.hw_ip_checksum = 	1, /**< IP checksum offload enabled */
 		.hw_vlan_filter = 	0, /**< VLAN filtering disabled */
 		.jumbo_frame    = 	0, /**< Jumbo Frame Support disabled */
 		.hw_strip_crc   = 	1, /**< CRC stripped by hardware */
-#endif
+#endif /* !18.05 */
 #ifdef ENABLELRO
 		.enable_lro	=	1, /**< Enable LRO */
 #endif
@@ -137,7 +139,7 @@ static struct rte_eth_conf port_conf = {
 	},
 	.txmode = {
 		.mq_mode = 		ETH_MQ_TX_NONE,
-#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH >= 02)
+#if RTE_VERSION >= RTE_VERSION_NUM(18, 5, 0, 0)
 		.offloads	=	(DEV_TX_OFFLOAD_IPV4_CKSUM |
 					 DEV_TX_OFFLOAD_UDP_CKSUM |
 					 DEV_TX_OFFLOAD_TCP_CKSUM)
@@ -162,7 +164,7 @@ static const struct rte_eth_txconf tx_conf = {
 	},
 	.tx_free_thresh = 		0, /* Use PMD default values */
 	.tx_rs_thresh = 		0, /* Use PMD default values */
-#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
+#if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
 	/*
 	 * As the example won't handle mult-segments and offload cases,
 	 * set the flag by default.
@@ -693,7 +695,7 @@ dpdk_load_module(void)
 
 			/* check port capabilities */
 			rte_eth_dev_info_get(portid, &dev_info[portid]);
-#if (RTE_VER_YEAR >= 18) && (RTE_VER_MONTH >= 02)
+#if RTE_VERSION >= RTE_VERSION_NUM(18, 5, 0, 0)
 			/* re-adjust rss_hf */
 			port_conf.rx_adv_conf.rss_conf.rss_hf &= dev_info[portid].flow_type_rss_offloads;
 #endif

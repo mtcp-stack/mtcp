@@ -347,7 +347,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 			exit(EXIT_FAILURE);
 		}
 		/* give me the count of 'detected' ethernet ports */
-#if (RTE_VER_YEAR <= 18) && (RTE_VER_MONTH <= 02)
+#if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
 		num_devices = rte_eth_dev_count();
 #else
 		num_devices = rte_eth_dev_count_avail();

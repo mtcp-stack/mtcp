@@ -214,13 +214,19 @@ ONVM basics are explained in https://github.com/sdnfv/openNetVM.
 
 1. [Install openNetVM following these instructions](https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md)
 
-2. Next bring the dpdk-registered interfaces up. This can be setup using:  
+2. Set up the dpdk interfaces:
+
+    ```bash
+	./setup_mtcp_onvm_env.sh
+    ```
+
+3. Next bring the dpdk-registered interfaces up. This can be setup using:  
 
     ```bash
     sudo ifconfig dpdk0 x.x.x.x netmask 255.255.255.0 up
     ```
 
-3. Setup mtcp library
+4. Setup mtcp library
     ```bash
     ./configure --with-dpdk-lib=$<path_to_dpdk> --with-onvm-lib=$<path_to_onvm_lib>
     # e.g. ./configure --with-dpdk-lib=$RTE_SDK/$RTE_TARGET --with-onvm-lib=`echo $ONVM_HOME`/onvm

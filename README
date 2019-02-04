@@ -176,7 +176,6 @@ Also, no core overlap between applications and onvm_mgr is allowed.
 1. Install openNetVM using the following instructions 
            https://github.com/sdnfv/openNetVM/blob/master/docs/Install.md
 
-
 2. Set up the dpdk interfaces:
 	   # bash setup_mtcp_onvm_env.sh
 

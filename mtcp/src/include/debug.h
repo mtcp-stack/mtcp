@@ -203,6 +203,15 @@
 #define TRACE_CCP(f, m...) (void)0
 #endif
 
+#ifdef PROBECCP
+#define CCP_PROBE(f, m...) { \
+	fprintf(stderr, f, ##m);	\
+	}
+#else
+#define CCP_PROBE(f, m...) (void)0
+#endif
+
+
 #ifdef DBGFUNC
 
 #define TRACE_FUNC(n, f, m...) {                                         \

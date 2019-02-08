@@ -32,16 +32,19 @@ static inline void get_mtcp_from_ccp(
 static void _dp_set_cwnd(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t cwnd) {
     tcp_stream *stream;
     get_stream_from_ccp(&stream, conn);
+    uint32_t new_cwnd = MAX(cwnd, TCP_INIT_CWND * stream->sndvar->mss);
+
+    // (time_ms) (rtt) (curr_cwnd_pkts) (new_cwnd_pkts) (ssthresh)
     if (cwnd != stream->sndvar->cwnd) {
-        fprintf(stderr, "%lu %d %d->%d (ss=%d)\n", 
+        CCP_PROBE("%lu %d %d->%d (ss=%d)\n", 
         now_usecs() / 1000, 
         stream->rcvvar->srtt * 125,
         stream->sndvar->cwnd / stream->sndvar->mss,
-        cwnd / stream->sndvar->mss,
+        new_cwnd / stream->sndvar->mss,
         stream->sndvar->ssthresh / stream->sndvar->mss
         );
     }
-    stream->sndvar->cwnd = MAX(cwnd, TCP_INIT_CWND * stream->sndvar->mss);
+    stream->sndvar->cwnd = new_cwnd;
 }
 
 static void _dp_set_rate_abs(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t rate) {

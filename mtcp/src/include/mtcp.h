@@ -52,9 +52,14 @@
 #define TCP_OPT_TIMESTAMP_ENABLED       TRUE   // enabled for rtt measure
 #define TCP_OPT_SACK_ENABLED            TRUE   // only recv-side implemented
 
-#define RATE_LIMIT_ENABLED              TRUE
+#define RATE_LIMIT_ENABLED              FALSE
 #define PACING_ENABLED                  FALSE
-#define USE_CCP                         FALSE
+#define USE_CCP                         TRUE
+/* Only use rate limiting if using CCP */
+#ifdef USE_CCP
+#undef RATE_LIMIT_ENABLED
+#define RATE_LIMIT_ENABLED              TRUE
+#endif
 
 #define LOCK_STREAM_QUEUE               FALSE
 #define USE_SPIN_LOCK                   TRUE

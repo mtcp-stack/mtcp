@@ -7,8 +7,16 @@
 #include "tcp_in.h"
 #include "debug.h"
 
-#define FROM_CCP_PREFIX "/tmp/ccp/0/out"
-#define TO_CCP_PREFIX "/tmp/ccp/0/in"
+// CCP currently only supports a single global datapath and CCP instance, but
+// this ID exists in case there is a need for supporting multiple
+// If this change is made in the future CCP_UNIX_BASE_ID will need to be
+// generated dynamically based on the CCP/datapath ID. For now, we always use 0.
+#define CCP_UNIX_BASE    "/tmp/ccp/"
+#define CCP_ID           "0/"
+#define FROM_CCP         "out"
+#define TO_CCP           "in"
+#define FROM_CCP_PATH    CCP_UNIX_BASE CCP_ID FROM_CCP
+#define TO_CCP_PATH      CCP_UNIX_BASE CCP_ID TO_CCP
 #define CCP_MAX_MSG_SIZE 32678
 
 #define MIN(a, b) ((a)<(b)?(a):(b))

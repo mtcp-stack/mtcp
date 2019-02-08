@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #include "mtcp.h"
@@ -90,24 +91,33 @@ int _dp_send_msg(struct ccp_datapath *dp, struct ccp_connection *conn, char *msg
 /*----------------------------------------------------------------------------*/
 void setup_ccp_connection(mtcp_manager_t mtcp) {
     mtcp_thread_context_t ctx = mtcp->ctx;
+    // TODO do we need a socket per core?
     int cpu = ctx->cpu;
     //char cpu_str[2] = "";
     int recv_sock;
     int path_len;
+    int ret;
     struct sockaddr_un local;
 
+    // Make sure unix socket path exists
+    ret = mkdir(CCP_UNIX_BASE, 0755);
+    if (ret < 0 && errno != EEXIST) {
+        TRACE_ERROR("failed to create path for ccp unix socket (%d): %s\n", ret, strerror(errno));
+    }
+    ret = mkdir(CCP_UNIX_BASE CCP_ID, 0755);
+    if (ret < 0 && errno != EEXIST) {
+        TRACE_ERROR("failed to create path for ccp unix socket (%d): %s\n", ret, strerror(errno));
+    }
     if ((recv_sock = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
         TRACE_ERROR("failed to create unix recv socket for ccp comm\n");
         exit(-1);
     }
     local.sun_family = AF_UNIX;
-    strcpy(local.sun_path, FROM_CCP_PREFIX);
-    //sprintf(cpu_str, "%d", cpu);
-    //strcat(local.sun_path, cpu_str);
+    strcpy(local.sun_path, FROM_CCP_PATH);
     unlink(local.sun_path);
     path_len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(recv_sock, (struct sockaddr *)&local, path_len) == -1) {
-        TRACE_ERROR("failed to bind to unix://%s%d because %s\n", FROM_CCP_PREFIX, cpu, strerror(errno));
+        TRACE_ERROR("(cpu %d) failed to bind to unix://%s because %s\n", cpu, FROM_CCP_PATH, strerror(errno));
         exit(-1);
     }
     mtcp->from_ccp = recv_sock;
@@ -140,10 +150,10 @@ void setup_ccp_send_socket(mtcp_manager_t mtcp) {
         exit(-1);
     }
     remote.sun_family = AF_UNIX;
-    strcpy(remote.sun_path, TO_CCP_PREFIX);//TODO:CCP
+    strcpy(remote.sun_path, TO_CCP_PATH);//TODO:CCP
     path_len = strlen(remote.sun_path) + sizeof(remote.sun_family);
     if (connect(send_sock, (struct sockaddr *)&remote, path_len) == -1) {
-        TRACE_ERROR("failed to connect to unix://%s because %s\n", TO_CCP_PREFIX, strerror(errno));
+        TRACE_ERROR("failed to connect to unix://%s because %s\n", TO_CCP_PATH, strerror(errno));
         exit(-1);
     }
     mtcp->to_ccp = send_sock;

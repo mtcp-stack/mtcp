@@ -20,6 +20,42 @@ We require the following libraries to run mTCP.
 Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
 - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
+Using [CCP](https://ccp-project.github.io/) for congestion control (enabled by
+default), requires building and running a CCP algorithm. If you would like to
+disable CCP (ie. use the internal implementation of Reno), simply comment out
+the `#define USE_CCP` in `mtcp/src/include/mtcp.h`.
+
+1. Install Rust. Any installation method should be fine. We recommend using
+   rustup:
+
+    ```bash
+    curl https://sh.rustup.rs -sSf | sh -- -y -v --default-toolchain nightly
+    ````
+
+2. Build a CCP algorithm. The [generic-cong-avoid](https://github.com/ccp-project/generic-cong-avoid)
+   package implements standard TCP Reno and Cubic, so this is probably best to
+   start with. The same steps can be followed to build any of the other
+   algorithms hosted in the [ccp-project](https://github.com/ccp-project) organization, such as
+   [bbr](https://github.com/ccp-project/bbr).
+
+   ```bash
+   git clone https://github.com/ccp-project/generic-cong-avoid.git
+   cd generic-cong-avoid
+   cargo +nightly build
+   ````
+
+3. Later, after you've built mTCP and started an mTCP application (such as
+   epserver or perf), you must start the CCP binary you just built. If you
+   try to start the CCP process *before* running an mTCP application, it will
+   report a "connection refused" error.
+   
+
+    ```bash
+    cd generic-cong-avoid
+    sudo ./target/debug/reno --ipc unix
+    ```
+
+
 We have modified the dpdk package to export net_device stat data 
 (for Intel-based Ethernet adapters only) to the OS. To achieve this, we have
 created a new LKM dpdk-iface-kmow. We also modified 

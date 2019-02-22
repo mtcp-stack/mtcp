@@ -1567,6 +1567,10 @@ mtcp_destroy()
 #ifndef DISABLE_DPDK
 	mpz_clear(CONFIG._cpumask);
 #endif
+
+#ifdef ENABLE_ONVM
+        onvm_nflib_stop(CONFIG.nf_info);
+#endif
 	TRACE_INFO("All MTCP threads are joined.\n");
 }
 /*----------------------------------------------------------------------------*/

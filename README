@@ -299,9 +299,14 @@ We tested the DPDK version (polling driver) with Linux-3.13.0 kernel.
   - Use ^C to gracefully shutdown the application. Two consecutive 
     ^C (separated by 1 sec) will force quit.
 
-2. My application keeps printing "No route to 0.0.0.0"
-  - Try to turn off your network-manager for xge*. The network manager 
-    can override the IP configuration set by install.py in PSIO driver.
+2. My application doesn't use the address specified from ifconfig.
+  - For some Linux distros(e.g. Ubuntu), NetworkManager may re-assign
+    a different IP address, or delete the assigned IP address.
+
+    Disable NetworkManager temporarily if that's the case.
+    NetworkManager will be re-enabled upon reboot.
+
+        # sudo service network-manager stop
 
 3. Can I statically set the routing or arp table?
   - Yes, mTCP allows static route and arp configuration. Go to the 

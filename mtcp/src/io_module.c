@@ -374,7 +374,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 
 		iter_if = ifap;
 		do {
-			if (iter_if->ifa_addr->sa_family == AF_INET &&
+			if (iter_if->ifa_addr && iter_if->ifa_addr->sa_family == AF_INET &&
 			    !set_all_inf &&
 			    (seek=strstr(dev_name_list, iter_if->ifa_name)) != NULL &&
 			    /* check if the interface was not aliased */
@@ -473,7 +473,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 
 		iter_if = ifap;
 		do {
-			if (iter_if->ifa_addr->sa_family == AF_INET &&
+			if (iter_if->ifa_addr && iter_if->ifa_addr->sa_family == AF_INET &&
 			    !set_all_inf &&
 			    (seek=strstr(dev_name_list, iter_if->ifa_name)) != NULL &&
 			    /* check if the interface was not aliased */
@@ -623,7 +623,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		
 		iter_if = ifap;
 		do {
-			if (iter_if->ifa_addr->sa_family == AF_INET &&
+			if (iter_if->ifa_addr && iter_if->ifa_addr->sa_family == AF_INET &&
 			    !set_all_inf && 
 			    (seek=strstr(dev_name_list, iter_if->ifa_name)) != NULL &&
 			    /* check if the interface was not aliased */

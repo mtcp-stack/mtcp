@@ -74,7 +74,8 @@ static pthread_t g_thread[MAX_CPUS] = {0};
 static pthread_t log_thread[MAX_CPUS]  = {0};
 #endif
 #if USE_CCP
-static pthread_t ccp_thread[MAX_CPUS] = {0};
+static pthread_t ccp_run_thread = 0;
+static pthread_t ccp_recv_thread[MAX_CPUS] = {0};
 #endif
 /*----------------------------------------------------------------------------*/
 static sem_t g_init_sem[MAX_CPUS];
@@ -1091,6 +1092,33 @@ InitializeMTCPManager(struct mtcp_thread_context* ctx)
 }
 /*----------------------------------------------------------------------------*/
 #if USE_CCP
+
+uint32_t libstartccp_run_forever(const char *alg_to_run, uint32_t log_fd);
+
+static void *
+CCPRunThread(void *arg) {
+    // Add ipc argument (always unix, so no need for user to provide manually)
+    char args[1024] = {0};
+    int arglen = strlen(CONFIG.cc)-1;
+    strncpy(args, CONFIG.cc, arglen);
+    strncpy(args+arglen, " --ipc=unix", 11);
+    args[arglen+11] = '\0';
+
+    // Open fd for log file
+	FILE *ccp_log = fopen("cc.log", "w");
+	if (ccp_log == NULL) {
+		perror("fopen cc.log");
+		return 0;
+	}
+    TRACE_CCP("starting ccp thread with args: %s\n", args);
+    TRACE_CCP("printing output to ./cc.log\n");
+    libstartccp_run_forever(args, fileno(ccp_log));
+
+    fclose(ccp_log);
+
+    return 0;
+}
+
 static void *
 CCPRecvLoopThread(void *arg) {
 	mtcp_manager_t mtcp = (mtcp_manager_t)arg;
@@ -1190,12 +1218,14 @@ MTCPRunThread(void *arg)
 #if USE_CCP
 	setup_ccp_connection(mtcp);
 
-	if (pthread_create(&ccp_thread[cpu], NULL,
-		CCPRecvLoopThread, (void *)mtcp) != 0)
-	{
-		TRACE_ERROR("Failed to create thread for CCP receive loop on cpu %d\n", cpu);
-		return NULL;
-	}
+    if (cpu == 0 && pthread_create(&ccp_run_thread, NULL, CCPRunThread, (void *)mtcp) != 0) {
+        TRACE_ERROR("Failed to create thread running CCP on cpu 0");
+    }
+    if (pthread_create(&ccp_recv_thread[cpu], NULL, CCPRecvLoopThread, (void *)mtcp) != 0)
+    {
+        TRACE_ERROR("Failed to create thread for CCP receive loop on cpu %d\n", cpu);
+        return NULL;
+    }
 #endif
 
 	// attach (nic device, queue)
@@ -1397,7 +1427,6 @@ mtcp_free_context(mctx_t mctx)
 
 #if USE_CCP
 	destroy_ccp_connection(mtcp);
-	// pthread_join(ccp_thread[ctx->cpu], NULL);
 	close(mtcp->from_ccp);
 	close(mtcp->to_ccp);
 	TRACE_CCP("CCP thread %d joined.\n", mctx->cpu);
@@ -1531,12 +1560,15 @@ mtcp_setconf(const struct mtcp_conf *conf)
 
 	return 0;
 }
+
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_init(const char *config_file)
 {
 	int i;
 	int ret;
+
+    fprintf(stderr, "hello from mtcp_init\n");
 
 	/* getting cpu and NIC */
 	/* set to max cpus only if user has not arbitrarily set it to lower # */

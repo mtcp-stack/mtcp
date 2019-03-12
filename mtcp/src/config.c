@@ -647,7 +647,17 @@ ParseConfiguration(char *line)
 #endif
 	} else if (strcmp(p, "multiprocess") == 0) {
 		SetMultiProcessSupport(line + strlen(p) + 1);
-	} else {
+    } else if (strcmp(p, "cc") == 0) {
+#if USE_CCP
+        // ignore the parsing done by the second strtok_r so that we can get the full param string
+        *strchr(q, '\0') = ' ';
+        strcpy(CONFIG.cc, q);
+#else
+        TRACE_CONFIG("[WARNING] 'cc' option provided, but CCP not enabled. define USE_CCP!\n");
+        exit(EXIT_FAILURE);
+#endif
+
+    } else {
 		TRACE_CONFIG("Unknown option type: %s\n", line);
 		return -1;
 	}

@@ -189,6 +189,9 @@ struct mtcp_config
   	uint16_t onvm_inst;
   	uint16_t onvm_dest;
 #endif
+#if USE_CCP
+    char     cc[1024];
+#endif
 };
 /*----------------------------------------------------------------------------*/
 struct mtcp_context

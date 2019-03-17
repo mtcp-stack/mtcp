@@ -252,7 +252,9 @@ uint32_t last_tri_dupack_seq = 0;
 /* Should be called for any other connection event other than ACK */ 
 /*----------------------------------------------------------------------------*/
 void ccp_record_event(mtcp_manager_t mtcp, tcp_stream *stream, uint8_t event_type, uint32_t val) {
+#ifdef DBGCCP
     unsigned long now = (unsigned long)(now_usecs());
+#endif
     int i;
 
     switch(event_type) {
@@ -267,7 +269,7 @@ void ccp_record_event(mtcp_manager_t mtcp, tcp_stream *stream, uint8_t event_typ
         case EVENT_TRI_DUPACK:
 #if TCP_OPT_SACK_ENABLED
             if (val > window_edge_at_last_loss) {
-                fprintf(stderr, "%lu tridup ack=%u\n", 
+                TRACE_CCP("%lu tridup ack=%u\n", 
                         now / 1000,
                         val - stream->sndvar->iss
                 );
@@ -285,7 +287,7 @@ void ccp_record_event(mtcp_manager_t mtcp, tcp_stream *stream, uint8_t event_typ
             // only count as a loss if we haven't already seen 3 dupacks for
             // this seq number
             if (last_tri_dupack_seq != val) {
-                fprintf(stderr, "%lu tridup ack=%d\n", 
+                TRACE_CCP("%lu tridup ack=%d\n", 
                         now / 1000,
                         val// - stream->sndvar->iss
                 );
@@ -298,10 +300,10 @@ void ccp_record_event(mtcp_manager_t mtcp, tcp_stream *stream, uint8_t event_typ
             //stream->ccp_conn->prims.was_timeout = true;
             break;
         case EVENT_ECN:
-            printf("ecn is not currently supported!\n");
+            TRACE_ERROR("ecn is not currently supported!\n");
             break;
         default:
-            printf("unknown record event type %d!\n", event_type);
+            TRACE_ERROR("unknown record event type %d!\n", event_type);
             break;
     }
 

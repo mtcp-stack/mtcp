@@ -408,7 +408,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	/* Fast retransmission */
 	if (dup && cur_stream->rcvvar->dup_acks == 3) {
 		TRACE_LOSS("Triple duplicated ACKs!! ack_seq: %u\n", ack_seq);
-		fprintf(stderr, "tridup ack %u (%u)!\n", ack_seq - cur_stream->sndvar->iss, ack_seq);
+		TRACE_CCP("tridup ack %u (%u)!\n", ack_seq - cur_stream->sndvar->iss, ack_seq);
 		if (TCP_SEQ_LT(ack_seq, cur_stream->snd_nxt)) {
 			TRACE_LOSS("Reducing snd_nxt from %u to %u\n",
                                         cur_stream->snd_nxt-sndvar->iss,
@@ -507,7 +507,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #if USE_CCP
 	ccp_cong_control(mtcp, cur_stream, ack_seq, rmlen, packets);
 #else
-	log_cwnd_rtt(cur_stream);
+	// log_cwnd_rtt(cur_stream);
 #endif
 
 	/* If ack_seq is previously acked, return */

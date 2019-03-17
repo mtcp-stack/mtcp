@@ -39,29 +39,42 @@
 #define ERROR (-1)
 #endif
 
-#define ETHERNET_HEADER_LEN		14	// sizeof(struct ethhdr)
-#define IP_HEADER_LEN			20	// sizeof(struct iphdr)
-#define TCP_HEADER_LEN			20	// sizeof(struct tcphdr)
-#define TOTAL_TCP_HEADER_LEN		54	// total header length
+#define ETHERNET_HEADER_LEN             14  // sizeof(struct ethhdr)
+#define IP_HEADER_LEN                   20  // sizeof(struct iphdr)
+#define TCP_HEADER_LEN                  20  // sizeof(struct tcphdr)
+#define TOTAL_TCP_HEADER_LEN            54  // total header length
 
-/* configrations */
-#define BACKLOG_SIZE 			(10*1024)
-#define MAX_PKT_SIZE 			(2*1024)
-#define ETH_NUM 			MAX_DEVICES
+/* configurations */
+#define BACKLOG_SIZE                    (10*1024)
+#define MAX_PKT_SIZE                    (2*1024)
+#define ETH_NUM                         MAX_DEVICES
 
-#define TCP_OPT_TIMESTAMP_ENABLED   	TRUE	/* enabled for rtt measure */
-#define TCP_OPT_SACK_ENABLED        	FALSE	/* not implemented */
+#define TCP_OPT_TIMESTAMP_ENABLED       TRUE   // enabled for rtt measure
+#define TCP_OPT_SACK_ENABLED            TRUE   // only recv-side implemented
 
-#define LOCK_STREAM_QUEUE		FALSE
-#define USE_SPIN_LOCK			TRUE
-#define INTR_SLEEPING_MTCP		TRUE
-#define PROMISCUOUS_MODE		TRUE
+#define RATE_LIMIT_ENABLED              FALSE
+#define PACING_ENABLED                  FALSE
+#define USE_CCP                         FALSE
+/* Only use rate limiting if using CCP */
+#if USE_CCP
+#undef  RATE_LIMIT_ENABLED
+#define RATE_LIMIT_ENABLED              TRUE
+// The following two logs are for debugging / experiments only, should be turned
+// off for production use
+// #define DBGCCP                                 // ccp debug messages
+// #define PROBECCP                               // print all cwnd changes, similar to tcpprobe output
+#endif
+
+#define LOCK_STREAM_QUEUE               FALSE
+#define USE_SPIN_LOCK                   TRUE
+#define INTR_SLEEPING_MTCP              TRUE
+#define PROMISCUOUS_MODE                TRUE
 
 /* blocking api became obsolete */
-#define BLOCKING_SUPPORT		FALSE
+#define BLOCKING_SUPPORT                FALSE
 
 #ifndef MAX_CPUS
-#define MAX_CPUS			16
+#define MAX_CPUS                        16
 #endif
 /*----------------------------------------------------------------------------*/
 /* Statistics */
@@ -208,6 +221,9 @@ struct mtcp_manager
 	sb_manager_t rbm_snd;
 	rb_manager_t rbm_rcv;
 	struct hashtable *tcp_flow_table;
+#if USE_CCP
+	struct hashtable *tcp_sid_table;
+#endif
 
 	uint32_t s_index:24;		/* stream index */
 	socket_map_t smap;
@@ -281,6 +297,11 @@ struct mtcp_manager
 	struct time_stat rtstat;
 #endif /* NETSTAT */
 	struct io_module_func *iom;
+
+#if USE_CCP
+	int from_ccp;
+	int to_ccp;
+#endif
 };
 /*----------------------------------------------------------------------------*/
 typedef struct mtcp_manager* mtcp_manager_t;

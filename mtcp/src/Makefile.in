@@ -1,6 +1,6 @@
 # TODO: Make this Makefile.in pretty
 
-.PHONY: clean
+.PHONY: clean libccp
 
 ### TARGET ###
 PS=@PSIO@
@@ -49,6 +49,7 @@ GCC_OPT += -Wall -fPIC -fgnu89-inline -Werror
 GCC_OPT += -DNDEBUG -g -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 #GCC_OPT += -DNDEBUG -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 GCC_OPT += $(DBG_OPT)
+GCC_OPT += -D__USRLIB__
 
 ifeq ($(LRO),1)
 GCC_OPT += -DENABLELRO
@@ -92,21 +93,33 @@ INC += -I$(PS_DIR)/include
 
 # CFLAGS for DPDK-related compilation
 ifeq ($(DPDK), 1)
+
+# !!! FROM UPSTREAM
 include $(RTE_SDK)/mk/rte.vars.mk
 CFLAGS+=@CFLAGS@
 ifeq ($(ENFORCE_RX_IDLE), 1)
 INC += -DENFORCE_RX_IDLE -DRX_IDLE_THRESH=@RX_IDLE_THRESH@
 endif
+
+# !!! NEEDED FOR DPDK-17.08, MIGHT NEED TO UNCOMMENT LATER
+#DPDK_MACHINE_FLAGS = $(shell cat @DPDKLIBPATH@/include/cflags.txt)
+#INC += ${DPDK_MACHINE_FLAGS} -I${DPDK_INC} -include $(DPDK_INC)/rte_config.h
+
 else
 INC += -DDISABLE_DPDK
 endif
+
+LIBCCP_PATH=./libccp
+CCP_LIBS = -L$(LIBCCP_PATH) -lccp
+CCP_INC = -I$(LIBCCP_PATH)
 
 ### SOURCE CODE ###
 SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 	   tcp_util.c eth_in.c ip_in.c tcp_in.c eth_out.c ip_out.c tcp_out.c \
 	   arp.c timer.c cpu.c rss.c addr_pool.c fhash.c memory_mgt.c logger.c debug.c \
 	   tcp_rb_frag_queue.c tcp_ring_buffer.c tcp_send_buffer.c tcp_sb_queue.c tcp_stream_queue.c \
-	   psio_module.c io_module.c dpdk_module.c netmap_module.c onvm_module.c icmp.c
+	   psio_module.c io_module.c dpdk_module.c netmap_module.c onvm_module.c icmp.c \
+	   pacing.c clock.c ccp.c
 
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 DEPS = $(patsubst %.c,.%.d,$(SRCS))
@@ -120,12 +133,15 @@ else
 endif
 
 ### GOALS ###
-all: default
+all: default libccp
 
 default: $(OBJS) $(MTCP_HDR)
 	mkdir -p $(MTCP_LIB_DIR)
 	ar rvs $(MTCP_LIB_DIR)/$(MTCP_LIB) $(OBJS)
 
+libccp:
+	$(MAKE) -C ./libccp
+	
 $(OBJS): %.o: %.c Makefile
 	$(MSG) "   CC $<"
 	$(HIDE) $(GCC) $(CFLAGS) $(GCC_OPT) $(INC) -c $< -o $@

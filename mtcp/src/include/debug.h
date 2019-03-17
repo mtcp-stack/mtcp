@@ -197,6 +197,21 @@
 #define TRACE_API(f, m...) (void)0
 #endif
 
+#ifdef DBGCCP
+#define TRACE_CCP(f, m...) TRACE_FUNC("CCP", f, ##m)
+#else
+#define TRACE_CCP(f, m...) (void)0
+#endif
+
+#ifdef PROBECCP
+#define CCP_PROBE(f, m...) { \
+	fprintf(stderr, f, ##m);	\
+	}
+#else
+#define CCP_PROBE(f, m...) (void)0
+#endif
+
+
 #ifdef DBGFUNC
 
 #define TRACE_FUNC(n, f, m...) {                                         \

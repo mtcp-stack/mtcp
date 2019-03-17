@@ -8,6 +8,12 @@
 #include "ip_out.h"
 #include "timer.h"
 #include "debug.h"
+#if RATE_LIMIT_ENABLED || PACING_ENABLED
+#include "pacing.h"
+#endif
+#if USE_CCP
+#include "ccp.h"
+#endif
 
 #define TCP_MAX_SEQ 4294967295
 
@@ -100,7 +106,21 @@ EqualFlow(const void *f1, const void *f2)
 			flow1->daddr == flow2->daddr &&
 			flow1->dport == flow2->dport);
 }
+
+#if USE_CCP
 /*---------------------------------------------------------------------------*/
+unsigned int HashSID(const void *f) {
+	tcp_stream *flow = (tcp_stream *)f;
+	return (flow->id % (NUM_BINS_FLOWS -1));
+}
+
+int
+EqualSID(const void *f1, const void *f2) {
+	return (((tcp_stream *)f1)->id == ((tcp_stream *)f2)->id);
+}
+/*----------------------------------------------------------------------------*/
+#endif
+
 inline void 
 RaiseReadEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 {
@@ -253,6 +273,18 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
 		return NULL;
 	}
+
+#if USE_CCP
+	ret = StreamHTInsert(mtcp->tcp_sid_table, stream);
+	if (ret < 0) {
+		TRACE_ERROR("Stream %d: "
+				"Failed to insert the stream into SID lookup table.\n", stream->id);
+		MPFreeChunk(mtcp->flow_pool, stream);
+		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+		return NULL;
+	}
+#endif
+
 	stream->on_hash_table = TRUE;
 	mtcp->flow_cnt++;
 
@@ -281,6 +313,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 
 	stream->snd_nxt = stream->sndvar->iss;
 	stream->sndvar->snd_una = stream->sndvar->iss;
+	stream->sndvar->missing_seq = 0;
 	stream->sndvar->snd_wnd = CONFIG.sndbuf_size;
 	stream->rcv_nxt = 0;
 	stream->rcvvar->rcv_wnd = TCP_INITIAL_WINDOW;
@@ -335,6 +368,16 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 			sa[0], sa[1], sa[2], sa[3], ntohs(stream->sport), 
 			da[0], da[1], da[2], da[3], ntohs(stream->dport), 
 			stream->sndvar->iss);
+
+#if RATE_LIMIT_ENABLED
+	stream->bucket = NewTokenBucket();
+#endif
+#if PACING_ENABLED
+    stream->pacer = NewPacketPacer();
+#endif
+#if USE_CCP
+    ccp_create(mtcp, stream);
+#endif
 
 	UNUSED(da);
 	UNUSED(sa);

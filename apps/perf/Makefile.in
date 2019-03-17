@@ -54,10 +54,8 @@ $(error "Please define RTE_TARGET environment variable")
 endif
 
 INC += -I@ONVMLIBPATH@/onvm_nflib
-INC += -I@ONVMLIBPATH@/lib
 INC += -DENABLE_ONVM
 LIBS += @ONVMLIBPATH@/onvm_nflib/$(RTE_TARGET)/libonvm.a
-LIBS += @ONVMLIBPATH@/lib/$(RTE_TARGET)/lib/libonvmhelper.a -lm
 endif
 
 ifeq ($V,) # no echo
@@ -73,27 +71,19 @@ LIBCCP=${MTCP_FLD}/src/libccp
 LIBS += -L$(LIBCCP) -lccp
 INC += -I$(LIBCCP)
 
-all: epserver epwget
 
-epserver.o: epserver.c
+all: client
+
+client.o: client.c
 	$(MSG) "   CC $<"
-	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
+	${CC} -g -c $< ${CFLAGS} ${INC}
 
-epserver: epserver.o ${MTCP_FLD}/lib/libmtcp.a
+client: client.o
 	$(MSG) "   LD $<"
-	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
-
-epwget.o: epwget.c
-	$(MSG) "   CC $<"
-	$(HIDE) ${CC} -c $< ${CFLAGS} ${INC}
-
-epwget: epwget.o ${MTCP_FLD}/lib/libmtcp.a
-	$(MSG) "   LD $<"
-	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	${CC} $< ${INC} ${UTIL_OBJ} -g -o $@ ${LIBS} 
 
 clean:
-	$(MSG) "   CLEAN $(TARGETS)"
-	$(HIDE) rm -f *~ *.o ${TARGETS} log_*
+	rm -f *~ *.o ${TARGETS} log_*
 
 distclean: clean
 	rm -rf Makefile

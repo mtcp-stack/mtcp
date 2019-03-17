@@ -18,6 +18,9 @@ ParseTCPTimestamp(tcp_stream *cur_stream,
 		        struct tcp_timestamp *ts, uint8_t *tcpopt, int len);
 
 #if TCP_OPT_SACK_ENABLED
+int
+SeqIsSacked(tcp_stream *cur_stream, uint32_t seq);
+
 void
 ParseSACKOption(tcp_stream *cur_stream,
 		        uint32_t ack_seq, uint8_t *tcpopt, int len);

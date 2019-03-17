@@ -25,7 +25,44 @@ We have modified the dpdk package to export net_device stat data
 created a new LKM dpdk-iface-kmow. We also modified 
 ``mk/rte.app.mk`` file to ease the compilation
 process of mTCP applications. We recommend using our package for DPDK
-installation. 
+installation.
+
+### CCP support
+
+Using [CCP](https://ccp-project.github.io/) for congestion control (disabled by
+default), requires building and running a CCP algorithm. If you would like to
+enable CCP (ie. use the internal implementation of Reno), simply set
+the `USE_CCP` flag to `TRUE` in `mtcp/src/include/mtcp.h`.
+
+1. Install Rust. Any installation method should be fine. We recommend using
+   rustup:
+
+    ```bash
+    curl https://sh.rustup.rs -sSf | sh -- -y -v --default-toolchain nightly
+    ````
+
+2. Build a CCP algorithm. The [generic-cong-avoid](https://github.com/ccp-project/generic-cong-avoid)
+   package implements standard TCP Reno and Cubic, so this is probably best to
+   start with. The same steps can be followed to build any of the other
+   algorithms hosted in the [ccp-project](https://github.com/ccp-project) organization, such as
+   [bbr](https://github.com/ccp-project/bbr).
+
+   ```bash
+   git clone https://github.com/ccp-project/generic-cong-avoid.git
+   cd generic-cong-avoid
+   cargo +nightly build
+   ````
+
+3. Later, after you've built mTCP and started an mTCP application (such as
+   epserver or perf), you must start the CCP binary you just built. If you
+   try to start the CCP process *before* running an mTCP application, it will
+   report a "connection refused" error.
+   
+
+    ```bash
+    cd generic-cong-avoid
+    sudo ./target/debug/reno --ipc unix
+    ```
 
 ## Included directories
 

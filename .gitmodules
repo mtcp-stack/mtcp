@@ -5,3 +5,6 @@
 	commit = 0da7f445df445630c794897347ee360d6fe6348b
 #	commit = 92924b207b124c156f7b6dff75110d6af83d971f
 	
+[submodule "mtcp/src/libccp"]
+	path = mtcp/src/libccp
+	url = https://github.com/ccp-project/libccp.git

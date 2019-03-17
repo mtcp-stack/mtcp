@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include "tcp_out.h"
+#include "tcp_util.h"
 #include "mtcp.h"
 #include "ip_out.h"
 #include "tcp_in.h"
@@ -7,6 +8,9 @@
 #include "eventpoll.h"
 #include "timer.h"
 #include "debug.h"
+#if RATE_LIMIT_ENABLED || PACING_ENABLED
+#include "pacing.h"
+#endif
 
 #define TCP_CALCULATE_CHECKSUM      TRUE
 #define ACK_PIGGYBACK				TRUE
@@ -124,7 +128,7 @@ GenerateTCPOptions(tcp_stream *cur_stream, uint32_t cur_ts,
 
 #if TCP_OPT_SACK_ENABLED
 		if (flags & TCP_OPT_SACK) {
-			// TODO: implement SACK support
+			// i += GenerateSACKOption(cur_stream, tcpopt + i);
 		}
 #endif
 	}
@@ -462,7 +466,7 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 	uint8_t *data;
 	uint32_t pkt_len;
 	uint32_t len;
-	uint32_t seq;
+	uint32_t seq = 0;
 	int remaining_window;
 	int sndlen;
 	int packets = 0;
@@ -482,9 +486,19 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 	}
 	
 	while (1) {
-		seq = cur_stream->snd_nxt;
+		if (sndvar->missing_seq) {
+			seq = sndvar->missing_seq;
+		} else {
+			seq = cur_stream->snd_nxt;
+		}
+		//seq = cur_stream->snd_nxt;
 		data = sndvar->sndbuf->head + (seq - sndvar->sndbuf->head_seq);
 		len = sndvar->sndbuf->len - (seq - sndvar->sndbuf->head_seq);
+
+		// Without this, mm continually drops packets (not sure why, bursting?) -> mtcp sees lots of losses -> throughput dies
+		if(cur_stream->wait_for_acks && TCP_SEQ_GT(cur_stream->snd_nxt, cur_stream->rcvvar->last_ack_seq)) {
+			goto out;
+		}
 		
 		/* sanity check */
 		if (TCP_SEQ_LT(seq, sndvar->sndbuf->head_seq)) {
@@ -514,6 +528,14 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		if (len == 0)
 			break;
 
+#if TCP_OPT_SACK_ENABLED
+		if (SeqIsSacked(cur_stream, seq)) {
+			//fprintf(stderr, "!! SKIPPING %u\n", seq - sndvar->iss);
+			cur_stream->snd_nxt += len;
+			continue;
+		}
+#endif
+
 		remaining_window = MIN(sndvar->cwnd, sndvar->peer_wnd)
 			               - (seq - sndvar->snd_una);
 		/* if there is no space in the window */
@@ -540,11 +562,31 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		/* payload size limited by TCP MSS */
 		pkt_len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
 
+#if RATE_LIMIT_ENABLED
+		// update rate
+		if (cur_stream->rcvvar->srtt) {
+			cur_stream->bucket->rate = (uint32_t)(((double)sndvar->cwnd / (cur_stream->rcvvar->srtt * 125.0)) * 8000000);
+		}
+		if (cur_stream->bucket->rate != 0 && (SufficientTokens(cur_stream->bucket, pkt_len*8) < 0)) {
+			packets = -3;
+			goto out;
+		}
+#endif
+    
+#if PACING_ENABLED
+                if (!CanSendNow(cur_stream->pacer)) {
+                    packets = -3;
+                    goto out;
+                }
+#endif
 		if ((sndlen = SendTCPPacket(mtcp, cur_stream, cur_ts,
 					    TCP_FLAG_ACK, data, pkt_len)) < 0) {
 			/* there is no available tx buf */
 			packets = -3;
 			goto out;
+		}
+		if (sndvar->missing_seq) {
+			sndvar->missing_seq = 0;
 		}
 		packets++;
 	}

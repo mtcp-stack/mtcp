@@ -54,15 +54,15 @@
 
 #define RATE_LIMIT_ENABLED              FALSE
 #define PACING_ENABLED                  FALSE
-#define USE_CCP                         TRUE
+#define USE_CCP                         FALSE
 /* Only use rate limiting if using CCP */
-#ifdef USE_CCP
+#if USE_CCP
 #undef  RATE_LIMIT_ENABLED
 #define RATE_LIMIT_ENABLED              TRUE
 // The following two logs are for debugging / experiments only, should be turned
 // off for production use
-#define DBGCCP                                 // ccp debug messages
-#define PROBECCP                               // print all cwnd changes, similar to tcpprobe output
+// #define DBGCCP                                 // ccp debug messages
+// #define PROBECCP                               // print all cwnd changes, similar to tcpprobe output
 #endif
 
 #define LOCK_STREAM_QUEUE               FALSE

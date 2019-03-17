@@ -20,10 +20,19 @@ We require the following libraries to run mTCP.
 Compling PSIO/DPDK/NETMAP/ONVM driver requires kernel headers.
 - For Debian/Ubuntu, try ``apt-get install linux-headers-$(uname -r)``
 
-Using [CCP](https://ccp-project.github.io/) for congestion control (enabled by
+We have modified the dpdk package to export net_device stat data 
+(for Intel-based Ethernet adapters only) to the OS. To achieve this, we have
+created a new LKM dpdk-iface-kmow. We also modified 
+``mk/rte.app.mk`` file to ease the compilation
+process of mTCP applications. We recommend using our package for DPDK
+installation.
+
+### CCP support
+
+Using [CCP](https://ccp-project.github.io/) for congestion control (disabled by
 default), requires building and running a CCP algorithm. If you would like to
-disable CCP (ie. use the internal implementation of Reno), simply comment out
-the `#define USE_CCP` in `mtcp/src/include/mtcp.h`.
+enable CCP (ie. use the internal implementation of Reno), simply set
+the `USE_CCP` flag to `TRUE` in `mtcp/src/include/mtcp.h`.
 
 1. Install Rust. Any installation method should be fine. We recommend using
    rustup:
@@ -54,14 +63,6 @@ the `#define USE_CCP` in `mtcp/src/include/mtcp.h`.
     cd generic-cong-avoid
     sudo ./target/debug/reno --ipc unix
     ```
-
-
-We have modified the dpdk package to export net_device stat data 
-(for Intel-based Ethernet adapters only) to the OS. To achieve this, we have
-created a new LKM dpdk-iface-kmow. We also modified 
-``mk/rte.app.mk`` file to ease the compilation
-process of mTCP applications. We recommend using our package for DPDK
-installation. 
 
 ## Included directories
 

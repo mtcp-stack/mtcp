@@ -104,10 +104,10 @@ mTCP can be prepared in three ways.
        # bash setup_mtcp_dpdk_env.sh [<path to $RTE_SDK]]
 
    Press [15] to compile x86_64-native-linuxapp-gcc version
-   Press [17] to install igb_uio driver for Intel NICs
-   Press [21] to setup 2048 2MB hugepages
-   Press [23] to register the Ethernet ports
-   Press [34] to quit the tool
+   Press [18] to install igb_uio driver for Intel NICs
+   Press [22] to setup 2048 2MB hugepages
+   Press [24] to register the Ethernet ports
+   Press [35] to quit the tool
 
   Only those devices will work with DPDK drivers that are listed
   on this page: http://dpdk.org/doc/nics. Please make sure that your

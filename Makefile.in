@@ -97,7 +97,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES = mtcp/src/Makefile apps/example/Makefile \
-	util/Makefile io_engine/lib/Makefile
+	apps/perf/Makefile util/Makefile io_engine/lib/Makefile
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -158,6 +158,7 @@ CSCOPE = cscope
 DIST_SUBDIRS = $(SUBDIRS)
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/apps/example/Makefile.in \
+	$(top_srcdir)/apps/perf/Makefile.in \
 	$(top_srcdir)/io_engine/lib/Makefile.in \
 	$(top_srcdir)/mtcp/src/Makefile.in \
 	$(top_srcdir)/util/Makefile.in README compile config.guess \
@@ -214,6 +215,7 @@ AWK = @AWK@
 BC_CHECK = @BC_CHECK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
+CCP = @CCP@
 CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -296,6 +298,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -361,6 +364,8 @@ distclean-hdr:
 mtcp/src/Makefile: $(top_builddir)/config.status $(top_srcdir)/mtcp/src/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 apps/example/Makefile: $(top_builddir)/config.status $(top_srcdir)/apps/example/Makefile.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+apps/perf/Makefile: $(top_builddir)/config.status $(top_srcdir)/apps/perf/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 util/Makefile: $(top_builddir)/config.status $(top_srcdir)/util/Makefile.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
@@ -538,7 +543,7 @@ distdir: $(DISTFILES)
 	  ! -type d ! -perm -444 -exec $(install_sh) -c -m a+r {} {} \; \
 	|| chmod -R a+r "$(distdir)"
 dist-gzip: distdir
-	tardir=$(distdir) && $(am__tar) | eval GZIP= gzip $(GZIP_ENV) -c >$(distdir).tar.gz
+	tardir=$(distdir) && $(am__tar) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).tar.gz
 	$(am__post_remove_distdir)
 
 dist-bzip2: distdir
@@ -564,7 +569,7 @@ dist-shar: distdir
 	@echo WARNING: "Support for shar distribution archives is" \
 	               "deprecated." >&2
 	@echo WARNING: "It will be removed altogether in Automake 2.0" >&2
-	shar $(distdir) | eval GZIP= gzip $(GZIP_ENV) -c >$(distdir).shar.gz
+	shar $(distdir) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).shar.gz
 	$(am__post_remove_distdir)
 
 dist-zip: distdir
@@ -582,7 +587,7 @@ dist dist-all:
 distcheck: dist
 	case '$(DIST_ARCHIVES)' in \
 	*.tar.gz*) \
-	  eval GZIP= gzip $(GZIP_ENV) -dc $(distdir).tar.gz | $(am__untar) ;;\
+	  GZIP=$(GZIP_ENV) gzip -dc $(distdir).tar.gz | $(am__untar) ;;\
 	*.tar.bz2*) \
 	  bzip2 -dc $(distdir).tar.bz2 | $(am__untar) ;;\
 	*.tar.lz*) \
@@ -592,7 +597,7 @@ distcheck: dist
 	*.tar.Z*) \
 	  uncompress -c $(distdir).tar.Z | $(am__untar) ;;\
 	*.shar.gz*) \
-	  eval GZIP= gzip $(GZIP_ENV) -dc $(distdir).shar.gz | unshar ;;\
+	  GZIP=$(GZIP_ENV) gzip -dc $(distdir).shar.gz | unshar ;;\
 	*.zip*) \
 	  unzip $(distdir).zip ;;\
 	esac

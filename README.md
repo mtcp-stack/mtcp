@@ -31,8 +31,8 @@ installation.
 
 Using [CCP](https://ccp-project.github.io/) for congestion control (disabled by
 default), requires building and running a CCP algorithm. If you would like to
-enable CCP (ie. use the internal implementation of Reno), simply set
-the `USE_CCP` flag to `TRUE` in `mtcp/src/include/mtcp.h`.
+enable CCP (ie. use the internal implementation of Reno), simply run configure
+script with --enable-ccp option.
 
 1. Install Rust. Any installation method should be fine. We recommend using
    rustup:

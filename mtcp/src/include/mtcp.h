@@ -54,7 +54,7 @@
 
 #define RATE_LIMIT_ENABLED              FALSE
 #define PACING_ENABLED                  FALSE
-#define USE_CCP                         FALSE
+
 /* Only use rate limiting if using CCP */
 #if USE_CCP
 #undef  RATE_LIMIT_ENABLED

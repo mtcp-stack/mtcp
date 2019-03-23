@@ -68,10 +68,12 @@ else
 	export HIDE=
 endif
 
+ifeq ($(CCP), 1)
 # LIBCCP
 LIBCCP=${MTCP_FLD}/src/libccp
 LIBS += -L$(LIBCCP) -lccp
 INC += -I$(LIBCCP)
+endif
 
 all: epserver epwget
 

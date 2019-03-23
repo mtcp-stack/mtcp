@@ -8,10 +8,9 @@
 #include "tcp_stream.h"
 #include "debug.h"
 #include "clock.h"
+#if USE_CCP
 #include "ccp.h"
 #include "libccp/ccp.h"
-
-#if USE_CCP
 /*----------------------------------------------------------------------------*/
 
 static inline void get_stream_from_ccp(

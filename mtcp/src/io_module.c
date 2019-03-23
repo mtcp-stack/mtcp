@@ -118,41 +118,40 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 		exit(EXIT_FAILURE);
 	}
 	fd = open(DEV_PATH, O_RDONLY);
-	if (fd == -1) {
+	if (fd != -1) {
 		TRACE_ERROR("Error opening dpdk-face!\n");
 		exit(EXIT_FAILURE);
-	}
 
-	dev_token = strtok_r(dev_tokenizer, delim, &saveptr);
-	while (dev_token != NULL) {
-		strcpy(pd.ifname, dev_token);
-		if (ioctl(fd, FETCH_PCI_ADDRESS, &pd) == -1) {
-			TRACE_DBG("Could not find pci info on dpdk "
-				  "device: %s. Is it a dpdk-attached "
-				  "interface?\n", dev_token);
-			goto loop_over;
+		dev_token = strtok_r(dev_tokenizer, delim, &saveptr);
+		while (dev_token != NULL) {
+			strcpy(pd.ifname, dev_token);
+			if (ioctl(fd, FETCH_PCI_ADDRESS, &pd) == -1) {
+				TRACE_DBG("Could not find pci info on dpdk "
+					  "device: %s. Is it a dpdk-attached "
+					  "interface?\n", dev_token);
+				goto loop_over;
+			}
+			argv[*argc] = strdup("-w");
+			argv[*argc + 1] = calloc(PCI_LENGTH, 1);
+			if (argv[*argc] == NULL ||
+			    argv[*argc + 1] == NULL) {
+				TRACE_ERROR("Memory allocation error!\n");
+				exit(EXIT_FAILURE);
+			}
+			sprintf(argv[*argc + 1], PCI_DOM":"PCI_BUS":"
+				PCI_DEVICE"."PCI_FUNC,
+				pd.pa.domain, pd.pa.bus, pd.pa.device,
+				pd.pa.function);
+			*argc += 2;
+			if (pd.numa_socket > numa_id) numa_id = pd.numa_socket;
+		loop_over:
+			dev_token = strtok_r(NULL, delim, &saveptr);
 		}
-		argv[*argc] = strdup("-w");
-		argv[*argc + 1] = calloc(PCI_LENGTH, 1);
-		if (argv[*argc] == NULL ||
-		    argv[*argc + 1] == NULL) {
-			TRACE_ERROR("Memory allocation error!\n");
-			exit(EXIT_FAILURE);
-		}
-		sprintf(argv[*argc + 1], PCI_DOM":"PCI_BUS":"
-			PCI_DEVICE"."PCI_FUNC,
-			pd.pa.domain, pd.pa.bus, pd.pa.device,
-			pd.pa.function);
-		*argc += 2;
-		if (pd.numa_socket > numa_id) numa_id = pd.numa_socket;
-	loop_over:
-		dev_token = strtok_r(NULL, delim, &saveptr);
+		close(fd);
+		free(dev_tokenizer);
 	}
-
 	/* add the terminating "" sequence */
 	argv[*argc] = end;
-	close(fd);
-	free(dev_tokenizer);
 
 	return numa_id;
 }

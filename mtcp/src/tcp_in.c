@@ -844,7 +844,7 @@ Handle_TCP_ST_SYN_RCVD (mtcp_manager_t mtcp, uint32_t cur_ts,
 		cur_stream->snd_nxt = ack_seq;
 		prior_cwnd = sndvar->cwnd;
 		sndvar->cwnd = ((prior_cwnd == 1)? 
-				(sndvar->mss * 2): sndvar->mss);
+				(sndvar->mss * TCP_INIT_CWND): sndvar->mss);
 		TRACE_DBG("sync_recvd: updating cwnd from %u to %u\n", prior_cwnd, sndvar->cwnd);
 		
 		//UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);

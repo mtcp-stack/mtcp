@@ -623,7 +623,7 @@ ParseConfiguration(char *line)
 			CONFIG.tcp_timewait = SEC_TO_USEC(CONFIG.tcp_timewait) / TIME_TICK;
 		}
 	} else if (strcmp(p, "stat_print") == 0) {
-		SaveInterfaceStatList(q);
+		SaveInterfaceStatList(line + strlen(p) + 1);
 	} else if (strcmp(p, "port") == 0) {
 		if(strncmp(q, ALL_STRING, sizeof(ALL_STRING)) == 0)
 			SaveInterfaceInfo(q);

@@ -119,9 +119,6 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 	}
 	fd = open(DEV_PATH, O_RDONLY);
 	if (fd != -1) {
-		TRACE_ERROR("Error opening dpdk-face!\n");
-		exit(EXIT_FAILURE);
-
 		dev_token = strtok_r(dev_tokenizer, delim, &saveptr);
 		while (dev_token != NULL) {
 			strcpy(pd.ifname, dev_token);
@@ -149,7 +146,11 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 		}
 		close(fd);
 		free(dev_tokenizer);
+	} else {
+		TRACE_ERROR("Error opening dpdk-face!\n");
+		exit(EXIT_FAILURE);
 	}
+
 	/* add the terminating "" sequence */
 	argv[*argc] = end;
 
@@ -694,7 +695,7 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		CONFIG.nif_to_eidx[j] = i;
 
 		/* finally set the port stats option `on' */
-		if (strcmp(CONFIG.eths[i].dev_name, port_stat_list) == 0)
+		if (strstr(port_stat_list, CONFIG.eths[i].dev_name) != 0)
 			CONFIG.eths[i].stat_print = TRUE;
 	}
 

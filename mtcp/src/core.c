@@ -1568,8 +1568,6 @@ mtcp_init(const char *config_file)
 	int i;
 	int ret;
 
-    fprintf(stderr, "hello from mtcp_init\n");
-
 	/* getting cpu and NIC */
 	/* set to max cpus only if user has not arbitrarily set it to lower # */
 	num_cpus = (CONFIG.num_cores == 0) ? GetNumCPUs() : CONFIG.num_cores;

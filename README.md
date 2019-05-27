@@ -30,9 +30,8 @@ installation.
 ### CCP support
 
 Using [CCP](https://ccp-project.github.io/) for congestion control (disabled by
-default), requires building and running a CCP algorithm. If you would like to
-enable CCP (ie. use the internal implementation of Reno), simply run configure
-script with --enable-ccp option.
+default), requires the CCP library. If you would like to enable CCP, simply run
+configure script with --enable-ccp option.
 
 1. Install Rust. Any installation method should be fine. We recommend using
    rustup:
@@ -41,28 +40,19 @@ script with --enable-ccp option.
     curl https://sh.rustup.rs -sSf | sh -- -y -v --default-toolchain nightly
     ````
 
-2. Build a CCP algorithm. The [generic-cong-avoid](https://github.com/ccp-project/generic-cong-avoid)
-   package implements standard TCP Reno and Cubic, so this is probably best to
-   start with. The same steps can be followed to build any of the other
-   algorithms hosted in the [ccp-project](https://github.com/ccp-project) organization, such as
-   [bbr](https://github.com/ccp-project/bbr).
-
-   ```bash
-   git clone https://github.com/ccp-project/generic-cong-avoid.git
-   cd generic-cong-avoid
-   cargo +nightly build
-   ````
-
-3. Later, after you've built mTCP and started an mTCP application (such as
-   epserver or perf), you must start the CCP binary you just built. If you
-   try to start the CCP process *before* running an mTCP application, it will
-   report a "connection refused" error.
-   
+2. Install the CCP command line utility:
 
     ```bash
-    cd generic-cong-avoid
-    sudo ./target/debug/reno --ipc unix
+    cargo install portus --bin ccp
     ```
+
+3. Build the library (comes with Reno and Cubic by default, use `ccp get` to add others):
+
+    ```
+    ccp makelib
+    ```
+
+4. You will also need to link your application against `-lccp` and `-lstartccp` as demonstrated in apps/example/Makefie.in
 
 ## Included directories
 

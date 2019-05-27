@@ -153,6 +153,10 @@ then
 	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
 fi
 
+AC_CHECK_LIB(startccp, libstartccp_run_forever, [echo "Found CCP library"], [
+    AC_MSG_ERROR(CCP library is missing. Please see X for instructions.)
+])
+
 AM_INIT_AUTOMAKE(mtcp, 3)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT(mtcp/src/Makefile)

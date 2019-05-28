@@ -29,9 +29,14 @@ installation.
 
 ### CCP support
 
+You can optionally use [CCP](https://ccp-project.github.io/)'s congestion 
+control implementation rather than mTCP's. You'll have wider selection of 
+congestion control algorithms with CCP.
+(Currently this feature is experimental and under revision.)
+
 Using [CCP](https://ccp-project.github.io/) for congestion control (disabled by
 default), requires the CCP library. If you would like to enable CCP, simply run
-configure script with --enable-ccp option.
+configure script with `--enable-ccp` option.
 
 1. Install Rust. Any installation method should be fine. We recommend using
    rustup:

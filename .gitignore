@@ -10,6 +10,9 @@ mtcp/src/Makefile
 util/Makefile
 stamp-h1
 
+# editors' temporary files
+.vscode/
+
 # Prerequisites
 *.d
 

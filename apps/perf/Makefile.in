@@ -6,6 +6,7 @@ DPDK=@DPDK@
 PS=@PSIO@
 NETMAP=@NETMAP@
 ONVM=@ONVM@
+CCP=@CCP@
 CFLAGS=@CFLAGS@
 
 # Add arch-specific optimization
@@ -68,8 +69,8 @@ endif
 
 ifeq ($(CCP), 1)
 # LIBCCP
-LIBCCP=${MTCP_FLD}/src/libccp
-LIBS += -L$(LIBCCP) -lccp
+LIBCCP = $(MTCP_FLD)/src/libccp
+LIBS += -L$(LIBCCP) -lccp -lstartccp
 INC += -I$(LIBCCP)
 endif
 

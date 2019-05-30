@@ -110,7 +110,7 @@ dnl Example of default-disabled feature
 AC_ARG_ENABLE([ccp],
 	AS_HELP_STRING([--enable-ccp], [Enable Congestion Control Plane (CCP)]))
 
-if test "x$enable_lro" = "xyes"
+if test "x$enable_ccp" = "xyes"
 then
 	AC_SUBST(CCP, 1)
 fi
@@ -151,6 +151,13 @@ fi
 if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "$enable_netmap" = ""
 then
 	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
+fi
+
+if test "x$enable_ccp" = "xyes"
+then
+	AC_CHECK_LIB(startccp, libstartccp_run_forever, [echo "Found CCP library"], [
+		AC_MSG_ERROR(CCP library is missing. Please see README.md for instructions.)
+	])
 fi
 
 AM_INIT_AUTOMAKE(mtcp, 3)

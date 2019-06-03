@@ -183,7 +183,7 @@ struct mtcp_config
 	uint8_t multi_process_is_master;
 
 #ifdef ENABLE_ONVM
-	struct onvm_nf_info *nf_info;
+	struct onvm_nf_local_ctx *nf_local_ctx;
 	/* onvm specific args */
 	uint16_t onvm_serv;
   	uint16_t onvm_inst;

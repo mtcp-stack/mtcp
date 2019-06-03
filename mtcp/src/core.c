@@ -99,7 +99,7 @@ HandleSignal(int signal)
 
 #ifdef ENABLE_ONVM
 		if (current_iomodule_func == &onvm_module_func)
-			onvm_nflib_stop(CONFIG.nf_info);
+			onvm_nflib_stop(CONFIG.nf_local_ctx);
 #endif
 		core = sched_getcpu();
 		clock_gettime(CLOCK_REALTIME, &cur_ts);
@@ -1640,7 +1640,7 @@ mtcp_destroy()
 #endif
 
 #ifdef ENABLE_ONVM
-	onvm_nflib_stop(CONFIG.nf_info);
+	onvm_nflib_stop(CONFIG.nf_local_ctx);
 #endif
 
 	TRACE_INFO("All MTCP threads are joined.\n");

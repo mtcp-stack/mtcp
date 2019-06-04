@@ -38,7 +38,7 @@ struct mtcp_config CONFIG = {
 	.tcp_timewait	  =			TCP_TIMEWAIT,
 	.num_mem_ch	  =			0,
 #if USE_CCP
-	.cc           =         "reno\n",
+	.cc           	  =         		"reno\n",
 #endif
 #ifdef ENABLE_ONVM
 	.onvm_inst	  =			(uint16_t) -1,

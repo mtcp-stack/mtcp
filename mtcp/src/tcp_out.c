@@ -496,7 +496,8 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		len = sndvar->sndbuf->len - (seq - sndvar->sndbuf->head_seq);
 
 		// Without this, mm continually drops packets (not sure why, bursting?) -> mtcp sees lots of losses -> throughput dies
-		if(cur_stream->wait_for_acks && TCP_SEQ_GT(cur_stream->snd_nxt, cur_stream->rcvvar->last_ack_seq)) {
+		if(cur_stream->wait_for_acks &&
+		   TCP_SEQ_GT(cur_stream->snd_nxt, cur_stream->rcvvar->last_ack_seq)) {
 			goto out;
 		}
 		
@@ -530,7 +531,7 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 
 #if TCP_OPT_SACK_ENABLED
 		if (SeqIsSacked(cur_stream, seq)) {
-			//fprintf(stderr, "!! SKIPPING %u\n", seq - sndvar->iss);
+			TRACE_DBG("!! SKIPPING %u\n", seq - sndvar->iss);
 			cur_stream->snd_nxt += len;
 			continue;
 		}

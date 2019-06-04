@@ -52,9 +52,9 @@ def server(mode):
     port = None
 
     if mode == "wait":
-        port = eval(sys.argv[2])
+        port = eval(sys.argv[3])
         s = socket(AF_INET, SOCK_STREAM)
-        s.bind(('10.1.1.6', port))
+        s.bind((sys.argv[2], port))
         s.listen(1)
         print 'Server ready...'
         while 1:
@@ -85,7 +85,7 @@ def main():
     else:
         mode = sys.argv[1]
         if mode == "wait":
-            if len(sys.argv) != 3:
+            if len(sys.argv) != 4:
                 usage()
         elif mode == "send":
             if len(sys.argv) != 4:

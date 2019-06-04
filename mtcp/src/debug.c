@@ -8,7 +8,8 @@
 #include "logger.h"
 
 /*----------------------------------------------------------------------------*/
-void flush_log_data(mtcp_manager_t mtcp)
+void
+flush_log_data(mtcp_manager_t mtcp)
 {
 	int ret = 0;
 	if (mtcp->w_buffer) {

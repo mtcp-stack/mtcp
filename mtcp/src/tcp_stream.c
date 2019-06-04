@@ -373,10 +373,10 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->bucket = NewTokenBucket();
 #endif
 #if PACING_ENABLED
-    stream->pacer = NewPacketPacer();
+	stream->pacer = NewPacketPacer();
 #endif
 #if USE_CCP
-    ccp_create(mtcp, stream);
+	ccp_create(mtcp, stream);
 #endif
 
 	UNUSED(da);

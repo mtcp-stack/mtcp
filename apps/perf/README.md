@@ -15,13 +15,13 @@ the connection:
 
 1. Client initiates connection (receiver listens on `port` and client sends to
 `ip:port` for `length` seconds)
-- `python recv.py wait [port]`
+- `python recv.py wait [ip] [port]`
 - `./client send [ip] [port] [length (seconds)]` 
 
 2. Receiver initiates connection (client listens on `port`, receiver sends a
 start message to `ip:port`, and then client sends back to receiver for `length`
 seconds)
-- `./client wait [port] [length (seconds)]`
+- `./client wait [ip] [port] [length (seconds)]`
 - `python recv.py send [ip] [port]`
 
 *NOTE*: If using CCP with mTCP, you will need to ensure that `LD_LIBRARY_PATH`
@@ -39,7 +39,7 @@ Setup Notes
 ===========
 
 0. Ensure the ARP table and routing table are populated correctly and located inside ./config/
-	 
+
 1. Build this application by simply running make in this directory (apps/perf)
 
 2. Assuming sender and receiver are on the same network and/or have a very low
@@ -54,7 +54,7 @@ Setup Notes
 3. Start mTCP perf client in wait mode, listening on, e.g., port 9000 and
 sending for 30 seconds:
 
-`sudo env LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./client wait 9000 30`
+`sudo env LD_LIBRARY_PATH=$LD_LIBRARY_PATH ./client wait 10.1.1.5 9000 30`
 
 4. Start python receiver in send mode, where client ip is e.g. 10.1.1.5
 

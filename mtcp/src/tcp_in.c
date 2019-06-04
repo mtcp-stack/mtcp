@@ -386,7 +386,8 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 				if (cur_stream->rcvvar->dup_acks + 1 > cur_stream->rcvvar->dup_acks) {
 					cur_stream->rcvvar->dup_acks++;
 #if USE_CCP
-					ccp_record_event(mtcp, cur_stream, EVENT_DUPACK, (cur_stream->snd_nxt - ack_seq));
+					ccp_record_event(mtcp, cur_stream, EVENT_DUPACK,
+							 (cur_stream->snd_nxt - ack_seq));
 #endif
 				}
 				dup = TRUE;
@@ -395,15 +396,20 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	}
 	if (!dup) {
 		if (cur_stream->rcvvar->dup_acks >= 3) {
-			TRACE_DBG("passed dup_acks, ack=%u, snd_nxt=%u, last_ack=%u len=%u wl2=%u peer_wnd=%u right=%u\n", ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss, cur_stream->rcvvar->last_ack_seq-sndvar->iss, payloadlen, cur_stream->rcvvar->snd_wl2-sndvar->iss, sndvar->peer_wnd / sndvar->mss, right_wnd_edge - sndvar->iss);
+			TRACE_DBG("passed dup_acks, ack=%u, snd_nxt=%u, last_ack=%u len=%u wl2=%u peer_wnd=%u right=%u\n",
+				  ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss, cur_stream->rcvvar->last_ack_seq-sndvar->iss,
+				  payloadlen, cur_stream->rcvvar->snd_wl2-sndvar->iss, sndvar->peer_wnd / sndvar->mss,
+				  right_wnd_edge - sndvar->iss);
 		}
 		cur_stream->rcvvar->dup_acks = 0;
 		cur_stream->rcvvar->last_ack_seq = ack_seq;
 	}
 
-		if(cur_stream->wait_for_acks) {
-			TRACE_DBG("got ack, but waiting to send... ack=%u, snd_next=%u cwnd=%u\n", ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss, sndvar->cwnd / sndvar->mss);
-		}
+	if(cur_stream->wait_for_acks) {
+		TRACE_DBG("got ack, but waiting to send... ack=%u, snd_next=%u cwnd=%u\n",
+			  ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss,
+			  sndvar->cwnd / sndvar->mss);
+	}
 
 	/* Fast retransmission */
 	if (dup && cur_stream->rcvvar->dup_acks == 3) {
@@ -427,10 +433,6 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 						"ack_seq: %u, snd_una: %u\n", 
 						ack_seq, sndvar->snd_una);
 			}
-
-			//cur_stream->snd_nxt = ack_seq;
-			//cur_stream->wait_for_acks = TRUE;
-			//cur_stream->seq_at_last_loss = ack_seq;
 			sndvar->missing_seq = ack_seq;
 		}
 
@@ -471,7 +473,8 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 
 #if RECOVERY_AFTER_LOSS
 	/* updating snd_nxt (when recovered from loss) */
-	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) || (cur_stream->wait_for_acks && TCP_SEQ_GT(ack_seq, cur_stream->seq_at_last_loss)
+	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) ||
+	    (cur_stream->wait_for_acks && TCP_SEQ_GT(ack_seq, cur_stream->seq_at_last_loss)
 #if TCP_OPT_SACK_ENABLED 
 		&& cur_stream->rcvvar->sacked_pkts == 0
 #endif

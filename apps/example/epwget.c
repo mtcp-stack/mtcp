@@ -26,7 +26,9 @@
 #include "debug.h"
 
 #define MAX_URL_LEN 128
-#define MAX_FILE_LEN 128
+#define FILE_LEN    128
+#define FILE_IDX     10
+#define MAX_FILE_LEN (FILE_LEN + FILE_IDX)
 #define HTTP_HEADER_LEN 1024
 
 #define IP_RANGE 1
@@ -64,7 +66,7 @@ static int num_cores;
 static int core_limit;
 /*----------------------------------------------------------------------------*/
 static int fio = FALSE;
-static char outfile[MAX_FILE_LEN + 1];
+static char outfile[FILE_LEN + 1];
 /*----------------------------------------------------------------------------*/
 static char host[MAX_IP_STR_LEN + 1] = {'\0'};
 static char url[MAX_URL_LEN + 1] = {'\0'};
@@ -775,7 +777,7 @@ main(int argc, char **argv)
 				return FALSE;
 			}
 			fio = TRUE;
-			strncpy(outfile, optarg, MAX_FILE_LEN);
+			strncpy(outfile, optarg, FILE_LEN);
 			break;
 		case 'n':
 			process_cpu = mystrtol(optarg, 10);

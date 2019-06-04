@@ -63,6 +63,7 @@
 // off for production use
 // #define DBGCCP                                 // ccp debug messages
 // #define PROBECCP                               // print all cwnd changes, similar to tcpprobe output
+#define CC_NAME				20
 #endif
 
 #define LOCK_STREAM_QUEUE               FALSE
@@ -190,7 +191,7 @@ struct mtcp_config
   	uint16_t onvm_dest;
 #endif
 #if USE_CCP
-    char     cc[1024];
+    char     cc[CC_NAME];
 #endif
 };
 /*----------------------------------------------------------------------------*/

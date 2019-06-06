@@ -316,11 +316,11 @@ to an error resembling the one mentioned below:
 - ``` Cannot mmap memory for rte_config at [0x7ffff7fb6000], got [0x7ffff7e74000] - please use '--base-virtaddr' option```
 - ```EAL: Cannot mmap device resource file /sys/bus/pci/devices/0000:06:00.0/resource3 to address: 0x7ffff7ff1000```
 
-To prevent this, use the base virtual address parameter to run the ONVM manager, e.g.:
+To prevent this, use the base virtual address parameter to run the ONVM manager (core list arg `0xf8` isn't actually used by mtcp NFs but is required), e.g.:
 
 ```bash
 cd openNetVM/onvm  
-./go.sh 1,2,3 1 -s stdout -a 0x7f000000000 
+./go.sh 1,2,3 1 0xf8 -s stdout -a 0x7f000000000 
 ```
 
 ### ***NETMAP VERSION***

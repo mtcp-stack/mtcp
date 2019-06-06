@@ -711,10 +711,8 @@ LIBONVM_CFLAGS=""
 LIBONVM_LIBS=""
 
 if test "$WITH_LIBONVM" != "no"; then
-	LIBONVM_CFLAGS="-I$WITH_LIBONVM/onvm_nflib"
-	LIBONVM_CFLAGS="-I$WITH_LIBONVM/lib"
-	LIBONVM_LIBS="$WITH_LIBONVM/onvm_nflib/$RTE_TARGET/libonvm.a"
-	LIBONVM_LIBS="$WITH_LIBONVM/lib/$RTE_TARGET/lib/libonvmhelper.a -lm"
+	LIBONVM_CFLAGS="-I$WITH_LIBONVM/onvm_nflib -I$WITH_LIBONVM/lib"
+	LIBONVM_LIBS="$WITH_LIBONVM/onvm_nflib/$RTE_TARGET/libonvm.a $WITH_LIBONVM/lib/$RTE_TARGET/lib/libonvmhelper.a -lm"
 	CFLAGS="${CFLAGS} ${LIBONVM_CFLAGS}"
 	AC_DEFINE([HAVE_LIBONVM], [1], [libonvm support])
 	AC_MSG_RESULT(yes)

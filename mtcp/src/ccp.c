@@ -36,12 +36,12 @@ _dp_set_cwnd(struct ccp_datapath *dp, struct ccp_connection *conn, uint32_t cwnd
 	// (time_ms) (rtt) (curr_cwnd_pkts) (new_cwnd_pkts) (ssthresh)
 	if (cwnd != stream->sndvar->cwnd) {
 		CCP_PROBE("%lu %d %d->%d (ss=%d)\n", 
-			  now_usecs() / 1000, 
-			  stream->rcvvar->srtt * 125,
-			  stream->sndvar->cwnd / stream->sndvar->mss,
-			  new_cwnd / stream->sndvar->mss,
-			  stream->sndvar->ssthresh / stream->sndvar->mss
-			  );
+            USECS_TO_MS(now_usecs()),
+            UNSHIFT_SRTT(stream->rcvvar->srtt)
+            stream->sndvar->cwnd / stream->sndvar->mss,
+            new_cwnd / stream->sndvar->mss,
+            stream->sndvar->ssthresh / stream->sndvar->mss
+        );
 	}
 	stream->sndvar->cwnd = new_cwnd;
 }
@@ -223,13 +223,13 @@ ccp_cong_control(mtcp_manager_t mtcp, tcp_stream *stream,
 	mmt->bytes_acked       = bytes_delivered;
 	mmt->packets_acked     = packets_delivered;
 	mmt->snd_cwnd          = stream->sndvar->cwnd; 
-	mmt->rtt_sample_us     = stream->rcvvar->srtt * 125; 
+	mmt->rtt_sample_us     = UNSHIFT_SRTT(stream->rcvvar->srtt); 
 	mmt->bytes_in_flight   = 0; // TODO
 	mmt->packets_in_flight = 0; // TODO
 	mmt->rate_outgoing     = rin;
 	mmt->rate_incoming     = rout;
 #if TCP_OPT_SACK_ENABLED
-	mmt->bytes_misordered   = stream->rcvvar->sacked_pkts * 1448;
+	mmt->bytes_misordered   = stream->rcvvar->sacked_pkts * MSS;
 	mmt->packets_misordered = stream->rcvvar->sacked_pkts;
 #endif
 

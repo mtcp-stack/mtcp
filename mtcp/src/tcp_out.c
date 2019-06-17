@@ -18,9 +18,6 @@
 
 #define TCP_MAX_WINDOW 65535
 
-#define MAX(a, b) ((a)>(b)?(a):(b))
-#define MIN(a, b) ((a)<(b)?(a):(b))
-
 /*----------------------------------------------------------------------------*/
 static inline uint16_t
 CalculateOptionLength(uint8_t flags)
@@ -566,7 +563,14 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 #if RATE_LIMIT_ENABLED
 		// update rate
 		if (cur_stream->rcvvar->srtt) {
-			cur_stream->bucket->rate = (uint32_t)(((double)sndvar->cwnd / (cur_stream->rcvvar->srtt * 125.0)) * 8000000);
+			cur_stream->bucket->rate = 
+                (uint32_t)(
+                    SECONDS_TO_USECS(                                                      // bits / s = mbps
+                        BYTES_TO_BITS(                                                     // bits / us 
+                            (double)sndvar->cwnd / UNSHIFT_SRTT(cur_stream->rcvvar->srtt)  // bytes / us
+                        )
+                    )
+                );
 		}
 		if (cur_stream->bucket->rate != 0 && (SufficientTokens(cur_stream->bucket, pkt_len*8) < 0)) {
 			packets = -3;

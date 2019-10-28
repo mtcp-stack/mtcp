@@ -1,7 +1,9 @@
 ### GCC ###
 GCC=@CC@
 
-ifeq ($(shell uname -m),x86_64)
+# If ARCH is not defined, retrive from system
+ARCH ?= $(shell uname -m)
+ifeq ($(ARCH),x86_64)
 GCC_OPT = -m64
 else
 GCC_OPT =

@@ -32,6 +32,10 @@
 #include "ccp.h"
 #include "libccp/ccp.h"
 #endif
+#ifdef ENABLE_UCTX
+#include "lthread_api.h"
+#include "schedule.h"
+#endif
 
 #ifndef DISABLE_DPDK
 /* for launching rte thread */
@@ -67,18 +71,27 @@
 struct mtcp_thread_context *g_pctx[MAX_CPUS] = {0};
 struct log_thread_context *g_logctx[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
+#ifdef ENABLE_UCTX
+static lthread_t g_thread[MAX_CPUS] = {0};
+static lthread_t g_app_thread[MAX_CPUS] = {0};
+#else
 static pthread_t g_thread[MAX_CPUS] = {0};
+#endif
+
 #if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) ||		\
 	(STREAM) || (STATE) || (STAT) || (APP) || (EPOLL)	\
 	|| (DUMP_STREAM)
 static pthread_t log_thread[MAX_CPUS]  = {0};
 #endif
+
 #if USE_CCP
 static pthread_t ccp_run_thread = 0;
 static pthread_t ccp_recv_thread[MAX_CPUS] = {0};
 #endif
 /*----------------------------------------------------------------------------*/
+#ifndef ENABLE_UCTX
 static sem_t g_init_sem[MAX_CPUS];
+#endif
 static int running[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 mtcp_sighandler_t app_signal_handler;
@@ -454,6 +467,38 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 	struct event_queue *usrq = ep->usr_queue;
 	struct event_queue *mtcpq = ep->mtcp_queue;
 
+#ifdef ENABLE_UCTX
+	if (ep->mtcp_queue->num_events > 0) {
+		/* while mtcp_queue have events */
+		/* and usr_queue is not full */
+		while (mtcpq->num_events > 0 && usrq->num_events < usrq->size) {
+			/* copy the event from mtcp_queue to usr_queue */
+			usrq->events[usrq->end++] = mtcpq->events[mtcpq->start++];
+
+			if (usrq->end >= usrq->size)
+				usrq->end = 0;
+			usrq->num_events++;
+
+			if (mtcpq->start >= mtcpq->size)
+				mtcpq->start = 0;
+			mtcpq->num_events--;
+		}
+	}
+
+	/* if there are pending events, wake up user */
+	if (ep->waiting && (ep->usr_queue->num_events > 0 || 
+				ep->usr_shadow_queue->num_events > 0)) {
+		STAT_COUNT(mtcp->runstat.rounds_epoll);
+		TRACE_EPOLL("Broadcasting events. num: %d, cur_ts: %u, prev_ts: %u\n", 
+				ep->usr_queue->num_events, cur_ts, mtcp->ts_last_event);
+		mtcp->ts_last_event = cur_ts;
+		ep->stat.wakes++;
+		ep->waiting = FALSE;
+
+		YieldToApp(mtcp->ctx, TRUE);
+	}
+	
+#else /* !ENABLE_UCTX */	
 	pthread_mutex_lock(&ep->epoll_lock);
 	if (ep->mtcp_queue->num_events > 0) {
 		/* while mtcp_queue have events */
@@ -483,6 +528,8 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 		pthread_cond_signal(&ep->epoll_cond);
 	}
 	pthread_mutex_unlock(&ep->epoll_lock);
+	
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static inline void 
@@ -715,7 +762,7 @@ DestroyRemainingFlows(mtcp_manager_t mtcp)
 #endif
 	for (i = 0; i < NUM_BINS; i++) {
 		TAILQ_FOREACH(walk, &ht->ht_table[i], rcvvar->he_link) {
-#ifdef DUMP_STREAM
+#if defined(DUMP_STREAM)
 			thread_printf(mtcp, mtcp->log_fp, 
 					"CPU %d: Destroying stream %d\n", mtcp->ctx->cpu, walk->id);
 			DumpStream(mtcp, walk);
@@ -735,6 +782,14 @@ InterruptApplication(mtcp_manager_t mtcp)
 	int i;
 	struct tcp_listener *listener = NULL;
 
+#ifdef ENABLE_UCTX
+	/* interrupt if the mtcp_epoll_wait() is waiting */
+	if ((mtcp->ep) &&  (mtcp->ep->waiting)) {
+		mtcp->ep->waiting = FALSE;
+
+		YieldToApp(mtcp->ctx, FALSE);
+	}
+#else	
 	/* interrupt if the mtcp_epoll_wait() is waiting */
 	if (mtcp->ep) {
 		pthread_mutex_lock(&mtcp->ep->epoll_lock);
@@ -743,9 +798,17 @@ InterruptApplication(mtcp_manager_t mtcp)
 		}
 		pthread_mutex_unlock(&mtcp->ep->epoll_lock);
 	}
+#endif
 
 	/* interrupt if the accept() is waiting */
 	/* this may be a looong loop but this is called only on exit */
+#ifdef ENABLE_UCTX
+	for (i = 0; i < MAX_PORT; i++) {
+		listener = ListenerHTSearch(mtcp->listeners, &i);
+		if ((listener != NULL) && (!(listener->socket->opts & MTCP_NONBLOCK)))
+			YieldToApp(mtcp->ctx, FALSE);
+	}
+#else
 	for (i = 0; i < MAX_PORT; i++) {
 		listener = ListenerHTSearch(mtcp->listeners, &i);
 		if (listener != NULL) {
@@ -756,6 +819,7 @@ InterruptApplication(mtcp_manager_t mtcp)
 			pthread_mutex_unlock(&listener->accept_lock);			
 		}
 	}
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static void 
@@ -773,6 +837,7 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 	TRACE_DBG("CPU %d: mtcp thread running.\n", ctx->cpu);
 
 	ts = ts_prev = 0;
+
 	while ((!ctx->done || mtcp->flow_cnt) && !ctx->exit) {
 		
 		STAT_COUNT(mtcp->runstat.rounds);
@@ -837,6 +902,10 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		if (mtcp->flow_cnt > 0) {
 			/* hadnle stream queues  */
 			HandleApplicationCalls(mtcp, ts);
+#ifdef ENABLE_UCTX
+		} else {
+			YieldToApp(ctx, TRUE);
+#endif
 		}
 
 		WritePacketsToChunks(mtcp, ts);
@@ -1150,6 +1219,35 @@ CCPRecvLoopThread(void *arg) {
 }
 #endif
 /*----------------------------------------------------------------------------*/
+#ifdef ENABLE_UCTX
+static void
+MTCPRunThread(void *arg)
+{
+	int cpu;
+	struct mtcp_thread_context *ctx;
+
+	ctx  = (struct mtcp_thread_context *) arg;
+	cpu = ctx->cpu;
+
+	/* start the main loop */
+	/* XXX find a way to encapsulate this */
+	lthread_detach();
+	RunMainLoop(ctx);
+
+	struct mtcp_context m;
+	m.cpu = cpu;
+	mtcp_free_context(&m);
+
+	/* destroy hash tables */
+	DestroyHashtable(g_mtcp[cpu]->tcp_flow_table);
+	DestroyHashtable(g_mtcp[cpu]->listeners);
+	
+	TRACE_DBG("MTCP thread %d finished.\n", ctx->cpu);
+
+	/* XXX find a way to encapsulate this */
+	lthread_exit(NULL);
+}
+#else
 static void *
 MTCPRunThread(void *arg)
 {
@@ -1258,6 +1356,7 @@ MTCPRunThread(void *arg)
 	
 	return 0;
 }
+#endif
 /*----------------------------------------------------------------------------*/
 #ifndef DISABLE_DPDK
 int MTCPDPDKRunThread(void *arg)
@@ -1267,11 +1366,37 @@ int MTCPDPDKRunThread(void *arg)
 }
 #endif
 /*----------------------------------------------------------------------------*/
+#ifdef ENABLE_UCTX
+int
+mtcp_create_app_context(mctx_t mctx, lthread_func_t app_func, void *arg)
+{
+	int temp;
+
+	if ((temp = lthread_create(&g_app_thread[mctx->cpu], mctx->cpu, app_func, arg)) != 0) {
+		TRACE_INFO("[CPU%d] failed to create application context (reason: %s)\n",
+		           mctx->cpu, strerror(temp));
+		return -1;
+	}
+
+	lthread_set_affinity(mctx->cpu);
+
+	return 0;
+}
+
+void
+mtcp_run_app(mctx_t mctx)
+{
+	lthread_run();
+}
+#endif
+/*----------------------------------------------------------------------------*/
 mctx_t 
 mtcp_create_context(int cpu)
 {
 	mctx_t mctx;
+#ifndef ENABLE_UCTX
 	int ret;
+#endif
 
 	if (cpu >=  CONFIG.num_cores) {
 		TRACE_ERROR("Failed initialize new mtcp context. "
@@ -1280,18 +1405,20 @@ mtcp_create_context(int cpu)
 		return NULL;
 	}
 
-        /* check if mtcp_create_context() was already initialized */
-        if (g_logctx[cpu] != NULL) {
-                TRACE_ERROR("%s was already initialized before!\n",
-                            __FUNCTION__);
-                return NULL;
-        }
+	/* check if mtcp_create_context() was already initialized */
+	if (g_logctx[cpu] != NULL) {
+		TRACE_ERROR("%s was already initialized before!\n",
+					__FUNCTION__);
+		return NULL;
+	}
 
+#ifndef ENABLE_UCTX
 	ret = sem_init(&g_init_sem[cpu], 0, 0);
 	if (ret) {
 		TRACE_ERROR("Failed initialize init_sem.\n");
 		return NULL;
 	}
+#endif
 
 	mctx = (mctx_t)calloc(1, sizeof(struct mtcp_context));
 	if (!mctx) {
@@ -1322,6 +1449,80 @@ mtcp_create_context(int cpu)
 		return NULL;
 	}
 #endif
+
+#ifdef ENABLE_UCTX
+	int working;
+	struct mtcp_manager *mtcp;
+	struct mtcp_thread_context *ctx;
+
+	/* memory alloc after core affinitization would use local memory
+	   most time */
+	ctx = calloc(1, sizeof(*ctx));
+	if (!ctx) {
+		perror("calloc");
+		TRACE_ERROR("Failed to calloc mtcp context.\n");
+		exit(-1);
+	}
+
+	ctx->thread = lthread_current();
+	ctx->cpu = cpu;
+	mtcp = ctx->mtcp_manager = InitializeMTCPManager(ctx);
+	if (!mtcp) {
+		TRACE_ERROR("Failed to initialize mtcp manager.\n");
+		exit(-1);
+	}
+
+	/* assign mtcp context's underlying I/O module */
+	mtcp->iom = current_iomodule_func;
+
+	/* I/O initializing */
+	mtcp->iom->init_handle(ctx);
+
+	if (pthread_mutex_init(&ctx->smap_lock, NULL)) {
+		perror("pthread_mutex_init of ctx->smap_lock\n");
+		exit(-1);
+	}
+
+	if (pthread_mutex_init(&ctx->flow_pool_lock, NULL)) {
+		perror("pthread_mutex_init of ctx->flow_pool_lock\n");
+		exit(-1);
+	}
+	
+	if (pthread_mutex_init(&ctx->socket_pool_lock, NULL)) {
+		perror("pthread_mutex_init of ctx->socket_pool_lock\n");
+		exit(-1);
+	}
+
+	SQ_LOCK_INIT(&ctx->connect_lock, "ctx->connect_lock", exit(-1));
+	SQ_LOCK_INIT(&ctx->close_lock, "ctx->close_lock", exit(-1));
+	SQ_LOCK_INIT(&ctx->reset_lock, "ctx->reset_lock", exit(-1));
+	SQ_LOCK_INIT(&ctx->sendq_lock, "ctx->sendq_lock", exit(-1));
+	SQ_LOCK_INIT(&ctx->ackq_lock, "ctx->ackq_lock", exit(-1));
+	SQ_LOCK_INIT(&ctx->destroyq_lock, "ctx->destroyq_lock", exit(-1));
+
+	/* remember this context pointer for signal processing */
+	g_pctx[cpu] = ctx;
+	mlockall(MCL_CURRENT);
+
+	// attach (nic device, queue)
+	working = AttachDevice(ctx);
+	if (working != 0) {
+		perror("attach");
+		return NULL;
+	}
+
+	TRACE_DBG("CPU %d: initialization finished.\n", cpu);
+
+	fprintf(stderr, "CPU %d: initialization finished.\n", cpu);
+
+	if (lthread_create(&g_thread[cpu],
+			   cpu, (lthread_func_t) MTCPRunThread, (void *)ctx) != 0) {
+	  	TRACE_ERROR("lthread_create of mtcp thread failed!\n");
+	  	return NULL;
+	}
+	
+#else /* !ENABLE_UCTX */
+
 #ifndef DISABLE_DPDK
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
@@ -1352,6 +1553,9 @@ mtcp_create_context(int cpu)
 	sem_wait(&g_init_sem[cpu]);
 	sem_destroy(&g_init_sem[cpu]);
 
+#endif /* ENABLE_UCTX */
+
+	
 	running[cpu] = TRUE;
 
 	if (mtcp_master < 0) {
@@ -1377,7 +1581,8 @@ mtcp_free_context(mctx_t mctx)
 	struct mtcp_thread_context *ctx = g_pctx[mctx->cpu];
 	struct mtcp_manager *mtcp = ctx->mtcp_manager;
 	struct log_thread_context *log_ctx = mtcp->logger;
-	int ret, i;
+	int ret;
+	int i;
 
 	if (g_pctx[mctx->cpu] == NULL) return;
 
@@ -1418,10 +1623,16 @@ mtcp_free_context(mctx_t mctx)
 	ret = write(log_ctx->pair_sp_fd, "F", 1);
 	assert(ret == 1);
 	UNUSED(ret);
-#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || (STREAM)\
+
+#ifdef ENABLE_UCTX
+	lthread_join(g_thread[mctx->cpu], NULL);
+#else
+#if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || (STREAM)		\
 	|| (STATE) || (STAT) || (APP) || (EPOLL) || (DUMP_STREAM)
 	pthread_join(log_thread[ctx->cpu], NULL);
 #endif
+#endif
+	
 	fclose(mtcp->log_fp);
 	TRACE_LOG("Log thread %d joined.\n", mctx->cpu);
 
@@ -1489,10 +1700,12 @@ mtcp_free_context(mctx_t mctx)
 	//TRACE_INFO("MTCP thread %d destroyed.\n", mctx->cpu);
 	mtcp->iom->destroy_handle(ctx);
 	free(ctx);
+
 	if (g_logctx[mctx->cpu]) {
 		free(g_logctx[mctx->cpu]);
 		g_logctx[mctx->cpu] = NULL;
 	}
+	
 	g_pctx[mctx->cpu] = NULL;
 }
 /*----------------------------------------------------------------------------*/
@@ -1645,12 +1858,17 @@ void
 mtcp_destroy()
 {
 	int i;
+#ifndef ENABLE_UCTX
 #ifndef DISABLE_DPDK
 	int master = rte_get_master_lcore();
+#endif
 #endif
 	/* wait until all threads are closed */
 	for (i = 0; i < num_cpus; i++) {
 		if (running[i]) {
+#ifdef ENABLE_UCTX
+			lthread_join(g_thread[i], NULL);
+#else
 #ifndef DISABLE_DPDK
 			if (master != i)
 				rte_eal_wait_lcore(i);
@@ -1659,6 +1877,7 @@ mtcp_destroy()
 			{
 				pthread_join(g_thread[i], NULL);
 			}
+#endif
 		}
 	}
 

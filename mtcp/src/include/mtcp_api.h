@@ -60,6 +60,16 @@ mtcp_core_affinitize(int cpu);
 mctx_t 
 mtcp_create_context(int cpu);
 
+#ifdef ENABLE_UCTX
+typedef void (*mtcp_app_func_t) (void *); 
+
+int
+mtcp_create_app_context(mctx_t mctx, mtcp_app_func_t func, void *arg);
+
+void
+mtcp_run_app();
+#endif
+	
 void 
 mtcp_destroy_context(mctx_t mctx);
 

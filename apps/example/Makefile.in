@@ -7,6 +7,7 @@ PS=@PSIO@
 NETMAP=@NETMAP@
 ONVM=@ONVM@
 CCP=@CCP@
+UCTX=@UCTX@
 CFLAGS=@CFLAGS@
 
 # Add arch-specific optimization
@@ -74,6 +75,10 @@ ifeq ($(CCP), 1)
 LIBCCP = $(MTCP_FLD)/src/libccp
 LIBS += -L$(LIBCCP) -lccp -lstartccp
 INC += -I$(LIBCCP)
+endif
+
+ifeq ($(UCTX),1)
+CFLAGS += -DENABLE_UCTX
 endif
 
 all: epserver epwget

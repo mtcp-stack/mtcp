@@ -533,73 +533,35 @@ PrintStats()
 #endif
 }
 /*----------------------------------------------------------------------------*/
-void *
-RunWgetMain(void *arg)
+void
+RunWgetAppMain(void *arg)
 {
 	thread_context_t ctx;
 	mctx_t mctx;
-	int core = *(int *)arg;
-	struct in_addr daddr_in;
-	int n, maxevents;
+	int core;
+	int nevents;
+	int maxevents;
 	int ep;
 	struct mtcp_epoll_event *events;
-	int nevents;
 	struct wget_vars *wvars;
 	int i;
 
 	struct timeval cur_tv, prev_tv;
-	//uint64_t cur_ts, prev_ts;
-
-	mtcp_core_affinitize(core);
-
-	ctx = CreateContext(core);
-	if (!ctx) {
-		return NULL;
-	}
-	mctx = ctx->mctx;
-	g_ctx[core] = ctx;
-	g_stat[core] = &ctx->stat;
-	srand(time(NULL));
-
-	mtcp_init_rss(mctx, saddr, IP_RANGE, daddr, dport);
-
-	n = flows[core];
-	if (n == 0) {
-		TRACE_DBG("Application thread %d finished.\n", core);
-		pthread_exit(NULL);
-		return NULL;
-	}
-	ctx->target = n;
-
-	daddr_in.s_addr = daddr;
-	fprintf(stderr, "Thread %d handles %d flows. connecting to %s:%u\n", 
-			core, n, inet_ntoa(daddr_in), ntohs(dport));
-
-	/* Initialization */
+	
+    ctx = (thread_context_t) arg;
+    mctx = ctx->mctx;
+    core = ctx->core;
+    ep = ctx->ep;
+    wvars  = ctx->wvars;
 	maxevents = max_fds * 3;
-	ep = mtcp_epoll_create(mctx, maxevents);
-	if (ep < 0) {
-		TRACE_ERROR("Failed to create epoll struct!n");
-		exit(EXIT_FAILURE);
-	}
+	
 	events = (struct mtcp_epoll_event *)
 			calloc(maxevents, sizeof(struct mtcp_epoll_event));
 	if (!events) {
 		TRACE_ERROR("Failed to allocate events!\n");
 		exit(EXIT_FAILURE);
 	}
-	ctx->ep = ep;
-
-	wvars = (struct wget_vars *)calloc(max_fds, sizeof(struct wget_vars));
-	if (!wvars) {
-		TRACE_ERROR("Failed to create wget variables!\n");
-		exit(EXIT_FAILURE);
-	}
-	ctx->wvars = wvars;
-
-	ctx->started = ctx->done = ctx->pending = 0;
-	ctx->errors = ctx->incompletes = 0;
-
+	
 	gettimeofday(&cur_tv, NULL);
 	//prev_ts = TIMEVAL_TO_USEC(cur_tv);
 	prev_tv = cur_tv;
@@ -620,7 +582,7 @@ RunWgetMain(void *arg)
 				break;
 			}
 		}
-
+		
 		nevents = mtcp_epoll_wait(mctx, ep, events, maxevents, -1);
 		ctx->stat.waits++;
 	
@@ -679,6 +641,71 @@ RunWgetMain(void *arg)
 		}
 	}
 
+}
+	
+/*----------------------------------------------------------------------------*/
+void *
+RunWgetMain(void *arg)
+{
+	thread_context_t ctx;
+	mctx_t mctx;
+	int core = *(int *)arg;
+	struct in_addr daddr_in;
+	int n, maxevents;
+	int ep;
+	struct wget_vars *wvars;
+
+	mtcp_core_affinitize(core);
+
+	ctx = CreateContext(core);
+	if (!ctx) {
+		return NULL;
+	}
+	mctx = ctx->mctx;
+	g_ctx[core] = ctx;
+	g_stat[core] = &ctx->stat;
+	srand(time(NULL));
+
+	mtcp_init_rss(mctx, saddr, IP_RANGE, daddr, dport);
+
+	n = flows[core];
+	if (n == 0) {
+		TRACE_DBG("Application thread %d finished.\n", core);
+		pthread_exit(NULL);
+		return NULL;
+	}
+	ctx->target = n;
+
+	daddr_in.s_addr = daddr;
+	fprintf(stderr, "Thread %d handles %d flows. connecting to %s:%u\n", 
+			core, n, inet_ntoa(daddr_in), ntohs(dport));
+
+	/* Initialization */
+	maxevents = max_fds * 3;
+	ep = mtcp_epoll_create(mctx, maxevents);
+	if (ep < 0) {
+		TRACE_ERROR("Failed to create epoll struct!n");
+		exit(EXIT_FAILURE);
+	}
+	ctx->ep = ep;
+
+	wvars = (struct wget_vars *)calloc(max_fds, sizeof(struct wget_vars));
+	if (!wvars) {
+		TRACE_ERROR("Failed to create wget variables!\n");
+		exit(EXIT_FAILURE);
+	}
+	ctx->wvars = wvars;
+
+	ctx->started = ctx->done = ctx->pending = 0;
+	ctx->errors = ctx->incompletes = 0;
+
+#ifdef ENABLE_UCTX
+	mtcp_create_app_context(mctx, (mtcp_app_func_t) RunWgetAppMain, (void *) ctx);
+    mtcp_run_app();
+#else
+	RunWgetAppMain(ctx);
+#endif
+	
 	TRACE_INFO("Wget thread %d waiting for mtcp to be destroyed.\n", core);
 	DestroyContext(ctx);
 

@@ -72,7 +72,9 @@ CreateAddressPool(in_addr_t addr_base, int num_addr)
 		return NULL;
 	}
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_lock(&ap->lock);
+#endif
 
 	ap->addr_base = ntohl(addr_base);
 	ap->num_addr = num_addr;
@@ -95,9 +97,11 @@ CreateAddressPool(in_addr_t addr_base, int num_addr)
 	ap->num_entry = cnt;
 	ap->num_free = cnt;
 	ap->num_used = 0;
-	
-	pthread_mutex_unlock(&ap->lock);
 
+#ifndef ENABLE_UCTX
+	pthread_mutex_unlock(&ap->lock);
+#endif
+	
 	return ap;
 }
 /*----------------------------------------------------------------------------*/
@@ -148,7 +152,9 @@ CreateAddressPoolPerCore(int core, int num_queues,
 		return NULL;
 	}
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_lock(&ap->lock);
+#endif
 
 	ap->addr_base = ntohl(saddr_base);
 	ap->num_addr = num_addr;
@@ -186,8 +192,10 @@ CreateAddressPoolPerCore(int core, int num_queues,
 				" the max concurrency (%d).\n", 
 				ap->num_entry, CONFIG.max_concurrency);
 	}
-	
+
+#ifndef ENABLE_UCTX
 	pthread_mutex_unlock(&ap->lock);
+#endif
 
 	return ap;
 }
@@ -282,7 +290,9 @@ FetchAddressPerCore(addr_pool_t ap, int core, int num_queues,
 	if (!ap || !daddr || !saddr)
 		return -1;
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_lock(&ap->lock);
+#endif
 	
 	/* we don't need to calculate RSSCPUCore if mtcp_init_rss is called */
 	walk = TAILQ_FIRST(&ap->free_list);
@@ -294,8 +304,10 @@ FetchAddressPerCore(addr_pool_t ap, int core, int num_queues,
 		ap->num_used++;
 		ret = 0;
 	}
-	
+
+#ifndef ENABLE_UCTX
 	pthread_mutex_unlock(&ap->lock);
+#endif
 	
 	return ret;
 }

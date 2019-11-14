@@ -230,15 +230,17 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	uint8_t is_external;
 	uint8_t *sa;
 	uint8_t *da;
-	
+#ifndef ENABLE_UCTX	
 	pthread_mutex_lock(&mtcp->ctx->flow_pool_lock);
-
+#endif
 	stream = (tcp_stream *)MPAllocateChunk(mtcp->flow_pool);
 	if (!stream) {
 		TRACE_ERROR("Cannot allocate memory for the stream. "
 				"CONFIG.max_concurrency: %d, concurrent: %u\n", 
 				CONFIG.max_concurrency, mtcp->flow_cnt);
+#ifndef ENABLE_UCTX
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 		return NULL;
 	}
 	memset(stream, 0, sizeof(tcp_stream));
@@ -246,14 +248,18 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->rcvvar = (struct tcp_recv_vars *)MPAllocateChunk(mtcp->rv_pool);
 	if (!stream->rcvvar) {
 		MPFreeChunk(mtcp->flow_pool, stream);
+#ifndef ENABLE_UCTX
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 		return NULL;
 	}
 	stream->sndvar = (struct tcp_send_vars *)MPAllocateChunk(mtcp->sv_pool);
 	if (!stream->sndvar) {
 		MPFreeChunk(mtcp->rv_pool, stream->rcvvar);
 		MPFreeChunk(mtcp->flow_pool, stream);
+#ifndef ENABLE_UCTX
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 		return NULL;
 	}
 	memset(stream->rcvvar, 0, sizeof(struct tcp_recv_vars));
@@ -270,7 +276,9 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 		TRACE_ERROR("Stream %d: "
 				"Failed to insert the stream into hash table.\n", stream->id);
 		MPFreeChunk(mtcp->flow_pool, stream);
+#ifndef ENABLE_UCTX
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 		return NULL;
 	}
 
@@ -280,7 +288,9 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 		TRACE_ERROR("Stream %d: "
 				"Failed to insert the stream into SID lookup table.\n", stream->id);
 		MPFreeChunk(mtcp->flow_pool, stream);
+#ifndef ENABLE_UCTX
 		pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 		return NULL;
 	}
 #endif
@@ -288,7 +298,9 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	stream->on_hash_table = TRUE;
 	mtcp->flow_cnt++;
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 
 	if (socket) {
 		stream->socket = socket;
@@ -528,8 +540,10 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 		stream->rcvvar->rcvbuf = NULL;
 	}
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_lock(&mtcp->ctx->flow_pool_lock);
-
+#endif
+	
 	/* remove from flow hash table */
 	StreamHTRemove(mtcp->tcp_flow_table, stream);
 	stream->on_hash_table = FALSE;
@@ -539,7 +553,10 @@ DestroyTCPStream(mtcp_manager_t mtcp, tcp_stream *stream)
 	MPFreeChunk(mtcp->rv_pool, stream->rcvvar);
 	MPFreeChunk(mtcp->sv_pool, stream->sndvar);
 	MPFreeChunk(mtcp->flow_pool, stream);
+
+#ifndef ENABLE_UCTX
 	pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
+#endif
 
 	if (bound_addr) {
 		if (mtcp->ap) {

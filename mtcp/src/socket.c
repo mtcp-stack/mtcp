@@ -9,6 +9,13 @@ AllocateSocket(mctx_t mctx, int socktype, int need_lock)
 	mtcp_manager_t mtcp = g_mtcp[mctx->cpu];
 	socket_map_t socket = NULL;
 
+#ifdef ENABLE_UCTX
+	if (need_lock) {
+		TRACE_ERROR("need_lock in AllocateSocket() cannot be true in uctx mode\n");
+		exit(-1);
+	}
+#endif
+	
 	if (need_lock)
 		pthread_mutex_lock(&mtcp->ctx->smap_lock);
 
@@ -58,6 +65,13 @@ FreeSocket(mctx_t mctx, int sockid, int need_lock)
 {
 	mtcp_manager_t mtcp = g_mtcp[mctx->cpu];
 	socket_map_t socket = &mtcp->smap[sockid];
+
+#ifdef ENABLE_UCTX
+	if (need_lock) {
+		TRACE_ERROR("need_lock in FreeSocket() cannot be true in uctx mode\n");
+		exit(-1);
+	}
+#endif
 
 	if (socket->socktype == MTCP_SOCK_UNUSED) {
 		return;

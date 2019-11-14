@@ -78,6 +78,8 @@ AC_SUBST(ONVM, 0)
 AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
 AC_SUBST(HWCSUM, 1)
+# Reset UCTX to 0
+AC_SUBST(UCTX, 0)
 
 # Check dpdk-17.08 path (lib & inc)
 AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-17.08 install root])
@@ -122,6 +124,17 @@ AC_ARG_ENABLE([hwcsum],
 if test "x$enable_hwcsum" = "xno"
 then
 	AC_SUBST(HWCSUM, 0)
+fi
+
+AC_ARG_ENABLE([uctx],
+	AS_HELP_STRING([--enable-uctx], [Enable user-level threading]))
+
+if test "$with_dpdk_lib" != ""
+then
+	if test "x$enable_uctx" = "xyes"
+	then
+		AC_SUBST(UCTX, 1)
+	fi
 fi
 
 # Check psio path (lib & inc)

@@ -554,11 +554,13 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			}
 		}
 
+#ifndef ENABLE_UCTX
 		if (SBUF_LOCK(&sndvar->write_lock)) {
 			if (errno == EDEADLK)
 				perror("ProcessACK: write_lock blocked\n");
 			assert(0);
 		}
+#endif
 		ret = SBRemove(mtcp->rbm_snd, sndvar->sndbuf, rmlen);
 		sndvar->snd_una = ack_seq;
 		snd_wnd_prev = sndvar->snd_wnd;
@@ -574,7 +576,9 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		}
 #endif /* SELECTIVE_WRITE_EVENT_NOTIFY */
 
+#ifndef ENABLE_UCTX
 		SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 		UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 	}
 
@@ -616,11 +620,13 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 		}
 	}
 
+#ifndef ENABLE_UCTX
 	if (SBUF_LOCK(&rcvvar->read_lock)) {
 		if (errno == EDEADLK)
 			perror("ProcessTCPPayload: read_lock blocked\n");
 		assert(0);
 	}
+#endif
 
 	prev_rcv_nxt = cur_stream->rcv_nxt;
 	ret = RBPut(mtcp->rbm_rcv, 
@@ -639,7 +645,9 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 	cur_stream->rcv_nxt = rcvvar->rcvbuf->head_seq + rcvvar->rcvbuf->merged_len;
 	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - rcvvar->rcvbuf->merged_len;
 
+#ifndef ENABLE_UCTX
 	SBUF_UNLOCK(&rcvvar->read_lock);
+#endif
 
 	if (TCP_SEQ_LEQ(cur_stream->rcv_nxt, prev_rcv_nxt)) {
 		/* There are some lost packets */

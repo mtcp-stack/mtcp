@@ -87,7 +87,11 @@
 
 #define ETHER_IFG			12
 #define	ETHER_PREAMBLE			8
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 #define ETHER_OVR			(ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
+#else
+#define ETHER_OVR			(RTE_ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
+#endif
 
 static const uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
 static const uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
@@ -106,7 +110,11 @@ static struct rte_eth_dev_info dev_info[RTE_MAX_ETHPORTS];
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
 		.mq_mode	= 	ETH_MQ_RX_RSS,
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		.max_rx_pkt_len = 	ETHER_MAX_LEN,
+#else
+		.max_rx_pkt_len = 	RTE_ETHER_MAX_LEN,
+#endif
 #if RTE_VERSION > RTE_VERSION_NUM(17, 8, 0, 0)
 		.offloads	=	(
 #if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
@@ -825,7 +833,11 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 			goto dev_ioctl_err;
 		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		m->ol_flags = PKT_TX_IP_CKSUM | PKT_TX_IPV4;
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		m->l2_len = sizeof(struct ether_hdr);
+#else
+		m->l2_len = sizeof(struct rte_ether_hdr);
+#endif
 		m->l3_len = (iph->ihl<<2);
 		break;
 	case PKT_TX_TCP_CSUM:
@@ -834,7 +846,11 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
 		tcph = (struct tcphdr *)((unsigned char *)iph + (iph->ihl<<2));
 		m->ol_flags |= PKT_TX_TCP_CKSUM;
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
+#else
+		tcph->check = rte_ipv4_phdr_cksum((struct rte_ipv4_hdr *)iph, m->ol_flags);
+#endif
 		break;
 #ifdef ENABLELRO
 	case PKT_RX_TCP_LROSEG:
@@ -869,13 +885,25 @@ dpdk_dev_ioctl(struct mtcp_thread_context *ctx, int nif, int cmd, void *argp)
 		if ((dev_info[nif].tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM) == 0)
 			goto dev_ioctl_err;
 		m = dpc->wmbufs[eidx].m_table[len_of_mbuf - 1];
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct ether_hdr));
+#else
+		iph = rte_pktmbuf_mtod_offset(m, struct iphdr *, sizeof(struct rte_ether_hdr));
+#endif
 		tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl<<2));
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		m->l2_len = sizeof(struct ether_hdr);
+#else
+		m->l2_len = sizeof(struct rte_ether_hdr);
+#endif
 		m->l3_len = (iph->ihl<<2);
 		m->l4_len = (tcph->doff<<2);
 		m->ol_flags = PKT_TX_TCP_CKSUM | PKT_TX_IP_CKSUM | PKT_TX_IPV4;
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		tcph->check = rte_ipv4_phdr_cksum((struct ipv4_hdr *)iph, m->ol_flags);
+#else
+		tcph->check = rte_ipv4_phdr_cksum((struct rte_ipv4_hdr *)iph, m->ol_flags);
+#endif
 		break;
 	case PKT_RX_IP_CSUM:
 		if ((dev_info[nif].rx_offload_capa & DEV_RX_OFFLOAD_IPV4_CKSUM) == 0)

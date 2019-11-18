@@ -4,9 +4,6 @@
 #include "tcp_stream.h"
 #include "clock.h"
 
-#define MAX(a, b) ((a)>(b)?(a):(b))
-#define MIN(a, b) ((a)<(b)?(a):(b))
-
 #if RATE_LIMIT_ENABLED
 typedef struct token_bucket {
     double tokens;

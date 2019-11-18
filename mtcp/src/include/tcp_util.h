@@ -4,6 +4,18 @@
 #include "mtcp.h"
 #include "tcp_stream.h"
 
+#define MSS 1448
+#define INIT_CWND_PKTS 10
+
+#define MAX(a, b) ((a)>(b)?(a):(b))
+#define MIN(a, b) ((a)<(b)?(a):(b))
+
+#define SECONDS_TO_USECS(seconds) ((seconds) / 1000000.0)
+#define USECS_TO_MS(us) ((us) / 1000)
+#define BYTES_TO_BITS(bytes) ((bytes) / 8.0)
+#define BPS_TO_MBPS(bps) ((bps) / 8000000.0)
+#define UNSHIFT_RTT(srtt) ((srtt) * 125.0)
+
 struct tcp_timestamp
 {
 	uint32_t ts_val;

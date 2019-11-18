@@ -52,13 +52,11 @@
 #define TCP_OPT_TIMESTAMP_ENABLED       TRUE   // enabled for rtt measure
 #define TCP_OPT_SACK_ENABLED            TRUE   // only recv-side implemented
 
-#define RATE_LIMIT_ENABLED              FALSE
-#define PACING_ENABLED                  FALSE
-
 /* Only use rate limiting if using CCP */
 #if USE_CCP
 #undef  RATE_LIMIT_ENABLED
 #define RATE_LIMIT_ENABLED              TRUE
+#define PACING_ENABLED                  FALSE
 // The following two logs are for debugging / experiments only, should be turned
 // off for production use
 // #define DBGCCP                                 // ccp debug messages

@@ -70,7 +70,7 @@
 #define TCP_MAX_SYN_RETRY		7
 #define TCP_MAX_BACKOFF			7
 
-#define TCP_INIT_CWND                   10
+#define TCP_INIT_CWND                   2
 
 enum tcp_state
 {

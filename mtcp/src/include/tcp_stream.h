@@ -113,7 +113,9 @@ struct tcp_send_vars
 	/* congestion control variables */
 	uint32_t cwnd;				/* congestion window */
 	uint32_t ssthresh;			/* slow start threshold */
+#if USE_CCP
 	uint32_t missing_seq;
+#endif
 
 	/* timestamp */
 	uint32_t ts_lastack_sent;	/* last ack sent time */
@@ -192,7 +194,9 @@ typedef struct tcp_stream
 	
 	uint32_t snd_nxt;		/* send next */
 	uint32_t rcv_nxt;		/* receive next */
-	uint32_t seq_at_last_loss;	/* the sequence number we left off at before we stopped at wait_for_acks (due to loss) */ 
+#if USE_CCP
+	uint32_t seq_at_last_loss;	/* the sequence number we left off at before we stopped at wait_for_acks (due to loss) */
+#endif
 
 	struct tcp_recv_vars *rcvvar;
 	struct tcp_send_vars *sndvar;

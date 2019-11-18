@@ -395,22 +395,24 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		}
 	}
 	if (!dup) {
+#if USE_CCP
 		if (cur_stream->rcvvar->dup_acks >= 3) {
 			TRACE_DBG("passed dup_acks, ack=%u, snd_nxt=%u, last_ack=%u len=%u wl2=%u peer_wnd=%u right=%u\n",
 				  ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss, cur_stream->rcvvar->last_ack_seq-sndvar->iss,
 				  payloadlen, cur_stream->rcvvar->snd_wl2-sndvar->iss, sndvar->peer_wnd / sndvar->mss,
 				  right_wnd_edge - sndvar->iss);
 		}
+#endif
 		cur_stream->rcvvar->dup_acks = 0;
 		cur_stream->rcvvar->last_ack_seq = ack_seq;
 	}
-
+#if USE_CCP
 	if(cur_stream->wait_for_acks) {
 		TRACE_DBG("got ack, but waiting to send... ack=%u, snd_next=%u cwnd=%u\n",
 			  ack_seq-sndvar->iss, cur_stream->snd_nxt-sndvar->iss,
 			  sndvar->cwnd / sndvar->mss);
 	}
-
+#endif
 	/* Fast retransmission */
 	if (dup && cur_stream->rcvvar->dup_acks == 3) {
 		TRACE_LOSS("Triple duplicated ACKs!! ack_seq: %u\n", ack_seq);
@@ -433,7 +435,11 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 						"ack_seq: %u, snd_una: %u\n", 
 						ack_seq, sndvar->snd_una);
 			}
+#if USE_CCP
 			sndvar->missing_seq = ack_seq;
+#else
+			cur_stream->snd_nxt = ack_seq;
+#endif
 		}
 
 		/* update congestion control variables */
@@ -472,13 +478,18 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #endif /* TCP_OPT_SACK_ENABLED */
 
 #if RECOVERY_AFTER_LOSS
+#if USE_CCP
 	/* updating snd_nxt (when recovered from loss) */
 	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) ||
 	    (cur_stream->wait_for_acks && TCP_SEQ_GT(ack_seq, cur_stream->seq_at_last_loss)
 #if TCP_OPT_SACK_ENABLED 
 		&& cur_stream->rcvvar->sacked_pkts == 0
 #endif
-	)) {
+	))
+#else
+        if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt))
+#endif /* USE_CCP */
+	{
 #if RTM_STAT
 		sndvar->rstat.ack_upd_cnt++;
 		sndvar->rstat.ack_upd_bytes += (ack_seq - cur_stream->snd_nxt);
@@ -487,7 +498,9 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		cur_stream->sndvar->cwnd = cur_stream->sndvar->ssthresh;
 
 		TRACE_LOSS("Updating snd_nxt from %u to %u\n", cur_stream->snd_nxt, ack_seq);
+#if USE_CCP
 		cur_stream->wait_for_acks = FALSE;
+#endif
 		cur_stream->snd_nxt = ack_seq;
 		TRACE_DBG("Sending again..., ack_seq=%u sndlen=%u cwnd=%u\n",
                         ack_seq-sndvar->iss,
@@ -499,7 +512,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			AddtoSendList(mtcp, cur_stream);
 		}
 	}
-#endif
+#endif /* RECOVERY_AFTER_LOSS */
 
 	rmlen = ack_seq - sndvar->sndbuf->head_seq;
 	uint16_t packets = rmlen / sndvar->eff_mss;

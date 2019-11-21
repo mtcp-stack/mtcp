@@ -6,9 +6,12 @@ endif
 ifeq ($(RTE_TARGET),)
 $(error "Please define RTE_TARGET environment variable")
 endif
+
+RTE_KERNELDIR ?= /lib/modules/$(shell uname -r)/build/
+
 #-------------------------------------------------------------------------#
 include $(RTE_SDK)/mk/rte.vars.mk
-CC=gcc
+CC=$(CROSS)gcc
 obj-m=dpdk_iface.o
 DPDK_MACHINE_LINKER_FLAGS=$${RTE_SDK}/$${RTE_TARGET}/lib/ldflags.txt
 DPDK_MACHINE_LDFLAGS=$(shell cat ${DPDK_MACHINE_LINKER_FLAGS})
@@ -25,7 +28,7 @@ else
 endif
 #-------------------------------------------------------------------------#
 all: dpdk_iface.c $(appname) $(appname).c
-	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) modules
+	make -C ${RTE_KERNELDIR} M=$(PWD) modules
 
 $(appname): $(appname).c
 	$(MSG) "  CC $<"
@@ -34,7 +37,7 @@ $(appname): $(appname).c
 	-L$(DPDK_LIB) ${DPDK_MACHINE_LDFLAGS} -lpthread
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) clean
+	make -C ${RTE_KERNELDIR} M=$(PWD) clean
 	$(MSG) "  CLEAN  $(appname)"
 	$(HIDE) rm -rf *~ *.o *.ko dpdk_iface_main
 

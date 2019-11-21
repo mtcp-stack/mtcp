@@ -260,7 +260,11 @@ main(int argc, char **argv)
 	ret = rte_eal_init(rte_argc, rte_argv);
 
 	/* get total count of detected ethernet ports */
+#if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)
 	num_devices = rte_eth_dev_count();
+#else
+	num_devices = rte_eth_dev_count_avail();
+#endif
 	if (num_devices == 0) {
 		fprintf(stderr, "No Ethernet port detected!\n");
 		exit(EXIT_FAILURE);

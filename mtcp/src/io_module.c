@@ -347,8 +347,10 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		/* initialize the dpdk eal env */
 		ret = rte_eal_init(argc, argv);
 		if (ret < 0) {
-			TRACE_ERROR("Invalid EAL args!\n");
-			exit(EXIT_FAILURE);
+			if(rte_errno != EALREADY) {
+				TRACE_ERROR("Invalid EAL args!\n");
+				exit(EXIT_FAILURE);
+			}
 		}
 		/* give me the count of 'detected' ethernet ports */
 #if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)

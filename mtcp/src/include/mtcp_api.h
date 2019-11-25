@@ -68,6 +68,9 @@ typedef void (*mtcp_sighandler_t)(int);
 mtcp_sighandler_t 
 mtcp_register_signal(int signum, mtcp_sighandler_t handler);
 
+void *
+MTCPRunThread(void *arg);
+
 int 
 mtcp_pipe(mctx_t mctx, int pipeid[2]);
 
@@ -86,6 +89,9 @@ mtcp_setsock_nonblock(mctx_t mctx, int sockid);
    but only FIONREAD is supported currently */
 int 
 mtcp_socket_ioctl(mctx_t mctx, int sockid, int request, void *argp);
+
+int
+mtcp_run_instance(void *tmp);
 
 int 
 mtcp_socket(mctx_t mctx, int domain, int type, int protocol);

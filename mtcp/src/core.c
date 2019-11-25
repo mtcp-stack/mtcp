@@ -758,110 +758,15 @@ InterruptApplication(mtcp_manager_t mtcp)
 	}
 }
 /*----------------------------------------------------------------------------*/
+#ifndef ENABLE_SPDK
 static void 
 RunMainLoop(struct mtcp_thread_context *ctx)
 {
 	mtcp_manager_t mtcp = ctx->mtcp_manager;
-	int i;
-	int recv_cnt;
-	int rx_inf, tx_inf;
-	struct timeval cur_ts = {0};
-	uint32_t ts, ts_prev;
-	int thresh;
 
-	gettimeofday(&cur_ts, NULL);
-	TRACE_DBG("CPU %d: mtcp thread running.\n", ctx->cpu);
 
-	ts = ts_prev = 0;
 	while ((!ctx->done || mtcp->flow_cnt) && !ctx->exit) {
-		
-		STAT_COUNT(mtcp->runstat.rounds);
-		recv_cnt = 0;
-			
-		gettimeofday(&cur_ts, NULL);
-		ts = TIMEVAL_TO_TS(&cur_ts);
-		mtcp->cur_ts = ts;
-
-		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) {
-
-			static uint16_t len;
-			static uint8_t *pktbuf;
-			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
-			STAT_COUNT(mtcp->runstat.rounds_rx_try);
-
-			for (i = 0; i < recv_cnt; i++) {
-				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
-				if (pktbuf != NULL)
-					ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
-#ifdef NETSTAT
-				else
-					mtcp->nstat.rx_errors[rx_inf]++;
-#endif
-			}
-		}
-		STAT_COUNT(mtcp->runstat.rounds_rx);
-
-		/* interaction with application */
-		if (mtcp->flow_cnt > 0) {
-			
-			/* check retransmission timeout and timewait expire */
-#if 0
-			thresh = (int)mtcp->flow_cnt / (TS_TO_USEC(PER_STREAM_TCHECK));
-			assert(thresh >= 0);
-			if (thresh == 0)
-				thresh = 1;
-			if (recv_cnt > 0 && thresh > recv_cnt)
-				thresh = recv_cnt;
-#endif
-			thresh = CONFIG.max_concurrency;
-
-			/* Eunyoung, you may fix this later 
-			 * if there is no rcv packet, we will send as much as possible
-			 */
-			if (thresh == -1)
-				thresh = CONFIG.max_concurrency;
-
-			CheckRtmTimeout(mtcp, ts, thresh);
-			CheckTimewaitExpire(mtcp, ts, CONFIG.max_concurrency);
-
-			if (CONFIG.tcp_timeout > 0 && ts != ts_prev) {
-				CheckConnectionTimeout(mtcp, ts, thresh);
-			}
-		}
-
-		/* if epoll is in use, flush all the queued events */
-		if (mtcp->ep) {
-			FlushEpollEvents(mtcp, ts);
-		}
-
-		if (mtcp->flow_cnt > 0) {
-			/* hadnle stream queues  */
-			HandleApplicationCalls(mtcp, ts);
-		}
-
-		WritePacketsToChunks(mtcp, ts);
-
-		/* send packets from write buffer */
-		/* send until tx is available */
-		for (tx_inf = 0; tx_inf < CONFIG.eths_num; tx_inf++) {
-			mtcp->iom->send_pkts(ctx, tx_inf);
-		}
-
-		if (ts != ts_prev) {
-			ts_prev = ts;
-			if (ctx->cpu == mtcp_master) {
-				ARPTimer(mtcp, ts);
-#ifdef NETSTAT
-				PrintNetworkStats(mtcp, ts);
-#endif
-			}
-		}
-
-		mtcp->iom->select(ctx);
-
-		if (ctx->interrupt) {
-			InterruptApplication(mtcp);
-		}
+		mtcp_run_instance(ctx);
 	}
 
 #if TESTING
@@ -875,6 +780,119 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 	InterruptApplication(mtcp);
 	TRACE_INFO("MTCP thread %d finished.\n", ctx->cpu);
 }
+#endif
+
+RTE_DEFINE_PER_LCORE(uint32_t , ts_prev) = 0;
+
+
+int mtcp_run_instance(void *tmp)
+{
+        struct mtcp_thread_context *ctx= (struct mtcp_thread_context *)tmp;
+        mtcp_manager_t mtcp = ctx->mtcp_manager;
+        int i;
+        int recv_cnt;
+        int rx_inf, tx_inf;
+        struct timeval cur_ts = {0};
+        int thresh;
+        uint32_t ts=0;
+
+        if ((!ctx->done || mtcp->flow_cnt) && !ctx->exit) {
+
+                STAT_COUNT(mtcp->runstat.rounds);
+                recv_cnt = 0;
+
+                gettimeofday(&cur_ts, NULL);
+                ts = TIMEVAL_TO_TS(&cur_ts);
+                mtcp->cur_ts = ts;
+
+                for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) {
+
+                        static uint16_t len;
+                        static uint8_t *pktbuf;
+                        recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
+                        STAT_COUNT(mtcp->runstat.rounds_rx_try);
+
+                        for (i = 0; i < recv_cnt; i++) {
+                                pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
+                                if (pktbuf != NULL)
+                                        ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
+#ifdef NETSTAT
+                                else
+                                        mtcp->nstat.rx_errors[rx_inf]++;
+#endif
+                        }
+                }
+                STAT_COUNT(mtcp->runstat.rounds_rx);
+
+                /* interaction with application */
+                if (mtcp->flow_cnt > 0) {
+
+                        /* check retransmission timeout and timewait expire */
+#if 0
+                        thresh = (int)mtcp->flow_cnt / (TS_TO_USEC(PER_STREAM_TCHECK));
+                        assert(thresh >= 0);
+                        if (thresh == 0)
+                                thresh = 1;
+                        if (recv_cnt > 0 && thresh > recv_cnt)
+                                thresh = recv_cnt;
+#endif
+                        thresh = CONFIG.max_concurrency;
+
+                        /* Eunyoung, you may fix this later
+                         * if there is no rcv packet, we will send as much as possible
+                         */
+                        if (thresh == -1)
+                                thresh = CONFIG.max_concurrency;
+
+                        CheckRtmTimeout(mtcp, ts, thresh);
+                        CheckTimewaitExpire(mtcp, ts, CONFIG.max_concurrency);
+
+                        if (CONFIG.tcp_timeout > 0 && ts != RTE_PER_LCORE(ts_prev)) {
+                                CheckConnectionTimeout(mtcp, ts, thresh);
+                        }
+                }
+
+                /* if epoll is in use, flush all the queued events */
+                if (mtcp->ep) {
+                        FlushEpollEvents(mtcp, ts);
+                }
+
+                if (mtcp->flow_cnt > 0) {
+                        /* hadnle stream queues  */
+                        HandleApplicationCalls(mtcp, ts);
+                }
+
+                WritePacketsToChunks(mtcp, ts);
+
+                /* send packets from write buffer */
+                /* send until tx is available */
+                for (tx_inf = 0; tx_inf < CONFIG.eths_num; tx_inf++) {
+                        mtcp->iom->send_pkts(ctx, tx_inf);
+                }
+
+                if (ts != RTE_PER_LCORE(ts_prev)) {
+                        RTE_PER_LCORE(ts_prev) = ts;
+                        if (ctx->cpu == mtcp_master) {
+                                ARPTimer(mtcp, ts);
+#ifndef ENABLE_SPDK
+#ifdef NETSTAT
+
+                                PrintNetworkStats(mtcp, ts);
+#endif
+#endif
+                        }
+                }
+
+                mtcp->iom->select(ctx);
+
+                if (ctx->interrupt) {
+                        InterruptApplication(mtcp);
+                }
+        }
+
+        return 0;
+}
+
 /*----------------------------------------------------------------------------*/
 struct mtcp_sender *
 CreateMTCPSender(int ifidx)
@@ -1150,7 +1168,7 @@ CCPRecvLoopThread(void *arg) {
 }
 #endif
 /*----------------------------------------------------------------------------*/
-static void *
+void *
 MTCPRunThread(void *arg)
 {
 	mctx_t mctx = (mctx_t)arg;
@@ -1240,7 +1258,7 @@ MTCPRunThread(void *arg)
 	fprintf(stderr, "CPU %d: initialization finished.\n", cpu);
 	
 	sem_post(&g_init_sem[ctx->cpu]);
-
+#ifndef ENABLE_SPDK
 	/* start the main loop */
 	RunMainLoop(ctx);
 
@@ -1255,8 +1273,20 @@ MTCPRunThread(void *arg)
 	DestroyHashtable(g_mtcp[cpu]->listeners);
 	
 	TRACE_DBG("MTCP thread %d finished.\n", ctx->cpu);
-	
 	return 0;
+#else
+	sem_wait(&g_init_sem[ctx->cpu]);
+	sem_destroy(&g_init_sem[ctx->cpu]);
+
+	running[ctx->cpu] = TRUE;
+
+	if (mtcp_master < 0) {
+		mtcp_master = ctx->cpu;
+		TRACE_INFO("CPU %d is now the master thread.\n", mtcp_master);
+	}
+
+	return ctx;
+#endif
 }
 /*----------------------------------------------------------------------------*/
 #ifndef DISABLE_DPDK
@@ -1322,6 +1352,7 @@ mtcp_create_context(int cpu)
 		return NULL;
 	}
 #endif
+#ifndef ENABLE_SPDK
 #ifndef DISABLE_DPDK
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
@@ -1359,6 +1390,7 @@ mtcp_create_context(int cpu)
 		TRACE_INFO("CPU %d is now the master thread.\n", mtcp_master);
 	}
 
+#endif
 	return mctx;
 }
 /*----------------------------------------------------------------------------*/

@@ -95,7 +95,7 @@ CUR_PATH=`pwd`
 cd $CUR_PATH/dpdk-iface-kmod && make CROSS=$CROSS RTE_KERNELDIR=$RTE_KERNELDIR V=1
 
 # build application
-cd $CUR_PATH && autoreconf -f -i && ./configure --host=aarch64 CC=${CROSS}gcc LD=${CROSS}ld --with-dpdk=$RTE_SDK/$RTE_TARGET --with-dpdk-lib=$RTE_SDK/$RTE_TARGET/lib CFLAGS="-I$EXT_LIB_DIR/include" LDFLAGS="-L$EXT_LIB_DIR/lib64"
+cd $CUR_PATH && autoreconf -f -i && ./configure --host=aarch64 CC=${CROSS}gcc LD=${CROSS}ld --with-dpdk=$RTE_SDK/$RTE_TARGET --with-dpdk-lib=$RTE_SDK/$RTE_TARGET/lib --enable-spdk CFLAGS="-I$EXT_LIB_DIR/include" LDFLAGS="-L$EXT_LIB_DIR/lib64"
 make -j `grep -c ^processor /proc/cpuinfo` ARCH=arm64 CC=${CROSS}gcc LD=${CROSS}ld V=0
 
 # end of file

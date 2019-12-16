@@ -28,7 +28,7 @@ else
 endif
 #-------------------------------------------------------------------------#
 all: dpdk_iface.c $(appname) $(appname).c
-	make -C ${RTE_KERNELDIR} M=$(PWD) modules
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS} -C ${RTE_KERNELDIR} M=$(PWD) modules
 
 $(appname): $(appname).c
 	$(MSG) "  CC $<"

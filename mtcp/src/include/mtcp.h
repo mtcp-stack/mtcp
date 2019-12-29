@@ -164,6 +164,8 @@ struct mtcp_config
 	struct arp_table arp;
 
 	int num_cores;
+	int num_tx;
+	int num_rx;
 	int num_mem_ch;
 	int max_concurrency;
 #ifndef DISABLE_DPDK

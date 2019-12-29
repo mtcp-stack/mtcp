@@ -696,6 +696,10 @@ dpdk_load_module(void)
 		}
 
 		/* Initialise each port */
+		if (CONFIG.num_tx)
+			nb_txd = CONFIG.num_tx;
+		if (CONFIG.num_rx)
+			nb_rxd = CONFIG.num_rx;
 		int i;
 		for (i = 0; i < num_devices_attached; ++i) {
 		        /* get portid form the index of attached devices */

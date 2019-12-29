@@ -591,6 +591,18 @@ ParseConfiguration(char *line)
 #ifndef DISABLE_DPDK
 		mpz_set_str(CONFIG._cpumask, q, 16);
 #endif
+	} else if (strcmp(p, "num_tx") == 0) {
+		CONFIG.num_tx = atoi(q);
+		if (CONFIG.num_tx < 0) {
+			TRACE_CONFIG("Number of TX ring descriptor should be larger than 0.\n");
+			return -1;
+		}
+	} else if (strcmp(p, "num_rx") == 0) {
+		CONFIG.num_rx = atoi(q);
+		if (CONFIG.num_rx < 0) {
+			TRACE_CONFIG("Number of RX ring descriptor should be larger than 0.\n");
+			return -1;
+		}
 	} else if (strcmp(p, "max_concurrency") == 0) {
 		CONFIG.max_concurrency = mystrtol(q, 10);
 		if (CONFIG.max_concurrency < 0) {
@@ -740,6 +752,8 @@ PrintConfiguration()
 	TRACE_CONFIG("Configurations:\n");
 	TRACE_CONFIG("Number of CPU cores available: %d\n", num_cpus);
 	TRACE_CONFIG("Number of CPU cores to use: %d\n", CONFIG.num_cores);
+	TRACE_CONFIG("Number of TX ring descriptor: %d\n", CONFIG.num_tx);
+	TRACE_CONFIG("Number of RX ring descriptor: %d\n", CONFIG.num_rx);
 	TRACE_CONFIG("Maximum number of concurrency per core: %d\n", 
 			CONFIG.max_concurrency);
 	if (CONFIG.multi_process == 1) {

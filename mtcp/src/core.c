@@ -1521,6 +1521,8 @@ mtcp_getconf(struct mtcp_conf *conf)
 		return -1;
 
 	conf->num_cores = CONFIG.num_cores;
+	conf->num_tx = CONFIG.num_tx;
+	conf->num_rx = CONFIG.num_rx;
 	conf->max_concurrency = CONFIG.max_concurrency;
 
 	conf->max_num_buffers = CONFIG.max_num_buffers;
@@ -1541,6 +1543,10 @@ mtcp_setconf(const struct mtcp_conf *conf)
 
 	if (conf->num_cores > 0)
 		CONFIG.num_cores = conf->num_cores;
+	if (conf->num_tx > 0)
+		CONFIG.num_tx = conf->num_tx;
+	if (conf->num_rx > 0)
+		CONFIG.num_rx = conf->num_rx;
 	if (conf->max_concurrency > 0)
 		CONFIG.max_concurrency = conf->max_concurrency;
 	if (conf->max_num_buffers > 0)

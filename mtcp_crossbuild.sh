@@ -6,7 +6,7 @@ usage ()
 {
   echo "args=$args"
   echo
-  echo "`basename $0` -h -c <x86/aarch64> -k <kernel_dir> -i <ext_lib> -d <dpdk_dir>"
+  echo "`basename $0` -h -c <x86/aarch64> -k <kernel_dir> -i <ext_lib> -d <dpdk_dir> -e"
   echo
   echo "Helper script, used to build dpdk."
   echo
@@ -15,10 +15,11 @@ usage ()
   echo " -k <kernel_dir>  Directory that kernel builds if enable LKM build option"
   echo " -i <ext_lib>     If needed introduce external lib dependencies"
   echo " -d <dpdk_dir>    Directory that dpdk builds"
+  echo " -e               Enable SPDK Support"
   echo
 }
 
-while getopts "hc:k:i:d:" opt; do
+while getopts "hc:k:i:d:e" opt; do
   case $opt in
     h)  show_usage=1
         ;;
@@ -30,6 +31,8 @@ while getopts "hc:k:i:d:" opt; do
         ;;
     d)  dpdk_build="$OPTARG"
         ;;
+    e)  spdk_enable=1
+	;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
       show_usage=1
@@ -63,6 +66,10 @@ else
   EXT_LIB_DIR=$ext_lib
 fi
 
+if [ "$spdk_enable" == "1" ]; then
+  SPDK_OPTION="--enable-spdk"
+fi
+
 if [ -z $dpdk_build ]; then
   RTE_SDK=$CUR_PATH/../dpdk
 else
@@ -86,6 +93,7 @@ echo "======================================"
 echo "Build_arch  : $build_arch"
 echo "RTE_TARGET  : $RTE_TARGET"
 echo "DPDK Build  : $RTE_SDK"
+echo "SPDK Support: $spdk_enable"
 echo "======================================"
 echo
 
@@ -95,7 +103,8 @@ CUR_PATH=`pwd`
 cd $CUR_PATH/dpdk-iface-kmod && make CROSS=$CROSS RTE_KERNELDIR=$RTE_KERNELDIR V=1
 
 # build application
-cd $CUR_PATH && autoreconf -f -i && ./configure --host=aarch64 CC=${CROSS}gcc LD=${CROSS}ld --with-dpdk=$RTE_SDK/$RTE_TARGET --with-dpdk-lib=$RTE_SDK/$RTE_TARGET/lib CFLAGS="-I$EXT_LIB_DIR/include" LDFLAGS="-L$EXT_LIB_DIR/lib64"
+cd $CUR_PATH && autoreconf -f -i && \
+    ./configure --host=aarch64 CC=${CROSS}gcc LD=${CROSS}ld --with-dpdk=$RTE_SDK/$RTE_TARGET --with-dpdk-lib=$RTE_SDK/$RTE_TARGET/lib $SPDK_OPTION CFLAGS="-I$EXT_LIB_DIR/include" LDFLAGS="-L$EXT_LIB_DIR/lib64 -L$EXT_LIB_DIR/lib"
 make -j `grep -c ^processor /proc/cpuinfo` ARCH=arm64 CC=${CROSS}gcc LD=${CROSS}ld V=0
 
 # end of file

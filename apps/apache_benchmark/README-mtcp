@@ -16,18 +16,29 @@ If you want to use ab with mTCP,
   run configure with "--with-libmtcp" option.
 
 -FOR DPDK VERSION-
- $ ./configure --with-libmtcp=${PATH_TO_LIBMTCP} \
-    --with-libdpdk=${PATH_TO_LIBDPDK}
+
+ Compile apr for ab
+
+ $ cd <$PATH_TO_MTCP_RELEASE_V3>/apps/apache_benchmark/srclib/apr"
+ $ ./configure --with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp" \
+    --with-libdpdk="$RTE_SDK/$RTE_TARGET"; make
+
+ $ cd <$PATH_TO_MTCP_RELEASE_V3>/apps/apache_benchmark/srclib/apr-util"
+ $ ./configure --with-apr="../apr"; make
+
+ Compile ab with apr, apr-util, libmtcp, libdpdk
+
+ $ cd <$PATH_TO_MTCP_RELEASE_V3>/apps/apache_benchmark
+ $ ./configure CFLAGS="-g -O3" \
+   --with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp" \
+   --with-libdpdk="$RTE_SDK/$RTE_TARGET" \
+   --with-apr="./srclib/apr" \
+   --with-apr-util="./srclib/apr-util"
+ $ make
 
 -FOR PSIO VERSION-
  $ ./configure --with-libmtcp=${PATH_TO_LIBMTCP} \
     --with-libpsio=${PATH_TO_LIBPSIO}
-
-  (e.g.
-	$ ./configure CFLAGS="-g -O3" \
-	--with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp/" \
-	--with-libdpdk="<$PATH_TO_MTCP_RELEASE_V3>/$RTE_SDK/$RTE_TARGET"
-  )
 
 -FOR NETMAP VERSION-
  $ ./configure --with-libmtcp=${PATH_TO_LIBMTCP}

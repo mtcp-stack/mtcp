@@ -30,6 +30,8 @@ enum socket_type
 struct mtcp_conf
 {
 	int num_cores;
+	int num_tx;
+	int num_rx;
 	int max_concurrency;
 
 	int max_num_buffers;

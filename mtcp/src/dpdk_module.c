@@ -93,8 +93,8 @@
 #define ETHER_OVR			(RTE_ETHER_CRC_LEN + ETHER_PREAMBLE + ETHER_IFG)
 #endif
 
-static const uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
-static const uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
+static uint16_t nb_rxd = 		RTE_TEST_RX_DESC_DEFAULT;
+static uint16_t nb_txd = 		RTE_TEST_TX_DESC_DEFAULT;
 /*----------------------------------------------------------------------------*/
 /* packet memory pools for storing packet bufs */
 static struct rte_mempool *pktmbuf_pool[MAX_CPUS] = {NULL};
@@ -696,6 +696,10 @@ dpdk_load_module(void)
 		}
 
 		/* Initialise each port */
+		if (CONFIG.num_tx)
+			nb_txd = CONFIG.num_tx;
+		if (CONFIG.num_rx)
+			nb_rxd = CONFIG.num_rx;
 		int i;
 		for (i = 0; i < num_devices_attached; ++i) {
 		        /* get portid form the index of attached devices */

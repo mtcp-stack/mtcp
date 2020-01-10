@@ -26,14 +26,16 @@ If you want to use ab with mTCP,
  $ cd <$PATH_TO_MTCP_RELEASE_V3>/apps/apache_benchmark/srclib/apr-util"
  $ ./configure --with-apr="../apr"; make
 
- Compile ab with apr, apr-util, libmtcp, libdpdk
+ Compile ab with apr, apr-util, libmtcp, libdpdk, openssl lib
 
  $ cd <$PATH_TO_MTCP_RELEASE_V3>/apps/apache_benchmark
  $ ./configure CFLAGS="-g -O3" \
    --with-libmtcp="<$PATH_TO_MTCP_RELEASE_V3>/mtcp" \
    --with-libdpdk="$RTE_SDK/$RTE_TARGET" \
    --with-apr="./srclib/apr" \
-   --with-apr-util="./srclib/apr-util"
+   --with-apr-util="./srclib/apr-util" \
+   --enable-ssl \
+   --with-ssl="PATH_TO_OPENSSL_LIB"
  $ make
 
 -FOR PSIO VERSION-

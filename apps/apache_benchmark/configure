@@ -1488,6 +1488,8 @@ Optional Features:
                           Build a statically linked version of htcacheclean
   --enable-static-httxt2dbm
                           Build a statically linked version of httxt2dbm
+  --enable-ssl
+                          enable apachebench ssl support
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1501,6 +1503,7 @@ Optional Packages:
   --with-libmtcp[=PATH]   Include libmtcp support in PATH/include and PATH/lib
   --with-libpsio[=PATH]   Include libpsio support in PATH/include and PATH/lib
   --with-libdpdk[=PATH]   Include libdpdk support in PATH/include and PATH/lib
+  --with-ssl[=PATH]  	  Include openssl lib support in PATH/include and PATH/lib
   --with-port=PORT        Port on which to listen (default is 80)
   --with-sslport=SSLPORT  Port on which to securelisten (default is 443)
   --with-program-name     alternate executable name
@@ -8047,6 +8050,751 @@ fi
 
   APACHE_VAR_SUBST="$APACHE_VAR_SUBST httxt2dbm_LTFLAGS"
 
+  current_dir=ssl
+  modpath_current=modules/ssl
+  modpath_static=
+  modpath_shared=
+  test -d ssl || $srcdir/build/mkdir.sh $modpath_current
+  > $modpath_current/modules.mk
+
+
+ssl_objs="mod_ssl.lo ssl_engine_config.lo ssl_engine_dh.lo ssl_engine_init.lo ssl_engine_io.lo ssl_engine_kernel.lo ssl_engine_log.lo ssl_engine_mutex.lo ssl_engine_pphrase.lo ssl_engine_rand.lo ssl_engine_vars.lo ssl_expr.lo ssl_expr_eval.lo ssl_expr_parse.lo ssl_expr_scan.lo ssl_scache.lo ssl_scache_dbm.lo ssl_scache_shmcb.lo ssl_scache_dc.lo ssl_util.lo ssl_util_ssl.lo "
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable mod_ssl" >&5
+$as_echo_n "checking whether to enable mod_ssl... " >&6; }
+    # Check whether --enable-ssl was given.
+if test "${enable_ssl+set}" = set; then :
+  enableval=$enable_ssl;
+else
+  enable_ssl=no
+fi
+
+    _apmod_extra_msg=""
+      if test "$module_selection" = "most" -a "$enable_ssl" = "most"; then
+    _apmod_error_fatal="no"
+  else
+    _apmod_error_fatal="yes"
+  fi
+  if test "$enable_ssl" = "static"; then
+    enable_ssl=yes
+  elif test "$enable_ssl" = "yes"; then
+    enable_ssl=$module_default
+    _apmod_extra_msg=" ($module_selection)"
+  elif test "$enable_ssl" = "most"; then
+    if test "$module_selection" = "most" -o "$module_selection" = "all"; then
+      enable_ssl=$module_default
+      _apmod_extra_msg=" ($module_selection)"
+    elif test "$enable_ssl" != "yes"; then
+      enable_ssl=no
+    fi
+  elif test "$enable_ssl" = "maybe-all"; then
+    if test "$module_selection" = "all"; then
+      enable_ssl=$module_default
+      _apmod_extra_msg=" (all)"
+    else
+      enable_ssl=no
+    fi
+  fi
+  if test "$enable_ssl" != "no"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: checking dependencies" >&5
+$as_echo "checking dependencies" >&6; }
+
+
+if test "x$ap_ssltk_configured" = "x"; then
+    ap_ssltk_base=""
+  ap_ssltk_libs=""
+  ap_ssltk_type=""
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL/TLS toolkit base" >&5
+$as_echo_n "checking for SSL/TLS toolkit base... " >&6; }
+
+# Check whether --with-sslc was given.
+if test "${with_sslc+set}" = set; then :
+  withval=$with_sslc;
+        if test "x$withval" != "xyes" -a "x$withval" != "x"; then
+            ap_ssltk_base="`cd $withval ; pwd`"
+    fi
+    ap_ssltk_type="sslc"
+
+fi
+
+# Check whether --with-ssl was given.
+if test "${with_ssl+set}" = set; then :
+  withval=$with_ssl;
+        if test "x$withval" != "xyes" -a "x$withval" != "x"; then
+            ap_ssltk_base="`cd $withval ; pwd`"
+    fi
+
+fi
+
+  if test "x$ap_ssltk_base" = "x"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: none" >&5
+$as_echo "none" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ap_ssltk_base" >&5
+$as_echo "$ap_ssltk_base" >&6; }
+  fi
+
+    saved_CPPFLAGS="$CPPFLAGS"
+  saved_LIBS="$LIBS"
+  if test "x$ap_ssltk_base" != "x"; then
+
+  if test "x$CPPFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-I$ap_ssltk_base/include\""
+    CPPFLAGS="-I$ap_ssltk_base/include"
+  else
+    apr_addto_bugger="-I$ap_ssltk_base/include"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $CPPFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $i"
+      fi
+    done
+  fi
+
+
+  if test "x$INCLUDES" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting INCLUDES to \"-I$ap_ssltk_base/include\""
+    INCLUDES="-I$ap_ssltk_base/include"
+  else
+    apr_addto_bugger="-I$ap_ssltk_base/include"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $INCLUDES; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to INCLUDES"
+        INCLUDES="$INCLUDES $i"
+      fi
+    done
+  fi
+
+
+  if test "x$LDFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting LDFLAGS to \"-L$ap_ssltk_base/lib\""
+    LDFLAGS="-L$ap_ssltk_base/lib"
+  else
+    apr_addto_bugger="-L$ap_ssltk_base/lib"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $LDFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to LDFLAGS"
+        LDFLAGS="$LDFLAGS $i"
+      fi
+    done
+  fi
+
+    if test "x$ap_platform_runtime_link_flag" != "x"; then
+
+  if test "x$LDFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting LDFLAGS to \"$ap_platform_runtime_link_flag$ap_ssltk_base/lib\""
+    LDFLAGS="$ap_platform_runtime_link_flag$ap_ssltk_base/lib"
+  else
+    apr_addto_bugger="$ap_platform_runtime_link_flag$ap_ssltk_base/lib"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $LDFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to LDFLAGS"
+        LDFLAGS="$LDFLAGS $i"
+      fi
+    done
+  fi
+
+    fi
+  fi
+  if test "x$ap_ssltk_type" = "x"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OpenSSL version" >&5
+$as_echo_n "checking for OpenSSL version... " >&6; }
+        for ac_header in openssl/opensslv.h openssl/ssl.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+ ap_ssltk_type="openssl"
+fi
+
+done
+
+    if test "$ap_ssltk_type" = "openssl"; then
+            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <openssl/opensslv.h>
+int
+main ()
+{
+
+#if !defined(OPENSSL_VERSION_NUMBER)
+#error "Missing openssl version"
+#endif
+#if  (OPENSSL_VERSION_NUMBER < 0x009060af) \
+ || ((OPENSSL_VERSION_NUMBER > 0x00907000) && (OPENSSL_VERSION_NUMBER < 0x0090702f))
+#error "Insecure openssl version " OPENSSL_VERSION_TEXT
+#endif
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: OK" >&5
+$as_echo "OK" >&6; }
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: not encouraging" >&5
+$as_echo "not encouraging" >&6; }
+       echo "WARNING: OpenSSL version may contain security vulnerabilities!"
+       echo "         Ensure the latest security patches have been applied!"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no OpenSSL headers found" >&5
+$as_echo "no OpenSSL headers found" >&6; }
+    fi
+  fi
+  if test "$ap_ssltk_type" != "openssl"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL-C version" >&5
+$as_echo_n "checking for SSL-C version... " >&6; }
+    for ac_header in sslc.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "sslc.h" "ac_cv_header_sslc_h" "$ac_includes_default"
+if test "x$ac_cv_header_sslc_h" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SSLC_H 1
+_ACEOF
+ ap_ssltk_type="sslc"
+else
+  ap_ssltk_type=""
+fi
+
+done
+
+    if test "$ap_ssltk_type" = "sslc"; then
+      ap_ssltk_libs="-lsslc"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL-C version" >&5
+$as_echo_n "checking for SSL-C version... " >&6; }
+      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sslc.h>
+int
+main ()
+{
+
+#if !defined(SSLC_VERSION_NUMBER)
+#error "Missing SSL-C version"
+#endif
+#if SSLC_VERSION_NUMBER < 0x2310
+#define stringize_ver(x) #x
+#error "Insecure SSL-C version " stringize_ver(SSLC_VERSION_NUMBER)
+#endif
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: OK" >&5
+$as_echo "OK" >&6; }
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: not encouraging" >&5
+$as_echo "not encouraging" >&6; }
+       echo "WARNING: SSL-C version may contain security vulnerabilities!"
+       echo "         Ensure the latest security patches have been applied!"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no SSL-C headers found" >&5
+$as_echo "no SSL-C headers found" >&6; }
+    fi
+  fi
+  if test "x$ap_ssltk_type" = "x"; then
+    as_fn_error $? "...No recognized SSL/TLS toolkit detected" "$LINENO" 5
+  fi
+
+  if test "$ap_ssltk_type" = "openssl"; then
+    if test "x$ap_ssltk_base" != "x" -a \
+            -f "${ap_ssltk_base}/lib/pkgconfig/openssl.pc"; then
+                  PKG_CONFIG_PATH="${ap_ssltk_base}/lib/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
+      export PKG_CONFIG_PATH
+    fi
+    if test -n "$PKGCONFIG"; then
+      ap_ssltk_libs="`$PKGCONFIG --libs-only-l openssl`"
+      if test $? -eq 0; then
+        pkglookup="`$PKGCONFIG --cflags-only-I openssl`"
+
+  if test "x$CPPFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"$pkglookup\""
+    CPPFLAGS="$pkglookup"
+  else
+    apr_addto_bugger="$pkglookup"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $CPPFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $i"
+      fi
+    done
+  fi
+
+  if test "x$INCLUDES" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting INCLUDES to \"$pkglookup\""
+    INCLUDES="$pkglookup"
+  else
+    apr_addto_bugger="$pkglookup"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $INCLUDES; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to INCLUDES"
+        INCLUDES="$INCLUDES $i"
+      fi
+    done
+  fi
+
+        pkglookup="`$PKGCONFIG --libs-only-L --libs-only-other openssl`"
+
+  if test "x$LDFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting LDFLAGS to \"$pkglookup\""
+    LDFLAGS="$pkglookup"
+  else
+    apr_addto_bugger="$pkglookup"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $LDFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to LDFLAGS"
+        LDFLAGS="$LDFLAGS $i"
+      fi
+    done
+  fi
+
+      else
+        ap_ssltk_libs="-lssl -lcrypto `$apr_config --libs`"
+      fi
+    else
+      ap_ssltk_libs="-lssl -lcrypto `$apr_config --libs`"
+    fi
+  fi
+  test "x$silent" != "xyes" && echo "  forcing SSL_LIBS to \"$ap_ssltk_libs\""
+  SSL_LIBS="$ap_ssltk_libs"
+
+
+  if test "x$LIBS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting LIBS to \"$ap_ssltk_libs\""
+    LIBS="$ap_ssltk_libs"
+  else
+    apr_addto_bugger="$ap_ssltk_libs"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $LIBS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to LIBS"
+        LIBS="$LIBS $i"
+      fi
+    done
+  fi
+
+
+  APACHE_VAR_SUBST="$APACHE_VAR_SUBST SSL_LIBS"
+
+    liberrors=""
+  if test "$ap_ssltk_type" = "openssl"; then
+    for ac_header in openssl/engine.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "openssl/engine.h" "ac_cv_header_openssl_engine_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_engine_h" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_ENGINE_H 1
+_ACEOF
+
+fi
+
+done
+
+    for ac_func in SSLeay_version SSL_CTX_new
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+else
+  liberrors="yes"
+fi
+done
+
+    for ac_func in ENGINE_init ENGINE_load_builtin_engines
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+  else
+    for ac_func in SSLC_library_version SSL_CTX_new
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+else
+  liberrors="yes"
+fi
+done
+    for ac_func in SSL_set_state
+do :
+  ac_fn_c_check_func "$LINENO" "SSL_set_state" "ac_cv_func_SSL_set_state"
+if test "x$ac_cv_func_SSL_set_state" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SSL_SET_STATE 1
+_ACEOF
+
+fi
+done
+
+  fi
+  for ac_func in SSL_set_cert_store
+do :
+  ac_fn_c_check_func "$LINENO" "SSL_set_cert_store" "ac_cv_func_SSL_set_cert_store"
+if test "x$ac_cv_func_SSL_set_cert_store" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SSL_SET_CERT_STORE 1
+_ACEOF
+
+fi
+done
+
+    CPPFLAGS="$saved_CPPFLAGS"
+  LIBS="$saved_LIBS"
+  #if test "x$liberrors" != "x"; then
+    #as_fn_error $? "... Error, SSL/TLS libraries were missing or unusable" "$LINENO" 5
+  #fi
+
+      if test "$ap_ssltk_type" = "openssl"; then
+
+$as_echo "#define HAVE_OPENSSL 1" >>confdefs.h
+
+  else
+
+$as_echo "#define HAVE_SSLC 1" >>confdefs.h
+
+  fi
+fi
+
+
+  test "x$silent" != "xyes" && echo "  forcing MOD_SSL_LDADD to \"\$(SSL_LIBS)\""
+  MOD_SSL_LDADD="\$(SSL_LIBS)"
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether Distcache is required" >&5
+$as_echo_n "checking whether Distcache is required... " >&6; }
+  ap_ssltk_dc="no"
+  tmp_nomessage=""
+  tmp_forced="no"
+  # Check whether --enable-distcache was given.
+if test "${enable_distcache+set}" = set; then :
+  enableval=$enable_distcache; ap_ssltk_dc="$enableval"
+    tmp_nomessage=""
+    tmp_forced="yes"
+    if test "x$ap_ssltk_dc" = "x"; then
+      ap_ssltk_dc="yes"
+            tmp_forced="no"
+    fi
+    if test "$ap_ssltk_dc" != "yes" -a "$ap_ssltk_dc" != "no"; then
+      tmp_nomessage="--enable-distcache had illegal syntax - disabling"
+      ap_ssltk_dc="no"
+    fi
+fi
+
+  if test "$tmp_forced" = "no"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ap_ssltk_dc (default)" >&5
+$as_echo "$ap_ssltk_dc (default)" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ap_ssltk_dc (specified)" >&5
+$as_echo "$ap_ssltk_dc (specified)" >&6; }
+  fi
+  if test "$tmp_forced" = "yes" -a "x$ap_ssltk_dc" = "xno" -a "x$tmp_nomessage" != "x"; then
+    as_fn_error $? "distcache support failed: $tmp_nomessage" "$LINENO" 5
+  fi
+  if test "$ap_ssltk_dc" = "yes"; then
+    ac_fn_c_check_header_mongrel "$LINENO" "distcache/dc_client.h" "ac_cv_header_distcache_dc_client_h" "$ac_includes_default"
+if test "x$ac_cv_header_distcache_dc_client_h" = x""yes; then :
+
+else
+  tmp_nomessage="can't include distcache headers"
+      ap_ssltk_dc="no"
+fi
+
+
+    if test "$tmp_forced" = "yes" -a "x$ap_ssltk_dc" = "xno"; then
+      as_fn_error $? "distcache support failed: $tmp_nomessage" "$LINENO" 5
+    fi
+  fi
+  if test "$ap_ssltk_dc" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Distcache version" >&5
+$as_echo_n "checking for Distcache version... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <distcache/dc_client.h>
+int
+main ()
+{
+#if DISTCACHE_CLIENT_API != 0x0001
+#error "distcache API version is unrecognised"
+#endif
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  tmp_nomessage="distcache has an unsupported API version"
+ap_ssltk_dc="no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ap_ssltk_dc" >&5
+$as_echo "$ap_ssltk_dc" >&6; }
+    if test "$tmp_forced" = "yes" -a "x$ap_ssltk_dc" = "xno"; then
+      as_fn_error $? "distcache support failed: $tmp_nomessage" "$LINENO" 5
+    fi
+  fi
+  if test "$ap_ssltk_dc" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Distcache libraries" >&5
+$as_echo_n "checking for Distcache libraries... " >&6; }
+    save_libs=$LIBS
+    LIBS="$LIBS -ldistcache -lnal"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <distcache/dc_client.h>
+int
+main ()
+{
+DC_CTX *foo = DC_CTX_new((const char *)0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+else
+  tmp_no_message="failed to link with distcache libraries"
+      ap_ssltk_dc="no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS=$save_libs
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ap_ssltk_dc" >&5
+$as_echo "$ap_ssltk_dc" >&6; }
+    if test "$tmp_forced" = "yes" -a "x$ap_ssltk_dc" = "xno"; then
+      as_fn_error $? "distcache support failed: $tmp_nomessage" "$LINENO" 5
+    else
+
+  if test "x$MOD_SSL_LDADD" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting MOD_SSL_LDADD to \"-ldistcache -lnal\""
+    MOD_SSL_LDADD="-ldistcache -lnal"
+  else
+    apr_addto_bugger="-ldistcache -lnal"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $MOD_SSL_LDADD; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to MOD_SSL_LDADD"
+        MOD_SSL_LDADD="$MOD_SSL_LDADD $i"
+      fi
+    done
+  fi
+
+
+$as_echo "#define HAVE_DISTCACHE 1" >>confdefs.h
+
+    fi
+  fi
+
+    if test "x$enable_ssl" = "xshared"; then
+       # The only symbol which needs to be exported is the module
+       # structure, so ask libtool to hide everything else:
+
+  if test "x$MOD_SSL_LDADD" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting MOD_SSL_LDADD to \"-export-symbols-regex ssl_module\""
+    MOD_SSL_LDADD="-export-symbols-regex ssl_module"
+  else
+    apr_addto_bugger="-export-symbols-regex ssl_module"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $MOD_SSL_LDADD; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to MOD_SSL_LDADD"
+        MOD_SSL_LDADD="$MOD_SSL_LDADD $i"
+      fi
+    done
+  fi
+
+    fi
+
+                    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable mod_ssl" >&5
+$as_echo_n "checking whether to enable mod_ssl... " >&6; }
+                    if test "$enable_ssl" = "no"; then
+                      if test "$_apmod_error_fatal" = "no"; then
+                        _apmod_extra_msg=" (disabled)"
+                      else
+                        as_fn_error $? "mod_ssl has been requested but can not be built due to prerequisite failures" "$LINENO" 5
+                      fi
+                    fi
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_ssl$_apmod_extra_msg" >&5
+$as_echo "$enable_ssl$_apmod_extra_msg" >&6; }
+  if test "$enable_ssl" != "no"; then
+    case "$enable_ssl" in
+    shared*)
+      enable_ssl=`echo $enable_ssl|sed 's/shared,*//'`
+      sharedobjs=yes
+      shared=yes
+      DSO_MODULES="$DSO_MODULES ssl"
+      ;;
+    *)
+      MODLIST="$MODLIST ssl"
+      if test "ssl" = "so"; then
+          sharedobjs=yes
+      fi
+      shared="";;
+    esac
+
+
+  if test -z "$ssl_objs"; then
+    objects="mod_ssl.lo"
+  else
+    objects="$ssl_objs"
+  fi
+
+  if test -z "$module_standalone"; then
+    if test -z "$shared"; then
+      # The filename of a convenience library must have a "lib" prefix:
+      libname="libmod_ssl.la"
+      BUILTIN_LIBS="$BUILTIN_LIBS $modpath_current/$libname"
+      modpath_static="$modpath_static $libname"
+      cat >>$modpath_current/modules.mk<<EOF
+$libname: $objects
+        \$(MOD_LINK) $objects \$(MOD_SSL_LDADD)
+EOF
+    else
+      apache_need_shared=yes
+      libname="mod_ssl.la"
+      shobjects=`echo $objects | sed 's/\.lo/.slo/g'`
+      modpath_shared="$modpath_shared $libname"
+      cat >>$modpath_current/modules.mk<<EOF
+$libname: $shobjects
+        \$(SH_LINK) -rpath \$(libexecdir) -module -avoid-version  $objects \$(MOD_SSL_LDADD)
+EOF
+    fi
+  fi
+
+
+  APACHE_VAR_SUBST="$APACHE_VAR_SUBST MOD_SSL_LDADD"
+
+
+
+  fi
+
+
+# Ensure that other modules can pick up mod_ssl.h
+
+  if test "x$INCLUDES" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting INCLUDES to \"-I\$(top_srcdir)/$modpath_current\""
+    INCLUDES="-I\$(top_srcdir)/$modpath_current"
+  else
+    apr_addto_bugger="-I\$(top_srcdir)/$modpath_current"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $INCLUDES; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to INCLUDES"
+        INCLUDES="$INCLUDES $i"
+      fi
+    done
+  fi
+
+
+  echo "DISTCLEAN_TARGETS = modules.mk" >> $modpath_current/modules.mk
+  echo "static = $modpath_static" >> $modpath_current/modules.mk
+  echo "shared = $modpath_shared" >> $modpath_current/modules.mk
+  if test ! -z "$modpath_static" -o ! -z "$modpath_shared"; then
+    MODULE_DIRS="$MODULE_DIRS $current_dir"
+  else
+    MODULE_CLEANDIRS="$MODULE_CLEANDIRS $current_dir"
+  fi
+
+  APACHE_FAST_OUTPUT_FILES="$APACHE_FAST_OUTPUT_FILES $modpath_current/Makefile"
 
 
 # Configure or check which of the non-portable support programs can be enabled.

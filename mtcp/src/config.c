@@ -591,15 +591,15 @@ ParseConfiguration(char *line)
 #ifndef DISABLE_DPDK
 		mpz_set_str(CONFIG._cpumask, q, 16);
 #endif
-	} else if (strcmp(p, "num_tx") == 0) {
-		CONFIG.num_tx = atoi(q);
-		if (CONFIG.num_tx < 0) {
+	} else if (strcmp(p, "num_tx_desc") == 0) {
+		CONFIG.num_tx = mystrtol(q, 10);
+		if (CONFIG.num_tx <= 0) {
 			TRACE_CONFIG("Number of TX ring descriptor should be larger than 0.\n");
 			return -1;
 		}
-	} else if (strcmp(p, "num_rx") == 0) {
-		CONFIG.num_rx = atoi(q);
-		if (CONFIG.num_rx < 0) {
+	} else if (strcmp(p, "num_rx_desc") == 0) {
+		CONFIG.num_rx = mystrtol(q, 10);
+		if (CONFIG.num_rx <= 0) {
 			TRACE_CONFIG("Number of RX ring descriptor should be larger than 0.\n");
 			return -1;
 		}

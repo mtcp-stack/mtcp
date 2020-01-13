@@ -11,6 +11,9 @@
 #include "tcp_in.h"
 #include "pipe.h"
 #include "debug.h"
+#ifdef ENABLE_UCTX
+#include "schedule.h"
+#endif
 
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
@@ -369,9 +372,12 @@ mtcp_epoll_wait(mctx_t mctx, int epid,
 	struct event_queue *eq_shadow;
 	socket_map_t event_socket;
 	int validity;
-	int i, cnt, ret;
+	int i, cnt;
 	int num_events;
-
+#ifndef ENABLE_UCTX
+	int ret;
+#endif
+	
 	mtcp = GetMTCPManager(mctx);
 	if (!mtcp) {
 		return -1;
@@ -408,11 +414,13 @@ mtcp_epoll_wait(mctx_t mctx, int epid,
 	}
 #endif /* SPIN_BEFORE_SLEEP */
 
+#ifndef ENABLE_UCTX
 	if (pthread_mutex_lock(&ep->epoll_lock)) {
 		if (errno == EDEADLK)
 			perror("mtcp_epoll_wait: epoll_lock blocked\n");
 		assert(0);
 	}
+#endif
 
 wait:
 	eq = ep->usr_queue;
@@ -424,12 +432,22 @@ wait:
 #if INTR_SLEEPING_MTCP
 		/* signal to mtcp thread if it is sleeping */
 		if (mtcp->wakeup_flag && mtcp->is_sleeping) {
+
+#ifndef ENABLE_UCTX		
 			pthread_kill(mtcp->ctx->thread, SIGUSR1);
+#else
+			lthread_cancel(mtcp->ctx->thread);
+#endif
+			
 		}
 #endif
 		ep->stat.waits++;
 		ep->waiting = TRUE;
 		if (timeout > 0) {
+#ifdef ENABLE_UCTX
+            long dts;
+            struct timespec curr;
+#endif
 			struct timespec deadline;
 
 			clock_gettime(CLOCK_REALTIME, &deadline);
@@ -449,6 +467,16 @@ wait:
 
 			//deadline.tv_sec = mtcp->cur_tv.tv_sec;
 			//deadline.tv_nsec = (mtcp->cur_tv.tv_usec + timeout * 1000) * 1000;
+#ifdef ENABLE_UCTX
+            dts = deadline.tv_sec * 1e9 + deadline.tv_nsec;
+            while (ep->waiting) {
+				YieldToStack(mtcp->ctx, YIELD_REASON_EPOLL);
+                clock_gettime(CLOCK_MONOTONIC, &curr);
+                /* XXX should we handle overflow in 64bit clock? */
+                if (dts < (curr.tv_sec * 1e9 + curr.tv_nsec))
+                    break;
+            }
+#else
 			ret = pthread_cond_timedwait(&ep->epoll_cond, 
 					&ep->epoll_lock, &deadline);
 			if (ret && ret != ETIMEDOUT) {
@@ -458,8 +486,13 @@ wait:
 						ret, strerror(errno));
 				return -1;
 			}
+#endif
 			timeout = 0;
 		} else if (timeout < 0) {
+#ifdef ENABLE_UCTX
+            while (ep->waiting)
+				YieldToStack(mtcp->ctx, YIELD_REASON_EPOLL);
+#else			
 			ret = pthread_cond_wait(&ep->epoll_cond, &ep->epoll_lock);
 			if (ret) {
 				/* errno set by pthread_cond_wait() */
@@ -468,13 +501,16 @@ wait:
 						ret, strerror(errno));
 				return -1;
 			}
+#endif
 		}
 		ep->waiting = FALSE;
 
 		if (mtcp->ctx->done || mtcp->ctx->exit || mtcp->ctx->interrupt) {
 			mtcp->ctx->interrupt = FALSE;
+#ifndef ENABLE_UCTX
 			//ret = pthread_cond_signal(&ep->epoll_cond);
 			pthread_mutex_unlock(&ep->epoll_lock);
+#endif
 			errno = EINTR;
 			return -1;
 		}
@@ -560,7 +596,9 @@ wait:
 	if (cnt == 0 && timeout != 0)
 		goto wait;
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_unlock(&ep->epoll_lock);
+#endif
 
 	return cnt;
 }

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include "debug.h"
+#include "ip_in.h"
 #include "tcp_in.h"
 #include "logger.h"
 
@@ -34,7 +35,9 @@ thread_printf(mtcp_manager_t mtcp, FILE* f_idx, const char* _Format, ...)
 
 	assert(f_idx != NULL);
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_lock(&mtcp->logger->mutex);
+#endif
 	wbuf = mtcp->w_buffer;
 	if (wbuf && (wbuf->buff_len + PRINT_LIMIT > LOG_BUFF_SIZE)) {
 		flush_log_data(mtcp);
@@ -54,7 +57,9 @@ thread_printf(mtcp_manager_t mtcp, FILE* f_idx, const char* _Format, ...)
 	
 	len = vsnprintf(wbuf->buff + wbuf->buff_len, PRINT_LIMIT, _Format, argptr);
 	wbuf->buff_len += len;
+#ifndef ENABLE_UCTX
 	pthread_mutex_unlock(&mtcp->logger->mutex);
+#endif
 
 	va_end(argptr);
 

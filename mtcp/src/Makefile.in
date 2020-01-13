@@ -10,6 +10,7 @@ NETMAP=@NETMAP@
 ONVM=@ONVM@
 LRO=@LRO@
 CCP=@CCP@
+UCTX=@UCTX@
 HWCSUM=@HWCSUM@
 MTCP_LIB_DIR=../lib
 MTCP_LIB=libmtcp.a
@@ -125,6 +126,15 @@ SRCS = core.c tcp_stream.c config.c api.c eventpoll.c socket.c pipe.c \
 
 ifeq ($(CCP), 1)
 SRCS += ccp.c clock.c pacing.c
+endif
+
+# user-level threading with intel_lthread (experimental)
+ifeq ($(UCTX), 1)
+GCC_OPT += -DENABLE_UCTX
+SRCS += intel_lthread/lthread.c  intel_lthread/lthread_cond.c  intel_lthread/lthread_diag.c \
+		intel_lthread/lthread_mutex.c  intel_lthread/lthread_sched.c  intel_lthread/lthread_tls.c \
+		intel_lthread/arch/x86/ctx.c schedule.c
+INC  += -I./intel_lthread/ -I./intel_lthread/arch/x86/
 endif
 
 OBJS = $(patsubst %.c,%.o,$(SRCS))

@@ -27,6 +27,10 @@
 #include "onvm_nflib.h"
 #endif
 
+#ifdef ENABLE_UCTX
+#include "lthread.h"
+#endif
+
 #ifndef TRUE
 #define TRUE (1)
 #endif
@@ -239,13 +243,13 @@ struct mtcp_manager
 	uint32_t flow_cnt;		/* number of concurrent flows */
 
 	struct mtcp_thread_context* ctx;
-	
+
 	/* variables related to logger */
 	int sp_fd;
 	log_thread_context* logger;
 	log_buff* w_buffer;
 	FILE *log_fp;
-
+	
 	/* variables related to event */
 	struct mtcp_epoll *ep;
 	uint32_t ts_last_event;
@@ -316,7 +320,11 @@ GetMTCPManager(mctx_t mctx);
 struct mtcp_thread_context
 {
 	int cpu;
+#ifndef ENABLE_UCTX
 	pthread_t thread;
+#else
+    lthread_t thread;
+#endif
 	uint8_t done:1, 
 			exit:1, 
 			interrupt:1;

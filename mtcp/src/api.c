@@ -586,6 +586,15 @@ mtcp_accept(mctx_t mctx, int sockid, struct sockaddr *addr, socklen_t *addrlen)
 			return -1;
 
 		} else {
+#ifdef ENABLE_UCTX
+			while ((accepted = StreamDequeue(listener->acceptq)) == NULL) {
+                lthread_yield();
+				if (mtcp->ctx->done || mtcp->ctx->exit) {
+					errno = EINTR;
+					return -1;
+				}
+			}
+#else			
 			pthread_mutex_lock(&listener->accept_lock);
 			while ((accepted = StreamDequeue(listener->acceptq)) == NULL) {
 				pthread_cond_wait(&listener->accept_cond, &listener->accept_lock);
@@ -597,6 +606,7 @@ mtcp_accept(mctx_t mctx, int sockid, struct sockaddr *addr, socklen_t *addrlen)
 				}
 			}
 			pthread_mutex_unlock(&listener->accept_lock);
+#endif	
 		}
 	}
 
@@ -942,9 +952,11 @@ CloseListeningSocket(mctx_t mctx, int sockid)
 		listener->acceptq = NULL;
 	}
 
+#ifndef ENABLE_UCTX
 	pthread_mutex_lock(&listener->accept_lock);
 	pthread_cond_signal(&listener->accept_cond);
 	pthread_mutex_unlock(&listener->accept_lock);
+#endif
 
 	pthread_cond_destroy(&listener->accept_cond);
 	pthread_mutex_destroy(&listener->accept_lock);
@@ -1219,8 +1231,11 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 			return -1;
 		}
 	}
-	
+
+#ifndef ENABLE_UCTX	
 	SBUF_LOCK(&rcvvar->read_lock);
+#endif
+	
 #if BLOCKING_SUPPORT
 	if (!(socket->opts & MTCP_NONBLOCK)) {
 		while (rcvvar->rcvbuf->merged_len == 0) {
@@ -1242,7 +1257,9 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 		ret = PeekForUser(mtcp, cur_stream, buf, len);
 		break;
 	default:
+#ifndef ENABLE_UCTX	
 		SBUF_UNLOCK(&rcvvar->read_lock);
+#endif
 		ret = -1;
 		errno = EINVAL;
 		return ret;
@@ -1261,8 +1278,10 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 	    rcvvar->rcvbuf->merged_len == 0 && ret > 0) {
 		event_remaining = TRUE;
 	}
-	
+
+#ifndef ENABLE_UCTX
 	SBUF_UNLOCK(&rcvvar->read_lock);
+#endif
 	
 	if (event_remaining) {
 		if (socket->epoll) {
@@ -1351,8 +1370,11 @@ mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 			return -1;
 		}
 	}
-	
+
+#ifndef ENABLE_UCTX	
 	SBUF_LOCK(&rcvvar->read_lock);
+#endif
+	
 #if BLOCKING_SUPPORT
 	if (!(socket->opts & MTCP_NONBLOCK)) {
 		while (rcvvar->rcvbuf->merged_len == 0) {
@@ -1396,8 +1418,10 @@ mtcp_readv(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 		event_remaining = TRUE;
 	}
 
+#ifndef ENABLE_UCTX	
 	SBUF_UNLOCK(&rcvvar->read_lock);
-
+#endif
+	
 	if(event_remaining) {
 		if ((socket->epoll & MTCP_EPOLLIN) && !(socket->epoll & MTCP_EPOLLET)) {
 			AddEpollEvent(mtcp->ep, 
@@ -1517,13 +1541,17 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 
 	sndvar = cur_stream->sndvar;
 
+#ifndef ENABLE_UCTX	
 	SBUF_LOCK(&sndvar->write_lock);
+#endif	
 #if BLOCKING_SUPPORT
 	if (!(socket->opts & MTCP_NONBLOCK)) {
 		while (sndvar->snd_wnd <= 0) {
 			TRACE_SNDBUF("Waiting for available sending window...\n");
 			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
+#ifndef ENABLE_UCTX	
 				SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 				errno = EINTR;
 				return -1;
 			}
@@ -1536,7 +1564,9 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 
 	ret = CopyFromUser(mtcp, cur_stream, buf, len);
 
+#ifndef ENABLE_UCTX	
 	SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 
 	if (ret > 0 && !(sndvar->on_sendq || sndvar->on_send_list)) {
 		SQ_LOCK(&mtcp->ctx->sendq_lock);
@@ -1614,13 +1644,17 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 	}
 
 	sndvar = cur_stream->sndvar;
+#ifndef ENABLE_UCTX	
 	SBUF_LOCK(&sndvar->write_lock);
+#endif
 #if BLOCKING_SUPPORT
 	if (!(socket->opts & MTCP_NONBLOCK)) {
 		while (sndvar->snd_wnd <= 0) {
 			TRACE_SNDBUF("Waiting for available sending window...\n");
 			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
+#ifndef ENABLE_UCTX	
 				SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 				errno = EINTR;
 				return -1;
 			}
@@ -1646,7 +1680,9 @@ mtcp_writev(mctx_t mctx, int sockid, const struct iovec *iov, int numIOV)
 		if (ret < iov[i].iov_len)
 			break;
 	}
+#ifndef ENABLE_UCTX	
 	SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 
 	if (to_write > 0 && !(sndvar->on_sendq || sndvar->on_send_list)) {
 		SQ_LOCK(&mtcp->ctx->sendq_lock);

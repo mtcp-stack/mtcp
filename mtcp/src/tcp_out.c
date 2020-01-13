@@ -377,7 +377,9 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		return 0;
 	}
 
+#ifndef ENABLE_UCTX
 	SBUF_LOCK(&sndvar->write_lock);
+#endif
 
 	if (sndvar->sndbuf->len == 0) {
 		packets = 0;
@@ -456,7 +458,9 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 	}
 
  out:
+#ifndef ENABLE_UCTX
 	SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 	return packets;
 #else
 	struct tcp_send_vars *sndvar = cur_stream->sndvar;
@@ -474,8 +478,10 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		assert(0);
 		return 0;
 	}
-	
+
+#ifndef ENABLE_UCTX
 	SBUF_LOCK(&sndvar->write_lock);
+#endif
 
 	if (sndvar->sndbuf->len == 0) {
 		packets = 0;
@@ -603,7 +609,9 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 	}
 
  out:
-	SBUF_UNLOCK(&sndvar->write_lock);	
+#ifndef ENABLE_UCTX
+	SBUF_UNLOCK(&sndvar->write_lock);
+#endif
 	return packets;	
 #endif
 }

@@ -83,6 +83,7 @@ struct server_vars
 struct thread_context
 {
 	mctx_t mctx;
+	int core;
 	int ep;
 	struct server_vars *svars;
 };
@@ -361,6 +362,8 @@ InitializeServerThread(int core)
 		return NULL;
 	}
 
+	ctx->core = core;
+
 	return ctx;
 }
 /*----------------------------------------------------------------------------*/
@@ -410,10 +413,10 @@ CreateListeningSocket(struct thread_context *ctx)
 	return listener;
 }
 /*----------------------------------------------------------------------------*/
-void *
-RunServerThread(void *arg)
+void
+RunServerContext(void *arg)
 {
-	int core = *(int *)arg;
+	int core;
 	struct thread_context *ctx;
 	mctx_t mctx;
 	int listener;
@@ -422,16 +425,11 @@ RunServerThread(void *arg)
 	int nevents;
 	int i, ret;
 	int do_accept;
-	
-	/* initialization */
-	ctx = InitializeServerThread(core);
-	if (!ctx) {
-		TRACE_ERROR("Failed to initialize server thread.\n");
-		return NULL;
-	}
-	mctx = ctx->mctx;
-	ep = ctx->ep;
 
+	ctx = (struct thread_context *) arg;
+	ep = ctx->ep;
+	mctx = ctx->mctx;
+	core = ctx->core;
 	events = (struct mtcp_epoll_event *)
 			calloc(MAX_EVENTS, sizeof(struct mtcp_epoll_event));
 	if (!events) {
@@ -519,7 +517,30 @@ RunServerThread(void *arg)
 		}
 
 	}
+}
+/*----------------------------------------------------------------------------*/
+void *
+RunServerThread(void *arg)
+{
+	int core = *(int *)arg;
+	struct thread_context *ctx;
+	mctx_t mctx;
+	
+	/* initialization */
+	ctx = InitializeServerThread(core);
+	if (!ctx) {
+		TRACE_ERROR("Failed to initialize server thread.\n");
+		return NULL;
+	}
+	mctx = ctx->mctx;
 
+#ifdef ENABLE_UCTX
+	mtcp_create_app_context(mctx, (mtcp_app_func_t) RunServerContext, (void *) ctx);
+	mtcp_run_app();
+#else
+	RunServerContext(ctx);
+#endif
+	
 	/* destroy mtcp context: this will kill the mtcp thread */
 	mtcp_destroy_context(mctx);
 	pthread_exit(NULL);

@@ -1,0 +1,37 @@
+========================================================================
+ README for mTCP development with spdk
+========================================================================
+
+1. Why mTCP changes
+
+mTCP is a highly scalable user-level TCP stack for multicore systems.
+It requires per-thread architecture and starts "RunMainLoop" for each
+thread with dead-loop handling.
+
+However, spdk will register poller per thread to handle receiving and
+events and so it requires mtcp to supply a separated recv/send handler.
+It's necessary to split RunMainLoop to two APIs: RunMainLoop and
+mtcp_run_instance. Original mTCP apps still use RunMainLoop and it's not
+affected and spdk will use mtcp_run_instance for its poller.
+
+2. How to enable spdk support
+
+Add option "--enable-spdk" to choose spdk support enable or not.
+Also introduce mtcp_crossbuild.sh for reference.
+
+3. SPDK changes
+
+For SPDK, it needs more changes. 
+
+- Add mtcp sock interface. Current now it only supports posix/vpp sock
+  interface. Just follow the framework to add mtcp sock interface.
+- Change connection schedule mode to support mtcp per-thread arch.
+
+Now upstream is ongoing.
+
+========================================================================
+
+                   Contact: mtcp-user at list.ndsl.kaist.edu
+                             April 2, 2015. 
+                 EunYoung Jeong <notav at ndsl.kaist.edu>
+		 M. Asim Jamshed <ajamshed at ndsl.kaist.edu>

@@ -63,7 +63,11 @@ static struct rte_mempool *pktmbuf_pool = NULL;
 //#define DEBUG				1
 #ifdef DEBUG
 /* ethernet addresses of ports */
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#else
+static struct rte_ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#endif
 #endif
 
 static struct rte_eth_dev_info dev_info[RTE_MAX_ETHPORTS];

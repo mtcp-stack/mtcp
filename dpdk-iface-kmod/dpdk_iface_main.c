@@ -22,7 +22,11 @@
 typedef struct {
 	PciDevice pd;
 	struct rte_eth_dev_info dev_details;
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 	struct ether_addr ports_eth_addr;
+#else
+	struct rte_ether_addr ports_eth_addr;
+#endif
 } DevInfo;
 
 static DevInfo di[RTE_MAX_ETHPORTS];	

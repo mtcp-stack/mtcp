@@ -260,7 +260,11 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		char socket_mem_str[32] = "";
 		// int i;
 		int ret, socket_mem;
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#else
+		static struct rte_ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#endif
 
 		/* STEP 1: first determine CPU mask */
 		mpz_init(_cpumask);

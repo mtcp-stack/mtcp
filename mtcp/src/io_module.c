@@ -260,7 +260,11 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		char socket_mem_str[32] = "";
 		// int i;
 		int ret, socket_mem;
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
 		static struct ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#else
+		static struct rte_ether_addr ports_eth_addr[RTE_MAX_ETHPORTS];
+#endif
 
 		/* STEP 1: first determine CPU mask */
 		mpz_init(_cpumask);
@@ -343,8 +347,10 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		/* initialize the dpdk eal env */
 		ret = rte_eal_init(argc, argv);
 		if (ret < 0) {
-			TRACE_ERROR("Invalid EAL args!\n");
-			exit(EXIT_FAILURE);
+			if(rte_errno != EALREADY) {
+				TRACE_ERROR("Invalid EAL args!\n");
+				exit(EXIT_FAILURE);
+			}
 		}
 		/* give me the count of 'detected' ethernet ports */
 #if RTE_VERSION < RTE_VERSION_NUM(18, 5, 0, 0)

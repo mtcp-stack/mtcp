@@ -1284,7 +1284,7 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
         return ret;
 }
 /*----------------------------------------------------------------------------*/
-inline ssize_t
+ssize_t
 mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len)
 {
 	return mtcp_recv(mctx, sockid, buf, len, 0);

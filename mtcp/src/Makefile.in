@@ -4,6 +4,7 @@
 
 ### TARGET ###
 PS=@PSIO@
+SPDK=@SPDK@
 DPDK=@DPDK@
 ENFORCE_RX_IDLE=@ENFORCE_RX_IDLE@
 NETMAP=@NETMAP@
@@ -19,7 +20,10 @@ MTCP_HDR = mtcp_api.h mtcp_epoll.h
 GCC=@CC@
 
 ### FLAGS ###
-ifeq ($(shell uname -m),x86_64)
+
+# If ARCH is not defined, retrive from system
+ARCH ?= $(shell uname -m)
+ifeq ($(ARCH),x86_64)
 GCC_OPT = -m64
 else
 GCC_OPT =
@@ -49,6 +53,10 @@ GCC_OPT += -Wall -fPIC -fgnu89-inline -Werror
 GCC_OPT += -DNDEBUG -g -O3 -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 #GCC_OPT += -DNDEBUG -g -DNETSTAT -DINFO -DDBGERR -DDBGCERR
 GCC_OPT += $(DBG_OPT)
+
+ifeq ($(SPDK),1)
+GCC_OPT += -DENABLE_SPDK
+endif
 
 ifeq ($(LRO),1)
 GCC_OPT += -DENABLELRO

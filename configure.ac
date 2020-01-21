@@ -63,6 +63,17 @@ AC_FUNC_MMAP
 AC_CHECK_FUNC([clock_gettime],,AC_MSG_ERROR([librt library is missing]))
 AC_CHECK_FUNCS([bzero getpagesize gettimeofday memmove memset munmap select socket strchr strerror strstr strtol],,AC_MSG_ERROR([glibc library is missing]))
 
+# Reset SPDK to 0
+AC_SUBST(SPDK, 0)
+
+dnl Example of default-disabled feature
+AC_ARG_ENABLE([spdk],
+	AS_HELP_STRING([--enable-spdk], [Enable SPDK Support]))
+
+AS_IF([test "x$enable_spdk" = "xyes"], [
+	    AC_SUBST(SPDK, 1)
+])
+
 # Reset DPDK to 0
 AC_SUBST(DPDK, 0)
 # Reset enforcement value

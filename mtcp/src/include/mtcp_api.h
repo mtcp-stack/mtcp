@@ -46,7 +46,7 @@ int
 mtcp_init(const char *config_file);
 
 void 
-mtcp_destroy();
+mtcp_destroy(void);
 
 int 
 mtcp_getconf(struct mtcp_conf *conf);
@@ -68,6 +68,9 @@ typedef void (*mtcp_sighandler_t)(int);
 mtcp_sighandler_t 
 mtcp_register_signal(int signum, mtcp_sighandler_t handler);
 
+void *
+MTCPRunThread(void *arg);
+
 int 
 mtcp_pipe(mctx_t mctx, int pipeid[2]);
 
@@ -86,6 +89,9 @@ mtcp_setsock_nonblock(mctx_t mctx, int sockid);
    but only FIONREAD is supported currently */
 int 
 mtcp_socket_ioctl(mctx_t mctx, int sockid, int request, void *argp);
+
+int
+mtcp_run_instance(void *tmp);
 
 int 
 mtcp_socket(mctx_t mctx, int domain, int type, int protocol);
@@ -124,7 +130,7 @@ int
 mtcp_getpeername(mctx_t mctx, int sockid, struct sockaddr *addr,
 		 socklen_t *addrlen);
 
-inline ssize_t
+ssize_t
 mtcp_read(mctx_t mctx, int sockid, char *buf, size_t len);
 
 ssize_t

@@ -39,6 +39,22 @@
 #define ERROR (-1)
 #endif
 
+#if RTE_VERSION < RTE_VERSION_NUM(19, 8, 0, 0)
+typedef struct ether_addr MTCP_ETHER_ADDR;
+typedef struct ipv4_hdr MTCP_IPV4_HDR;
+typedef struct ether_hdr MTCP_ETHER_HDR;
+
+#define MTCP_ETHER_MAX_LEN  ETHER_MAX_LEN
+#define MTCP_ETHER_CRC_LEN  ETHER_CRC_LEN
+#else
+typedef struct rte_ether_addr MTCP_ETHER_ADDR;
+typedef struct rte_ipv4_hdr MTCP_IPV4_HDR;
+typedef struct rte_ether_hdr MTCP_ETHER_HDR;
+
+#define MTCP_ETHER_MAX_LEN  RTE_ETHER_MAX_LEN
+#define MTCP_ETHER_CRC_LEN  RTE_ETHER_CRC_LEN
+#endif
+
 #define ETHERNET_HEADER_LEN		14	// sizeof(struct ethhdr)
 #define IP_HEADER_LEN			20	// sizeof(struct iphdr)
 #define TCP_HEADER_LEN			20	// sizeof(struct tcphdr)

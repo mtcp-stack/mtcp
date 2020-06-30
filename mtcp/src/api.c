@@ -291,6 +291,47 @@ mtcp_setsockopt(mctx_t mctx, int sockid, int level,
 
 	return 0;
 }
+int mtcp_fcntl (mctx_t mctx, int sockid, int operation_, int flags_)
+{
+	mtcp_manager_t mtcp;
+	
+	mtcp = GetMTCPManager(mctx);
+	if (!mtcp) {
+		return -1;
+	}
+
+	if (sockid < 0 || sockid >= CONFIG.max_concurrency) {
+		TRACE_API("Socket id %d out of range.\n", sockid);
+		errno = EBADF;
+		return -1;
+	}
+
+	if (mtcp->smap[sockid].socktype == MTCP_SOCK_UNUSED) {
+		TRACE_API("Invalid socket id: %d\n", sockid);
+		errno = EBADF;
+		return -1;
+	}
+
+    switch (operation_) {
+        case F_GETFL:
+	                if (mtcp->smap[sockid].opts & MTCP_NONBLOCK) {
+                        return O_NONBLOCK;
+                    }
+
+        case F_SETFL:
+                    if (flags_ & O_NONBLOCK)
+	                    mtcp->smap[sockid].opts |= MTCP_NONBLOCK;
+                    else
+	                    mtcp->smap[sockid].opts &= ~MTCP_NONBLOCK;
+
+        default:
+            errno = EINVAL;
+            return -1;
+
+    }
+    return 0;
+}
+
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_setsock_nonblock(mctx_t mctx, int sockid)

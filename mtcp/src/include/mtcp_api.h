@@ -78,6 +78,8 @@ mtcp_getsockopt(mctx_t mctx, int sockid, int level,
 int 
 mtcp_setsockopt(mctx_t mctx, int sockid, int level, 
 		int optname, const void *optval, socklen_t optlen);
+int 
+mtcp_fcntl(mctx_t mctx, int sockid, int  operation, int flags_);
 
 int 
 mtcp_setsock_nonblock(mctx_t mctx, int sockid);

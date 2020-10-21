@@ -294,6 +294,12 @@ RBPut(rb_manager_t rbm, struct tcp_ring_buffer* buff,
 	struct fragment_ctx* prev, *pprev;
 	int merged = 0;
 
+	if (cur_seq < buff->head_seq) {
+		len -= buff->head_seq - cur_seq;
+		data += buff->head_seq - cur_seq;
+		cur_seq = buff->head_seq;
+	}
+
 	if (len <= 0)
 		return 0;
 

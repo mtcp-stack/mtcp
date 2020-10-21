@@ -1124,6 +1124,11 @@ CopyToUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 	uint32_t prev_rcv_wnd;
 	int copylen;
 
+	if (rcvvar->rcvbuf == NULL) {
+		errno = EAGAIN;
+		return -1;
+	}
+
 	copylen = MIN(rcvvar->rcvbuf->merged_len, len);
 	if (copylen <= 0) {
 		errno = EAGAIN;

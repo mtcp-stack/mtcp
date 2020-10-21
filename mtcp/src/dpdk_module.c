@@ -514,6 +514,50 @@ ip_reassemble(struct dpdk_private_context *dpc, struct rte_mbuf *m)
 }
 #endif
 /*----------------------------------------------------------------------------*/
+struct rte_mbuf *
+from_mbuf_to_buf(struct rte_mbuf *m, uint8_t *buf, size_t len, int ispeek, int needcpy)
+{
+	void *src;
+	uint32_t done = 0;
+	uint32_t left = len, orig_pkt_len;
+	uint16_t copy_len, seg_len;
+	struct rte_mbuf *m_next, *orig_pkt;
+
+	if (len == 0)
+		return m;
+
+	orig_pkt = m;
+	orig_pkt_len = m->pkt_len;
+
+	do {
+		seg_len = rte_pktmbuf_data_len(m);
+		copy_len = RTE_MIN(seg_len, left);
+		src = rte_pktmbuf_mtod(m, void *);
+		if (needcpy)
+			rte_memcpy(buf + done, src, copy_len);
+		done += copy_len;
+		left -= copy_len;
+		if (copy_len < seg_len) {
+			if (!ispeek) {
+				rte_pktmbuf_adj(m, copy_len);
+			}
+			break;
+		}
+		m_next = m->next;
+		if (!ispeek) {
+			rte_pktmbuf_free_seg(m);
+		}
+		m = m_next;
+	} while (left && m);
+
+	if (m && !ispeek)
+		m->pkt_len = orig_pkt_len - done;
+
+	if(ispeek)
+		return orig_pkt;
+	else
+		return m;
+}
 uint8_t *
 dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *len)
 {
@@ -528,7 +572,8 @@ dpdk_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
 	m = ip_reassemble(dpc, m);
 #endif
 	*len = m->pkt_len;
-	pktbuf = rte_pktmbuf_mtod(m, uint8_t *);
+	pktbuf = malloc((*len) * sizeof(uint8_t));
+	from_mbuf_to_buf(m, pktbuf, *len, 0, 1);
 
 	/* enqueue the pkt ptr in mbuf */
 	dpc->rmbufs[ifidx].m_table[index] = m;

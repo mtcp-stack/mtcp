@@ -1258,7 +1258,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	}
 
 	/* Validate sequence. if not valid, ignore the packet */
-	if (cur_stream->state > TCP_ST_SYN_RCVD) {
+	if (cur_stream->state >= TCP_ST_SYN_RCVD) {
 		ret = ValidateSequence(mtcp, cur_stream, 
 				cur_ts, tcph, seq, ack_seq, payloadlen);
 		if (!ret) {

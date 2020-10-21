@@ -56,6 +56,12 @@ ParseTCPOptions(tcp_stream *cur_stream,
 			}
 		}
 	}
+	if (cur_stream->sndvar->eff_mss == 0) {
+		cur_stream->sndvar->eff_mss = cur_stream->sndvar->mss;
+#if TCP_OPT_TIMESTAMP_ENABLED
+		cur_stream->sndvar->eff_mss -= (TCP_OPT_TIMESTAMP_LEN + 2);
+#endif
+	}
 }
 /*---------------------------------------------------------------------------*/
 inline int  

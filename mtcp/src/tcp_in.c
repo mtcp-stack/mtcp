@@ -1205,6 +1205,10 @@ int
 ProcessTCPPacket(mtcp_manager_t mtcp, 
 		 uint32_t cur_ts, const int ifidx, const struct iphdr *iph, int ip_len)
 {
+	if (ip_len < (iph->ihl << 2) + sizeof(struct tcphdr)) {
+		TRACE_DBG("Invalid IP header length\n");
+		return ERROR;
+	}
 	struct tcphdr* tcph = (struct tcphdr *) ((u_char *)iph + (iph->ihl << 2));
 	uint8_t *payload    = (uint8_t *)tcph + (tcph->doff << 2);
 	int payloadlen = ip_len - (payload - (u_char *)iph);

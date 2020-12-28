@@ -949,6 +949,7 @@ CloseListeningSocket(mctx_t mctx, int sockid)
 	pthread_cond_destroy(&listener->accept_cond);
 	pthread_mutex_destroy(&listener->accept_lock);
 
+	ListenerHTRemove(mtcp->listeners, listener);
 	free(listener);
 	mtcp->smap[sockid].listener = NULL;
 

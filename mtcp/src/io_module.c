@@ -6,6 +6,14 @@
 #include <stdlib.h>
 /* std io funcs */
 #include <stdio.h>
+/* for I/O module def'ns */
+#include "io_module.h"
+/* for num_devices decl */
+#include "config.h"
+/* std lib funcs */
+#include <stdlib.h>
+/* std io funcs */
+#include <stdio.h>
 /* strcmp func etc. */
 #include <string.h>
 /* for ifreq struct */
@@ -44,7 +52,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 /* for netmap macros */
-#include "netmap_user.h"
+#include <net/netmap_user.h>
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK

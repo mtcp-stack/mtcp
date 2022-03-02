@@ -560,6 +560,9 @@ ParseConfiguration(char *line)
 
 	char *saveptr;
 
+	if(strlen(line) > sizeof(optstr) - 1){
+		return -1;
+	}
 	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
 	saveptr = NULL;
 

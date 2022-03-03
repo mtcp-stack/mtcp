@@ -49,7 +49,7 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 {
 	struct netmap_private_context *npc;
 	char ifname[MAX_IFNAMELEN];
-	char nifname[MAX_IFNAMELEN];
+	char nifname[MAX_IFNAMELEN + 20];
 	int j;
 
 	/* create and initialize private I/O module context */

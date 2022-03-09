@@ -44,7 +44,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 /* for netmap macros */
-#include "netmap_user.h"
+#include <net/netmap_user.h>
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK

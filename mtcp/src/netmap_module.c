@@ -1,4 +1,3 @@
-/* for io_module_func def'ns */
 #include "io_module.h"
 #ifndef DISABLE_NETMAP
 /* for mtcp related def'ns */
@@ -11,7 +10,8 @@
 #include "config.h"
 /* for netmap definitions */
 #define NETMAP_WITH_LIBS
-#include "netmap_user.h"
+#define LIBNETMAP_NOTHREADSAFE
+#include <libnetmap.h>
 /* for poll */
 #include <sys/poll.h>
 /* for ETHER_CRC_LEN */
@@ -49,7 +49,7 @@ netmap_init_handle(struct mtcp_thread_context *ctxt)
 {
 	struct netmap_private_context *npc;
 	char ifname[MAX_IFNAMELEN];
-	char nifname[MAX_IFNAMELEN];
+	char nifname[MAX_IFNAMELEN + 20];
 	int j;
 
 	/* create and initialize private I/O module context */

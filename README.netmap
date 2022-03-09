@@ -1,6 +1,10 @@
 - NETMAP VERSION -
 ------------------
-
+Addendum for more modern versions of netmap:
+Given the change in the netmap library structure, I changed some code to let mTCP work with modern versions of netmap. To run it for Netmap API v >15 you will need
+the netmap folder and mtcp folders to be located in the same directory/folder. Once this is done please go into netmap/libnetmap and run make. This should generate a
+libnetmap.a file and everything should run fine after this.
+------------------
 -*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*--*-*-*-*-*-*-
 -A- Tested with linux-3.13.0-121-generic & netmap commit: 8f3f79e4ca168c6d3220e7a5198a5778b030445e,
 and,

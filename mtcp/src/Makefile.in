@@ -75,7 +75,12 @@ INC += -DDISABLE_PSIO
 endif
 
 ifeq ($(NETMAP),1)
-# do nothing
+#if netmap we set the INC variable to netmap lib location
+INC += -I ../../../netmap/libnetmap
+#add location of netmap_user.h to INC
+INC += -I ../../../netmap/sys
+#and then we link LDFLAGS to libnetmap.a 
+LDFLAGS += ../../../netmap/libnetmap/libnetmap.a
 else
 INC += -DDISABLE_NETMAP
 endif
@@ -153,7 +158,7 @@ endif
 
 $(OBJS): %.o: %.c Makefile
 	$(MSG) "   CC $<"
-	$(HIDE) $(GCC) $(CFLAGS) $(GCC_OPT) $(INC) -c $< -o $@
+	$(HIDE) $(GCC) $(CFLAGS) $(GCC_OPT) $(INC) -c $< -o $@ $(LDFLAGS)
 $(DEPS): .%.d: %.c Makefile
 	$(HIDE) $(GCC) $(GCC_OPT) $(INC) -MM $(CFLAGS) $< > $@
 

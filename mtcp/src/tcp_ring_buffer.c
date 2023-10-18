@@ -288,7 +288,7 @@ int
 RBPut(rb_manager_t rbm, struct tcp_ring_buffer* buff, 
 	   void* data, uint32_t len, uint32_t cur_seq)
 {
-	int putx, end_off;
+	uint32_t putx, end_off;
 	struct fragment_ctx *new_ctx;
 	struct fragment_ctx* iter;
 	struct fragment_ctx* prev, *pprev;

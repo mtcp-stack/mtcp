@@ -16,6 +16,8 @@
 
 #include "netlib.h"
 
+struct Options Options;
+
 /*----------------------------------------------------------------------------*/
 int 
 GetNumCPUCores(void)

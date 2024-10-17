@@ -146,7 +146,11 @@ static const struct net_device_ops netdev_ops = {
         .ndo_validate_addr      = netdev_open,
         .ndo_set_mac_address    = NULL,
         .ndo_change_mtu         = NULL,
+#if 0
         .ndo_tx_timeout         = netdev_no_ret,
+#else
+        .ndo_tx_timeout         = NULL,
+#endif
         .ndo_vlan_rx_add_vid    = NULL,
         .ndo_vlan_rx_kill_vid   = NULL,
         .ndo_do_ioctl           = NULL,

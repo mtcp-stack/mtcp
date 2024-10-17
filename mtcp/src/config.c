@@ -560,7 +560,7 @@ ParseConfiguration(char *line)
 
 	char *saveptr;
 
-	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
+	strncpy(optstr, line, MAX_OPTLINE_LEN - 1 - strlen (line));
 	saveptr = NULL;
 
 	p = strtok_r(optstr, " \t=", &saveptr);

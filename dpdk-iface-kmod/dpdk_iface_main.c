@@ -22,7 +22,7 @@
 typedef struct {
 	PciDevice pd;
 	struct rte_eth_dev_info dev_details;
-	struct ether_addr ports_eth_addr;
+	struct rte_ether_addr ports_eth_addr;
 } DevInfo;
 
 static DevInfo di[RTE_MAX_ETHPORTS];	
@@ -196,7 +196,7 @@ main(int argc, char **argv)
 	};
 	int rte_argc = 6;
 
-	ret = probe_all_rte_devices(rte_argv, &rte_argc);
+	//ret = probe_all_rte_devices(rte_argv, &rte_argc);
 
 #if DEBUG
 	for (i = 0; i < ret; i++) {
@@ -260,7 +260,7 @@ main(int argc, char **argv)
 	ret = rte_eal_init(rte_argc, rte_argv);
 
 	/* get total count of detected ethernet ports */
-	num_devices = rte_eth_dev_count();
+	num_devices = rte_eth_dev_count_avail();
 	if (num_devices == 0) {
 		fprintf(stderr, "No Ethernet port detected!\n");
 		exit(EXIT_FAILURE);
@@ -274,8 +274,9 @@ main(int argc, char **argv)
 		rte_eth_dev_info_get(ret, &di[ret].dev_details);
 		/* get numa socket location for future socket-mem field */
 		if ((di[ret].pd.numa_socket=rte_eth_dev_socket_id(ret)) == -1) {
-			fprintf(stderr, "Can't determine socket ID!\n");
-			exit(EXIT_FAILURE);
+			di[ret].pd.numa_socket = 0;
+			fprintf(stderr, "warning: can't determine socket ID for port %d!\n", ret);
+			//exit(EXIT_FAILURE);
 		}
 	}
 

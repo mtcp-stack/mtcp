@@ -79,6 +79,9 @@ AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
 AC_SUBST(HWCSUM, 1)
 
+AC_SUBST(DPDK, 1)
+PKG_CHECK_MODULES(DPDK, [libdpdk])
+
 # Check dpdk-17.08 path (lib & inc)
 AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-17.08 install root])
 if test "$with_dpdk_lib" != ""
@@ -148,10 +151,10 @@ then
 	AC_SUBST(ONVM, 1)
 fi
 
-if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "$enable_netmap" = ""
-then
-	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
-fi
+# if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "$enable_netmap" = ""
+# then
+# 	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
+# fi
 
 if test "x$enable_ccp" = "xyes"
 then

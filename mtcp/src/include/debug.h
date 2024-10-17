@@ -7,6 +7,9 @@
 #include "mtcp.h"
 #include "tcp_in.h"
 
+#define APP 1
+#define DBGFUNC 1
+
 #ifdef DBGTEMP
 
 #define TRACE_TEMP(f, m...) { \

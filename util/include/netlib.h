@@ -38,7 +38,8 @@ struct Options {
 	char  *op_name;
 	char **op_varptr;
 	char  *op_comment;
-} Options;
+};
+extern struct Options Options;
 void ParseOptions(int argc, const char** argv, struct Options* ops);
 void PrintOptions(const struct Options* ops, int printVal);
 

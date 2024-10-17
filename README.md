@@ -1,3 +1,140 @@
+# README
+
+This repository is a fork from [mTCP](https://github.com/mtcp-stack/mtcp).
+The development on mTCP seemed to stop for several years,
+and it did not work with the recent DPDK versions, so I partially fixed it.
+The purpose of this repository is to make epwget (mTCP's wget)
+work with the recent DPDK and Ubuntu.
+
+We are not using the DPDK submodule embeded in mTCP.
+The DPDK library should have been installed correctly.
+(how to check: `pkg-config --modversion libdpdk`)
+
+## Prerequisites
+
+This is tested using:
+- DPDK 23.11.0
+- Ubuntu 22.04.4 LTS (jammy)
+
+## Compile
+
+```
+$ aclocal
+$ autoheader
+$ automake -a -c
+$ autoconf
+$ ./configure
+$ make V=1
+$ cd dpdk-iface-kmod/
+$ make V=1
+```
+
+## Setup
+
+```
+# dpdk-devbind.py -b uio_pci_generic 02:00.0 03:00.0 04:00.0
+# insmod dpdk-iface-kmod/dpdk_iface.ko
+# dpdk-iface-kmod/dpdk_iface_main
+Removing existing device node entry... done. 
+Creating device node entry... done. 
+Setting permissions on the device node entry... done. 
+Scanning the system for dpdk-compatible devices...warning: can't determine socket ID for port 0!
+warning: can't determine socket ID for port 1!
+warning: can't determine socket ID for port 2!
+ done. 
+ Clearing previous entries
+ Registering port 0 (00:E0:67:30:D9:BB) to mTCP stack (dpdk0).
+ Registering port 1 (00:E0:67:30:D9:BC) to mTCP stack (dpdk1).
+ Registering port 2 (00:E0:67:30:D9:BD) to mTCP stack (dpdk2).
+# ip addr add dev dpdk0 10.0.10.101/24
+# cd apps/example/
+# cat config/route.conf
+ROUTES 1
+10.0.10.1/24 dpdk1
+# cat config/arp.conf
+ARP_ENTRY 1
+10.0.10.1/32 <peer's mac addr>
+```
+## Run
+
+```
+# cd apps/example/
+# ./epwget 10.0.10.1/dpdk-23.11.1.tar.xz 1 -N 1 -f epwget.conf
+Configuration updated by mtcp_setconf().
+Application configuration:
+URL: /dpdk-23.11.1.tar.xz
+# of total_flows: 1
+# of cores: 1
+Concurrency: 0
+---------------------------------------------------------------------------------
+Loading mtcp configuration from : epwget.conf
+Loading interface setting
+[ SetNetEnv: 347] argv[0]: 
+[ SetNetEnv: 347] argv[1]: -c
+[ SetNetEnv: 347] argv[2]: 1
+[ SetNetEnv: 347] argv[3]: -n
+[ SetNetEnv: 347] argv[4]: 4
+[ SetNetEnv: 347] argv[5]: --proc-type=auto
+EAL: Detected CPU lcores: 4
+EAL: Detected NUMA nodes: 1
+EAL: Auto-detected process type: PRIMARY
+EAL: Detected shared linkage of DPDK
+EAL: Multi-process socket /var/run/dpdk/rte/mp_socket
+EAL: Selected IOVA mode 'PA'
+EAL: VFIO support initialized
+EAL: Probe PCI driver: net_e1000_igb (8086:157b) device: 0000:02:00.0 (socket -1)
+EAL: Probe PCI driver: net_e1000_igb (8086:157b) device: 0000:03:00.0 (socket -1)
+EAL: Probe PCI driver: net_e1000_igb (8086:157b) device: 0000:04:00.0 (socket -1)
+TELEMETRY: No legacy callbacks, legacy socket not created
+Total number of attached devices: 1
+Interface name: dpdk0
+Configurations:
+Number of CPU cores available: 1
+Number of CPU cores to use: 1
+Maximum number of concurrency per core: 10000
+Maximum number of preallocated buffers per core: 10000
+Receive buffer size: 8192
+Send buffer size: 8192
+TCP timeout seconds: 30
+TCP timewait seconds: 0
+NICs to print statistics: dpdk0
+---------------------------------------------------------------------------------
+Interfaces:
+name: dpdk0, ifindex: 0, hwaddr: 00:E0:67:30:D9:BB, ipaddr: 10.0.10.101, netmask: 255.255.255.0
+Number of NIC queues: 1
+---------------------------------------------------------------------------------
+Loading routing configurations from : config/route.conf
+Routes:
+Destination: 10.0.10.0/24, Mask: 255.255.255.0, Masked: 10.0.10.0, Route: ifdx-0
+Destination: 10.0.10.1/24, Mask: 255.255.255.0, Masked: 10.0.10.0, Route: ifdx-0
+---------------------------------------------------------------------------------
+Loading ARP table from : config/arp.conf
+ARP Table:
+IP addr: 10.0.10.1, dst_hwaddr: 00:E2:69:5F:85:5B
+---------------------------------------------------------------------------------
+Initializing port 0... done: 
+Port 0, MAC address: 00:E0:67:30:D9:BB
+
+
+Checking link status.............................done
+Port 0 Link Up - speed 1000 Mbps - full-duplex
+Configuration updated by mtcp_setconf().
+CPU 0: initialization finished.
+[mtcp_create_context:1376] CPU 0 is now the master thread.
+iomodule: dev_ioctl(DEV_NAME): net_e1000_igb
+Thread 0 handles 1 flows. connecting to 10.0.10.1:80
+[ ALL ] connect:       1, read:   12 MB, write:    0 MB, completes:       0 (resp_time avg:    0, max:      0 us)
+[CPU 0] dpdk0 flows:      1, RX:   12223(pps) (err:     0),  0.14(Gbps), TX:    6562(pps),  0.00(Gbps)
+[ ALL ] dpdk0 flows:      1, RX:   12223(pps) (err:     0),  0.14(Gbps), TX:    6562(pps),  0.00(Gbps)
+Response size set to 16291872
+[CPU 0] Completed 1 connections, errors: 0 incompletes: 0
+[RunMainLoop: 876] MTCP thread 0 finished.
+[mtcp_free_context:1422] MTCP thread 0 joined.
+[mtcp_destroy:1693] All MTCP threads are joined.
+```
+
+# Below is the Original README
+
 [![Build Status](https://travis-ci.org/eunyoung14/mtcp.svg?branch=master)](https://travis-ci.org/eunyoung14/mtcp)
 [![Build Status](https://scan.coverity.com/projects/11896/badge.svg)](https://scan.coverity.com/projects/eunyoung14-mtcp)
 

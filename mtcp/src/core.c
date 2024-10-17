@@ -784,8 +784,8 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) {
 
-			static uint16_t len;
-			static uint8_t *pktbuf;
+			uint16_t len;
+			uint8_t *pktbuf;
 			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
 			STAT_COUNT(mtcp->runstat.rounds_rx_try);
 
@@ -1265,6 +1265,23 @@ int MTCPDPDKRunThread(void *arg)
 	MTCPRunThread(arg);
 	return 0;
 }
+
+struct lcore_config {
+  rte_thread_t thread_id;    /**< thread identifier */
+  int pipe_main2worker[2];   /**< communication pipe with main */
+  int pipe_worker2main[2];   /**< communication pipe with main */
+  RTE_ATOMIC(lcore_function_t *) volatile f; /**< function to call */
+  void * volatile arg;       /**< argument of function */
+  volatile int ret;          /**< return value of function */
+  volatile RTE_ATOMIC(enum rte_lcore_state_t) state; /**< lcore state */
+  unsigned int socket_id;    /**< physical socket id for this lcore */
+  unsigned int core_id;      /**< core number on socket for this lcore */
+  int core_index;            /**< relative index, starting from 0 */
+  uint8_t core_role;         /**< role of core eg: OFF, RTE, SERVICE */
+  rte_cpuset_t cpuset;       /**< cpu set which the lcore affinity to */
+};
+
+struct lcore_config lcore_config[RTE_MAX_LCORE];
 #endif
 /*----------------------------------------------------------------------------*/
 mctx_t 
@@ -1326,11 +1343,11 @@ mtcp_create_context(int cpu)
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
 		int master;
-		master = rte_get_master_lcore();
+		master = rte_get_main_lcore();
 		
 		if (master == whichCoreID(cpu)) {
 			lcore_config[master].ret = 0;
-			lcore_config[master].state = FINISHED;
+			lcore_config[master].state = WAIT;
 			
 			if (pthread_create(&g_thread[cpu], 
 					   NULL, MTCPRunThread, (void *)mctx) != 0) {
@@ -1646,7 +1663,7 @@ mtcp_destroy()
 {
 	int i;
 #ifndef DISABLE_DPDK
-	int master = rte_get_master_lcore();
+	int master = rte_get_main_lcore();
 #endif
 	/* wait until all threads are closed */
 	for (i = 0; i < num_cpus; i++) {

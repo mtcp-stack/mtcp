@@ -48,7 +48,7 @@
 /*----------------------------------------------------------------------------*/
 io_module_func *current_iomodule_func = &dpdk_module_func;
 #ifndef DISABLE_DPDK
-enum rte_proc_type_t eal_proc_type_detect(void);
+//extern enum rte_proc_type_t eal_proc_type_detect(void);
 /**
  * DPDK's RTE consumes some huge pages for internal bookkeeping.
  * Therefore, it is not always safe to reserve the exact amount
@@ -128,6 +128,7 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 					  "interface?\n", dev_token);
 				goto loop_over;
 			}
+#if 0
 			argv[*argc] = strdup("-w");
 			argv[*argc + 1] = calloc(PCI_LENGTH, 1);
 			if (argv[*argc] == NULL ||
@@ -140,6 +141,7 @@ probe_all_rte_devices(char **argv, int *argc, char *dev_name_list)
 				pd.pa.domain, pd.pa.bus, pd.pa.device,
 				pd.pa.function);
 			*argc += 2;
+#endif
 			if (pd.numa_socket > numa_id) numa_id = pd.numa_socket;
 		loop_over:
 			dev_token = strtok_r(NULL, delim, &saveptr);
@@ -458,7 +460,9 @@ SetNetEnv(char *dev_name_list, char *port_stat_list)
 		}
 #endif
 		/* check if process is primary or secondary */
-		CONFIG.multi_process_is_master = (eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
+		CONFIG.multi_process_is_master =
+                  //(eal_proc_type_detect() == RTE_PROC_PRIMARY) ?
+		  true ?
 			1 : 0;
 		
 #endif /* !DISABLE_DPDK */
@@ -716,7 +720,10 @@ FetchEndianType()
 	/* dpdk_module_func/onvm_module_func logic down below */
 	if (current_iomodule_func == &dpdk_module_func) {
 		(*current_iomodule_func).dev_ioctl(NULL, CONFIG.eths[0].ifindex, DRV_NAME, (void *)argp);
+		printf ("iomodule: dev_ioctl(DEV_NAME): %s\n", *argp);
 		if (!strcmp(*argp, "net_i40e"))
+			return 1;
+		if (!strcmp(*argp, "net_e1000_igb"))
 			return 1;
 	}
 #endif

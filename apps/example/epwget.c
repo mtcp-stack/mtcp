@@ -95,6 +95,10 @@ struct wget_stat
 
 	uint64_t sum_resp_time;
 	uint64_t max_resp_time;
+
+	uint64_t read_count;
+	uint64_t file_writes;
+	uint64_t file_write_count;
 };
 /*----------------------------------------------------------------------------*/
 struct thread_context
@@ -334,10 +338,11 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 		if (rd <= 0)
 			break;
 		ctx->stat.reads += rd;
+		ctx->stat.read_count++;
 
-		TRACE_APP("Socket %d: mtcp_read ret: %d, total_recv: %lu, "
-				"header_set: %d, header_len: %u, file_len: %lu\n", 
-				sockid, rd, wv->recv + rd, 
+		TRACE_APP("read[%lu]: Socket %d: mtcp_read ret: %d, total_recv: %lu, "
+				"header_set: %d, header_len: %u, file_len: %lu\n",
+				ctx->stat.read_count, sockid, rd, wv->recv + rd,
 				wv->headerset, wv->header_len, wv->file_len);
 
 		pbuf = buf;
@@ -347,7 +352,7 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 			wv->resp_len += copy_len;
 			wv->header_len = find_http_header(wv->response, wv->resp_len);
 			if (wv->header_len > 0) {
-				wv->response[wv->header_len] = '\0';
+				//wv->response[wv->header_len] = '\0';
 				wv->file_len = http_header_long_val(wv->response, 
 						CONTENT_LENGTH_HDR, sizeof(CONTENT_LENGTH_HDR) - 1);
 				if (wv->file_len < 0) {
@@ -365,15 +370,15 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 				wv->headerset = TRUE;
 				wv->recv += (rd - (wv->resp_len - wv->header_len));
 				
-				pbuf += (rd - (wv->resp_len - wv->header_len));
-				rd = (wv->resp_len - wv->header_len);
+				pbuf += wv->header_len;
+				rd -= wv->header_len;
 				//printf("Successfully parse header.\n");
 				//fflush(stdout);
 
 			} else {
 				/* failed to parse response header */
 #if 0
-				printf("[CPU %d] Socket %d Failed to parse response header."
+				TRACE_APP("[CPU %d] Socket %d Failed to parse response header."
 						" Data: \n%s\n", ctx->core, sockid, wv->response);
 				fflush(stdout);
 #endif
@@ -401,14 +406,19 @@ HandleReadEvent(thread_context_t ctx, int sockid, struct wget_vars *wv)
 					 assert(0);
 					 break;
 				 }
+                                 ctx->stat.file_write_count++;
+                                 ctx->stat.file_writes += _wr;
 				 wr += _wr;	
 				 wv->write += _wr;
+				TRACE_APP("write[%lu]: +%d = %d / %d bytes (%lu / %lu) (file: %lu bytes)\n", ctx->stat.file_write_count, _wr, wr, rd, ctx->stat.file_writes, ctx->stat.reads, wv->file_len);
 			}
 		}
 		
+#if 0
 		if (wv->header_len && (wv->recv >= wv->header_len + wv->file_len)) {
 			break;
 		}
+#endif
 	}
 
 	if (rd > 0) {

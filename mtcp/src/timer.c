@@ -246,10 +246,12 @@ HandleRTO(mtcp_manager_t mtcp, uint32_t cur_ts, tcp_stream *cur_stream)
 	//cur_stream->sndvar->ts_rto = cur_ts + cur_stream->sndvar->rto;
 
 	/* reduce congestion window and ssthresh */
+	// 更新门限 ssthresh = min(cwnd, peer_wnd)/2，且至少为2*MSS
 	cur_stream->sndvar->ssthresh = MIN(cur_stream->sndvar->cwnd, cur_stream->sndvar->peer_wnd) / 2;
 	if (cur_stream->sndvar->ssthresh < (2 * cur_stream->sndvar->mss)) {
 		cur_stream->sndvar->ssthresh = cur_stream->sndvar->mss * 2;
 	}
+	// cwnd重置为1个MSS（慢启动）
 	cur_stream->sndvar->cwnd = cur_stream->sndvar->mss;
 	TRACE_CONG("Stream %d Timeout. cwnd: %u, ssthresh: %u\n", 
 			cur_stream->id, cur_stream->sndvar->cwnd, cur_stream->sndvar->ssthresh);

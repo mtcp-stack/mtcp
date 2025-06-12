@@ -220,6 +220,7 @@ SendTCPPacketStandalone(struct mtcp_manager *mtcp,
 	return payloadlen;
 }
 /*----------------------------------------------------------------------------*/
+//发送TCP包
 int
 SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream, 
 		uint32_t cur_ts, uint8_t flags, uint8_t *payload, uint16_t payloadlen)
@@ -230,12 +231,13 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	uint32_t window32 = 0;
 	int rc = -1;
 
+	//TCP选项长度
 	optlen = CalculateOptionLength(flags);
 	if (payloadlen + optlen > cur_stream->sndvar->mss) {
 		TRACE_ERROR("Payload size exceeds MSS\n");
 		return ERROR;
 	}
-
+	//IP层数据
 	tcph = (struct tcphdr *)IPOutput(mtcp, cur_stream, 
 			TCP_HEADER_LEN + optlen + payloadlen);
 	if (tcph == NULL) {
@@ -243,9 +245,11 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	}
 	memset(tcph, 0, TCP_HEADER_LEN + optlen);
 
+	//填充端口
 	tcph->source = cur_stream->sport;
 	tcph->dest = cur_stream->dport;
 
+	//SYN
 	if (flags & TCP_FLAG_SYN) {
 		tcph->syn = TRUE;
 		if (cur_stream->snd_nxt != cur_stream->sndvar->iss) {
@@ -258,13 +262,16 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 				cur_stream->id, cur_stream->snd_nxt, cur_stream->rcv_nxt);
 #endif
 	}
+	//RST
 	if (flags & TCP_FLAG_RST) {
 		TRACE_FIN("Stream %d: Sending RST.\n", cur_stream->id);
 		tcph->rst = TRUE;
 	}
+	//PSH
 	if (flags & TCP_FLAG_PSH)
 		tcph->psh = TRUE;
 
+	// 窗口更新ACK
 	if (flags & TCP_FLAG_WACK) {
 		tcph->seq = htonl(cur_stream->snd_nxt - 1);
 		TRACE_CLWND("%u Sending ACK to get new window advertisement. "
@@ -272,7 +279,9 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 				cur_stream->id,
 				cur_stream->snd_nxt - 1, cur_stream->sndvar->peer_wnd, 
 				cur_stream->snd_nxt - cur_stream->sndvar->snd_una);
-	} else if (flags & TCP_FLAG_FIN) {
+	} 
+	//FIN
+	else if (flags & TCP_FLAG_FIN) {
 		tcph->fin = TRUE;
 		
 		if (cur_stream->sndvar->fss == 0) {
@@ -284,9 +293,10 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 		TRACE_FIN("Stream %d: Sending FIN. seq: %u, ack_seq: %u\n", 
 				cur_stream->id, cur_stream->snd_nxt, cur_stream->rcv_nxt);
 	} else {
+		//填充序列号
 		tcph->seq = htonl(cur_stream->snd_nxt);
 	}
-
+	//ACK
 	if (flags & TCP_FLAG_ACK) {
 		tcph->ack = TRUE;
 		tcph->ack_seq = htonl(cur_stream->rcv_nxt);
@@ -298,28 +308,32 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 	if (flags & TCP_FLAG_SYN) {
 		wscale = 0;
 	} else {
-		wscale = cur_stream->sndvar->wscale_mine;
+		wscale = cur_stream->sndvar->wscale_mine; //缩放因子赋值
 	}
-
+	//计算窗口
 	window32 = cur_stream->rcvvar->rcv_wnd >> wscale;
+	//将窗口添加到tcp头部
 	tcph->window = htons((uint16_t)MIN(window32, TCP_MAX_WINDOW));
 	/* if the advertised window is 0, we need to advertise again later */
 	if (window32 == 0) {
 		cur_stream->need_wnd_adv = TRUE;
 	}
 
+	//生成TCP选项
 	GenerateTCPOptions(cur_stream, cur_ts, flags, 
 			(uint8_t *)tcph + TCP_HEADER_LEN, optlen);
-	
+
+	// 设置首部长度
 	tcph->doff = (TCP_HEADER_LEN + optlen) >> 2;
 	// copy payload if exist
-	if (payloadlen > 0) {
+	if (payloadlen > 0) {//复制负载数据
 		memcpy((uint8_t *)tcph + TCP_HEADER_LEN + optlen, payload, payloadlen);
 #if defined(NETSTAT) && defined(ENABLELRO)
 		mtcp->nstat.tx_gdptbytes += payloadlen;
 #endif /* NETSTAT */
 	}
 
+	//计算校验和
 #if TCP_CALCULATE_CHECKSUM
 #ifndef DISABLE_HWCSUM
 	if (mtcp->iom->dev_ioctl != NULL)
@@ -331,9 +345,11 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 					      TCP_HEADER_LEN + optlen + payloadlen, 
 					      cur_stream->saddr, cur_stream->daddr);
 #endif
-	
+
+	// 更新发送序列号
 	cur_stream->snd_nxt += payloadlen;
 
+	// SYN/FIN特殊处理
 	if (tcph->syn || tcph->fin) {
 		cur_stream->snd_nxt++;
 		payloadlen++;
@@ -346,11 +362,12 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 		}
 
 		/* update retransmission timer if have payload */
+		//重传定时
 		cur_stream->sndvar->ts_rto = cur_ts + cur_stream->sndvar->rto;
 		TRACE_RTO("Updating retransmission timer. "
 				"cur_ts: %u, rto: %u, ts_rto: %u\n", 
 				cur_ts, cur_stream->sndvar->rto, cur_stream->sndvar->ts_rto);
-		AddtoRTOList(mtcp, cur_stream);
+		AddtoRTOList(mtcp, cur_stream);//添加到相应表中
 	}
 		
 	return payloadlen;
@@ -537,19 +554,22 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 			continue;
 		}
 #endif
-
+		//计算剩余窗口
 		remaining_window = MIN(sndvar->cwnd, sndvar->peer_wnd)
 			               - (seq - sndvar->snd_una);
 		/* if there is no space in the window */
+		// 检查窗口是否已满（剩余窗口<=0）或者剩余窗口小于MSS但已经有数据在传输中
 		if (remaining_window <= 0 ||
 		    (remaining_window < sndvar->mss && seq - sndvar->snd_una > 0)) {
 			/* if peer window is full, send ACK and let its peer advertises new one */
+			// 当接收方窗口(peer_wnd)小于等于拥塞窗口
 			if (sndvar->peer_wnd <= sndvar->cwnd) {
 #if 0
 				TRACE_CLWND("Full peer window. "
 							"peer_wnd: %u, (snd_nxt-snd_una): %u\n",
 							sndvar->peer_wnd, seq - sndvar->snd_una);
 #endif
+				// 如果500ms内未发送过ACK，则发送一个窗口探测ACK
 				if (!wack_sent && TS_TO_MSEC(cur_ts - sndvar->ts_lastack_sent) > 500)
 					EnqueueACK(mtcp, cur_stream, cur_ts, ACK_OPT_WACK);
 				else
@@ -560,8 +580,10 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 		}
 		
 		/* payload size limited by remaining window space */
+		// 负载长度不能超过剩余窗口
 		len = MIN(len, remaining_window);
 		/* payload size limited by TCP MSS */
+		// 同时不能超过MSS（最大报文长度）减去TCP选项的长度
 		pkt_len = MIN(len, sndvar->mss - CalculateOptionLength(TCP_FLAG_ACK));
 
 #if RATE_LIMIT_ENABLED
@@ -708,7 +730,7 @@ WriteTCPControlList(mtcp_manager_t mtcp,
 	cnt = 0;
 	cur_stream = TAILQ_FIRST(&sender->control_list);
 	last = TAILQ_LAST(&sender->control_list, control_head);
-	while (cur_stream) {
+	while (cur_stream) {	//遍历所有流
 		if (++cnt > thresh)
 			break;
 
@@ -716,12 +738,14 @@ WriteTCPControlList(mtcp_manager_t mtcp,
 				cnt, cur_stream->id);
 		next = TAILQ_NEXT(cur_stream, sndvar->control_link);
 
+		//出队
 		TAILQ_REMOVE(&sender->control_list, cur_stream, sndvar->control_link);
 		sender->control_list_cnt--;
 
 		if (cur_stream->sndvar->on_control_list) {
 			cur_stream->sndvar->on_control_list = FALSE;
-			//TRACE_DBG("Stream %u: Sending control packet\n", cur_stream->id);
+			// TRACE_DBG("Stream %u: Sending control packet\n", cur_stream->id);
+			// 实际发送控制报文
 			ret = SendControlPacket(mtcp, cur_stream, cur_ts);
 			if (ret == -2) {
 				TAILQ_INSERT_HEAD(&sender->control_list, 
@@ -1086,15 +1110,15 @@ EnqueueACK(mtcp_manager_t mtcp,
 				cur_stream->id, TCPStateToString(cur_stream));
 	}
 
-	if (opt == ACK_OPT_NOW) {
+	if (opt == ACK_OPT_NOW) { //立即发送
 		if (cur_stream->sndvar->ack_cnt < cur_stream->sndvar->ack_cnt + 1) {
 			cur_stream->sndvar->ack_cnt++;
 		}
-	} else if (opt == ACK_OPT_AGGREGATE) {
+	} else if (opt == ACK_OPT_AGGREGATE) {	//聚合ACK
 		if (cur_stream->sndvar->ack_cnt == 0) {
 			cur_stream->sndvar->ack_cnt = 1;
 		}
-	} else if (opt == ACK_OPT_WACK) {
+	} else if (opt == ACK_OPT_WACK) {	//等待计时器
 		cur_stream->sndvar->is_wack = TRUE;
 	}
 	AddtoACKList(mtcp, cur_stream);

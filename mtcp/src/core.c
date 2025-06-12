@@ -65,6 +65,7 @@
 /*----------------------------------------------------------------------------*/
 /* handlers for threads */
 struct mtcp_thread_context *g_pctx[MAX_CPUS] = {0};
+// 全局日志线程上下文
 struct log_thread_context *g_logctx[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
 static pthread_t g_thread[MAX_CPUS] = {0};
@@ -78,6 +79,7 @@ static pthread_t ccp_run_thread = 0;
 static pthread_t ccp_recv_thread[MAX_CPUS] = {0};
 #endif
 /*----------------------------------------------------------------------------*/
+// 每核心特有的信号量
 static sem_t g_init_sem[MAX_CPUS];
 static int running[MAX_CPUS] = {0};
 /*----------------------------------------------------------------------------*/
@@ -447,6 +449,7 @@ FlushReadEvents(mtcp_manager_t mtcp, int thresh)
 }
 #endif
 /*----------------------------------------------------------------------------*/
+//刷新epoll队列
 static inline void 
 FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
@@ -455,17 +458,22 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 	struct event_queue *mtcpq = ep->mtcp_queue;
 
 	pthread_mutex_lock(&ep->epoll_lock);
+	// 存在mtcp_queue
 	if (ep->mtcp_queue->num_events > 0) {
 		/* while mtcp_queue have events */
 		/* and usr_queue is not full */
+		// 当mtcp队列有事件且用户队列未满时
 		while (mtcpq->num_events > 0 && usrq->num_events < usrq->size) {
 			/* copy the event from mtcp_queue to usr_queue */
+			// 从mtcp队列复制事件到用户队列
 			usrq->events[usrq->end++] = mtcpq->events[mtcpq->start++];
 
+			// 维护用户队列环形缓冲区
 			if (usrq->end >= usrq->size)
 				usrq->end = 0;
 			usrq->num_events++;
 
+			// 维护内核队列环形缓冲区
 			if (mtcpq->start >= mtcpq->size)
 				mtcpq->start = 0;
 			mtcpq->num_events--;
@@ -473,14 +481,15 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 	}
 
 	/* if there are pending events, wake up user */
+	// 如果用户正在等待且有事件可交付
 	if (ep->waiting && (ep->usr_queue->num_events > 0 || 
 				ep->usr_shadow_queue->num_events > 0)) {
 		STAT_COUNT(mtcp->runstat.rounds_epoll);
 		TRACE_EPOLL("Broadcasting events. num: %d, cur_ts: %u, prev_ts: %u\n", 
 				ep->usr_queue->num_events, cur_ts, mtcp->ts_last_event);
-		mtcp->ts_last_event = cur_ts;
+		mtcp->ts_last_event = cur_ts;	//更新时间戳
 		ep->stat.wakes++;
-		pthread_cond_signal(&ep->epoll_cond);
+		pthread_cond_signal(&ep->epoll_cond); // 发送条件信号唤醒用户线程
 	}
 	pthread_mutex_unlock(&ep->epoll_lock);
 }
@@ -494,17 +503,21 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 	int control, send, ack;
 
 	/* connect handling */
+	//取出所有待处理的新连接
 	while ((stream = StreamDequeue(mtcp->connectq))) {
+		//加入到控制队列
 		AddtoControlList(mtcp, stream, cur_ts);
 	}
-
+ 
 	/* send queue handling */
+	//取出所有待发送连接
 	while ((stream = StreamDequeue(mtcp->sendq))) {
 		stream->sndvar->on_sendq = FALSE;
 		AddtoSendList(mtcp, stream);
 	}
 	
 	/* ack queue handling */
+	//取出待应答连接
 	while ((stream = StreamDequeue(mtcp->ackq))) {
 		stream->sndvar->on_ackq = FALSE;
 		EnqueueACK(mtcp, stream, cur_ts, ACK_OPT_AGGREGATE);
@@ -513,10 +526,11 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 	/* close handling */
 	handled = delayed = 0;
 	control = send = ack = 0;
+	//取出待关闭连接
 	while ((stream = StreamDequeue(mtcp->closeq))) {
 		struct tcp_send_vars *sndvar = stream->sndvar;
 		sndvar->on_closeq = FALSE;
-		
+		//计算FIN序列号
 		if (sndvar->sndbuf) {
 			sndvar->fss = sndvar->sndbuf->head_seq + sndvar->sndbuf->len;
 		} else {
@@ -526,7 +540,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 		if (CONFIG.tcp_timeout > 0)
 			RemoveFromTimeoutList(mtcp, stream);
 
-		if (stream->have_reset) {
+		if (stream->have_reset) {	//流已经被reset
 			handled++;
 			if (stream->state != TCP_ST_CLOSED) {
 				stream->close_reason = TCP_RESET;
@@ -537,7 +551,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 				TRACE_ERROR("Stream already closed.\n");
 			}
 
-		} else if (sndvar->on_control_list) {
+		} else if (sndvar->on_control_list) { 	//控制列表中有待发送数据
 			sndvar->on_closeq_int = TRUE;
 			StreamInternalEnqueue(mtcp->closeq_int, stream);
 			delayed++;
@@ -548,7 +562,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 			if (sndvar->on_ack_list)
 				ack++;
 
-		} else if (sndvar->on_send_list || sndvar->on_ack_list) {
+		} else if (sndvar->on_send_list || sndvar->on_ack_list) {	//发送列表或ACK列表中有待发送数据
 			handled++;
 			if (stream->state == TCP_ST_ESTABLISHED) {
 				stream->state = TCP_ST_FIN_WAIT_1;
@@ -560,7 +574,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 			}
 			stream->control_list_waiting = TRUE;
 
-		} else if (stream->state != TCP_ST_CLOSED) {
+		} else if (stream->state != TCP_ST_CLOSED) {	//可以立即关闭连接
 			handled++;
 			if (stream->state == TCP_ST_ESTABLISHED) {
 				stream->state = TCP_ST_FIN_WAIT_1;
@@ -579,6 +593,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 	}
 	TRACE_ROUND("Handling close connections. cnt: %d\n", cnt);
 
+	// 处理延迟关闭队列
 	cnt = 0;
 	max_cnt = mtcp->closeq_int->count;
 	while (cnt++ < max_cnt) {
@@ -606,6 +621,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 	}
 
 	/* reset handling */
+	////取出待reset连接
 	while ((stream = StreamDequeue(mtcp->resetq))) {
 		stream->sndvar->on_resetq = FALSE;
 		
@@ -682,6 +698,7 @@ WritePacketsToChunks(mtcp_manager_t mtcp, uint32_t cur_ts)
 	/* Set the threshold to CONFIG.max_concurrency to send ACK immediately */
 	/* Otherwise, set to appropriate value (e.g. thresh) */
 	assert(mtcp->g_sender != NULL);
+	// 全局 g_sender
 	if (mtcp->g_sender->control_list_cnt)
 		WriteTCPControlList(mtcp, mtcp->g_sender, cur_ts, thresh);
 	if (mtcp->g_sender->ack_list_cnt)
@@ -689,8 +706,8 @@ WritePacketsToChunks(mtcp_manager_t mtcp, uint32_t cur_ts)
 	if (mtcp->g_sender->send_list_cnt)
 		WriteTCPDataList(mtcp, mtcp->g_sender, cur_ts, thresh);
 
-	for (i = 0; i < CONFIG.eths_num; i++) {
-		assert(mtcp->n_sender[i] != NULL);
+	for (i = 0; i < CONFIG.eths_num; i++) { // 每个网卡g_sender
+		assert(mtcp->g_sender[i] != NULL);
 		if (mtcp->n_sender[i]->control_list_cnt)
 			WriteTCPControlList(mtcp, mtcp->n_sender[i], cur_ts, thresh);
 		if (mtcp->n_sender[i]->ack_list_cnt)
@@ -758,6 +775,7 @@ InterruptApplication(mtcp_manager_t mtcp)
 	}
 }
 /*----------------------------------------------------------------------------*/
+// 主核线程 （mctx_t强转为mtcp_thread_context）
 static void 
 RunMainLoop(struct mtcp_thread_context *ctx)
 {
@@ -781,17 +799,20 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		gettimeofday(&cur_ts, NULL);
 		ts = TIMEVAL_TO_TS(&cur_ts);
 		mtcp->cur_ts = ts;
-
-		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) {
+		//收包
+		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++) { //遍历所有端口
 
 			static uint16_t len;
 			static uint8_t *pktbuf;
+			// 调用IOM模块的批量收包函数，获取当前接口待处理的数据包数量
 			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
 			STAT_COUNT(mtcp->runstat.rounds_rx_try);
 
 			for (i = 0; i < recv_cnt; i++) {
+				// 获取当前数据包的内存地址和长度
 				pktbuf = mtcp->iom->get_rptr(mtcp->ctx, rx_inf, i, &len);
 				if (pktbuf != NULL)
+					//实际处理
 					ProcessPacket(mtcp, rx_inf, ts, pktbuf, len);
 #ifdef NETSTAT
 				else
@@ -839,6 +860,7 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			HandleApplicationCalls(mtcp, ts);
 		}
 
+		//发包
 		WritePacketsToChunks(mtcp, ts);
 
 		/* send packets from write buffer */
@@ -1150,6 +1172,7 @@ CCPRecvLoopThread(void *arg) {
 }
 #endif
 /*----------------------------------------------------------------------------*/
+//主线程
 static void *
 MTCPRunThread(void *arg)
 {
@@ -1160,6 +1183,7 @@ MTCPRunThread(void *arg)
 	struct mtcp_thread_context *ctx;
 
 	/* affinitize the thread to this core first */
+	//绑定核心
 #ifndef DISABLE_DPDK
 	if (rte_lcore_id() == LCORE_ID_ANY)
 #endif
@@ -1175,6 +1199,7 @@ MTCPRunThread(void *arg)
 		TRACE_ERROR("Failed to calloc mtcp context.\n");
 		exit(-1);
 	}
+	//初始化线程上下文
 	ctx->thread = pthread_self();
 	ctx->cpu = cpu;
 	mtcp = ctx->mtcp_manager = InitializeMTCPManager(ctx);
@@ -1184,9 +1209,11 @@ MTCPRunThread(void *arg)
 	}
 
 	/* assign mtcp context's underlying I/O module */
+	//当前IO模块函数
 	mtcp->iom = current_iomodule_func;
 
 	/* I/O initializing */
+	//初始化IO
 	mtcp->iom->init_handle(ctx);
 
 	if (pthread_mutex_init(&ctx->smap_lock, NULL)) {
@@ -1242,10 +1269,12 @@ MTCPRunThread(void *arg)
 	sem_post(&g_init_sem[ctx->cpu]);
 
 	/* start the main loop */
+	//主循环
 	RunMainLoop(ctx);
 
 	struct mtcp_context m;
 	m.cpu = cpu;
+	//清理资源
 	mtcp_free_context(&m);
 	/* destroy hash tables */
 	DestroyHashtable(g_mtcp[cpu]->tcp_flow_table);
@@ -1267,32 +1296,33 @@ int MTCPDPDKRunThread(void *arg)
 }
 #endif
 /*----------------------------------------------------------------------------*/
+// 创建mctx_t，其存储上下文环境，传入CPU号
 mctx_t 
 mtcp_create_context(int cpu)
 {
 	mctx_t mctx;
 	int ret;
-
+	//判断CPU号是否超出配置核心数
 	if (cpu >=  CONFIG.num_cores) {
 		TRACE_ERROR("Failed initialize new mtcp context. "
 			    "Requested cpu id %d exceed the number of cores %d configured to use.\n",
 			    cpu, CONFIG.num_cores);
 		return NULL;
 	}
-
+	//检查是否已经初始化
         /* check if mtcp_create_context() was already initialized */
         if (g_logctx[cpu] != NULL) {
                 TRACE_ERROR("%s was already initialized before!\n",
                             __FUNCTION__);
                 return NULL;
         }
-
+	//初始化对应的信号量初始化
 	ret = sem_init(&g_init_sem[cpu], 0, 0);
 	if (ret) {
 		TRACE_ERROR("Failed initialize init_sem.\n");
 		return NULL;
 	}
-
+	// 初始化mctx
 	mctx = (mctx_t)calloc(1, sizeof(struct mtcp_context));
 	if (!mctx) {
 		TRACE_ERROR("Failed to allocate memory for mtcp_context.\n");
@@ -1301,6 +1331,7 @@ mtcp_create_context(int cpu)
 	mctx->cpu = cpu;
 
 	/* initialize logger */
+	//初始化logger线程上下文
 	g_logctx[cpu] = (struct log_thread_context *)
 			calloc(1, sizeof(struct log_thread_context));
 	if (!g_logctx[cpu]) {
@@ -1309,10 +1340,13 @@ mtcp_create_context(int cpu)
 		free(mctx);
 		return NULL;
 	}
+	//初始化logthread
 	InitLogThreadContext(g_logctx[cpu], cpu);
+	// 宏被定义时创建线程ThreadLogMain
 #if defined (PKTDUMP) || (DBGMSG) || (DBGFUNC) || \
 	(STREAM) || (STATE) || (STAT) || (APP) || \
 	(EPOLL) || (DUMP_STREAM)
+	//循环读取缓冲区内容到相应文件
 	if (pthread_create(&log_thread[cpu], 
 				NULL, ThreadLogMain, (void *)g_logctx[cpu])) {
 		perror("pthread_create");
@@ -1323,24 +1357,25 @@ mtcp_create_context(int cpu)
 	}
 #endif
 #ifndef DISABLE_DPDK
+	//dpdk
 	/* Wake up mTCP threads (wake up I/O threads) */
 	if (current_iomodule_func == &dpdk_module_func) {
 		int master;
-		master = rte_get_master_lcore();
-		
+		master = rte_get_master_lcore();//获取dpdk主核心
+		//主核心
 		if (master == whichCoreID(cpu)) {
 			lcore_config[master].ret = 0;
 			lcore_config[master].state = FINISHED;
-			
+			//主核线程
 			if (pthread_create(&g_thread[cpu], 
 					   NULL, MTCPRunThread, (void *)mctx) != 0) {
 				TRACE_ERROR("pthread_create of mtcp thread failed!\n");
 				return NULL;
 			}
-		} else
+		} else//从核
 			rte_eal_remote_launch(MTCPDPDKRunThread, mctx, whichCoreID(cpu));
 	} else
-#endif
+#endif 
 		{
 			if (pthread_create(&g_thread[cpu], 
 					   NULL, MTCPRunThread, (void *)mctx) != 0) {
@@ -1562,6 +1597,7 @@ mtcp_setconf(const struct mtcp_conf *conf)
 }
 
 /*----------------------------------------------------------------------------*/
+//mtcp初始化
 int 
 mtcp_init(const char *config_file)
 {
@@ -1570,10 +1606,12 @@ mtcp_init(const char *config_file)
 
 	/* getting cpu and NIC */
 	/* set to max cpus only if user has not arbitrarily set it to lower # */
+	//设置cpu核心数（最大/预设）
 	num_cpus = (CONFIG.num_cores == 0) ? GetNumCPUs() : CONFIG.num_cores;
 			
 	assert(num_cpus >= 1);
 
+	//限制最大核心数为16
 	if (num_cpus > MAX_CPUS) {
 		TRACE_ERROR("You cannot run mTCP with more than %d cores due "
 			    "to your static mTCP configuration. Please disable "
@@ -1596,7 +1634,7 @@ mtcp_init(const char *config_file)
 		running[i] = FALSE;
 		sigint_cnt[i] = 0;
 	}
-
+	//读取配置文件
 	ret = LoadConfiguration(config_file);
 	if (ret) {
 		TRACE_CONFIG("Error occured while loading configuration.\n");
@@ -1604,6 +1642,7 @@ mtcp_init(const char *config_file)
 	}
 	PrintConfiguration();
 
+	//根据端口数量创建地址池
 	for (i = 0; i < CONFIG.eths_num; i++) {
 		ap[i] = CreateAddressPool(CONFIG.eths[i].ip_addr, 1);
 		if (!ap[i]) {
@@ -1615,6 +1654,7 @@ mtcp_init(const char *config_file)
 	
 	PrintInterfaceInfo();
 
+	//设置路由表
 	ret = SetRoutingTable();
 	if (ret) {
 		TRACE_CONFIG("Error occured while loading routing table.\n");
@@ -1622,6 +1662,7 @@ mtcp_init(const char *config_file)
 	}
 	PrintRoutingTable();
 
+	//设置ARP表
 	LoadARPTable();
 	PrintARPTable();
 
@@ -1636,6 +1677,7 @@ mtcp_init(const char *config_file)
 	app_signal_handler = NULL;
 
 	/* load system-wide io module specs */
+	// 加载系统级别的I/O模块配置（dpdk）
 	current_iomodule_func->load_module();
 
 	return 0;

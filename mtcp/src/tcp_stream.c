@@ -120,19 +120,22 @@ EqualSID(const void *f1, const void *f2) {
 }
 /*----------------------------------------------------------------------------*/
 #endif
-
+//触发读事件
 inline void 
 RaiseReadEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 {
 	if (stream->socket) {
-		if (stream->socket->epoll & MTCP_EPOLLIN) {
+		if (stream->socket->epoll & MTCP_EPOLLIN) {	//epoll
+			// 将该事件添加到epoll事件队列中，等待mtcp程序通过epoll_wait获取
 			AddEpollEvent(mtcp->ep, 
 					MTCP_EVENT_QUEUE, stream->socket, MTCP_EPOLLIN);
-#if BLOCKING_SUPPORT
+#if BLOCKING_SUPPORT // 阻塞模式
 		} else if (!(stream->socket->opts & MTCP_NONBLOCK)) {
-			if (!stream->on_rcv_br_list) {
+			if (!stream->on_rcv_br_list) { 	//不在阻塞队列中
 				stream->on_rcv_br_list = TRUE;
+				// 添加到阻塞读队列的尾部
 				TAILQ_INSERT_TAIL(&mtcp->rcv_br_list, stream, rcvvar->rcv_br_link);
+				//更新计数
 				mtcp->rcv_br_list_cnt++;
 			}
 #endif
@@ -220,6 +223,7 @@ RaiseErrorEvent(mtcp_manager_t mtcp, tcp_stream *stream)
 	}
 }
 /*---------------------------------------------------------------------------*/
+//创建TCP流
 tcp_stream *
 CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type, 
 		uint32_t saddr, uint16_t sport, uint32_t daddr, uint16_t dport)
@@ -233,6 +237,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	
 	pthread_mutex_lock(&mtcp->ctx->flow_pool_lock);
 
+	// 在flow_pool内存池中申请流
 	stream = (tcp_stream *)MPAllocateChunk(mtcp->flow_pool);
 	if (!stream) {
 		TRACE_ERROR("Cannot allocate memory for the stream. "
@@ -243,6 +248,7 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	}
 	memset(stream, 0, sizeof(tcp_stream));
 
+	//申请接收/发送变量
 	stream->rcvvar = (struct tcp_recv_vars *)MPAllocateChunk(mtcp->rv_pool);
 	if (!stream->rcvvar) {
 		MPFreeChunk(mtcp->flow_pool, stream);
@@ -259,12 +265,14 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	memset(stream->rcvvar, 0, sizeof(struct tcp_recv_vars));
 	memset(stream->sndvar, 0, sizeof(struct tcp_send_vars));
 
+	//初始化流
 	stream->id = mtcp->g_id++;
 	stream->saddr = saddr;
 	stream->sport = sport;
 	stream->daddr = daddr;
 	stream->dport = dport;
 
+	// 将流插入到tcp_flow_table哈希表（每核）中
 	ret = StreamHTInsert(mtcp->tcp_flow_table, stream);
 	if (ret < 0) {
 		TRACE_ERROR("Stream %d: "
@@ -285,44 +293,47 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 	}
 #endif
 
+	//修改标志位和计数
 	stream->on_hash_table = TRUE;
 	mtcp->flow_cnt++;
 
 	pthread_mutex_unlock(&mtcp->ctx->flow_pool_lock);
 
+	//绑定socket
 	if (socket) {
 		stream->socket = socket;
 		socket->stream = stream;
 	}
 
-	stream->stream_type = type;
-	stream->state = TCP_ST_LISTEN;
+	//初始化
+	stream->stream_type = type;	//流类型
+	stream->state = TCP_ST_LISTEN;	//TCP状态
 
-	stream->on_rto_idx = -1;
+	stream->on_rto_idx = -1;	//rto索引
 	
-	stream->sndvar->ip_id = 0;
-	stream->sndvar->mss = TCP_DEFAULT_MSS;
-	stream->sndvar->wscale_mine = TCP_DEFAULT_WSCALE;
-	stream->sndvar->wscale_peer = 0;
-	stream->sndvar->nif_out = GetOutputInterface(stream->daddr, &is_external);
-	stream->is_external = is_external;
+	stream->sndvar->ip_id = 0;	//ip_id为0
+	stream->sndvar->mss = TCP_DEFAULT_MSS;	//分段大小
+	stream->sndvar->wscale_mine = TCP_DEFAULT_WSCALE;	//本端窗口缩放因子
+	stream->sndvar->wscale_peer = 0;	//对端窗口缩放因子
+	stream->sndvar->nif_out = GetOutputInterface(stream->daddr, &is_external); //根据目的地址选择发送端口
+	stream->is_external = is_external; //是否为外部地址
 
-	stream->sndvar->iss = rand_r(&next_seed) % TCP_MAX_SEQ;
+	stream->sndvar->iss = rand_r(&next_seed) % TCP_MAX_SEQ;	//随机初始发送序列号
 	//stream->sndvar->iss = 0;
-	stream->rcvvar->irs = 0;
+	stream->rcvvar->irs = 0;	//初始接收序列号
 
-	stream->snd_nxt = stream->sndvar->iss;
-	stream->sndvar->snd_una = stream->sndvar->iss;
+	stream->snd_nxt = stream->sndvar->iss;	//下一发送序列号
+	stream->sndvar->snd_una = stream->sndvar->iss;	//未确认数据
 #if USE_CCP
 	stream->sndvar->missing_seq = 0;
 #endif
-	stream->sndvar->snd_wnd = CONFIG.sndbuf_size;
-	stream->rcv_nxt = 0;
-	stream->rcvvar->rcv_wnd = TCP_INITIAL_WINDOW;
+	stream->sndvar->snd_wnd = CONFIG.sndbuf_size;	//发送窗口大小
+	stream->rcv_nxt = 0;	//下一接收序列号
+	stream->rcvvar->rcv_wnd = TCP_INITIAL_WINDOW;	//接收窗口
 
-	stream->rcvvar->snd_wl1 = stream->rcvvar->irs - 1;
+	stream->rcvvar->snd_wl1 = stream->rcvvar->irs - 1; //上一次发送的段序号
 
-	stream->sndvar->rto = TCP_INITIAL_RTO;
+	stream->sndvar->rto = TCP_INITIAL_RTO;	//RTO值
 
 #if BLOCKING_SUPPORT
 	if (pthread_cond_init(&stream->rcvvar->read_cond, NULL)) {
@@ -347,11 +358,11 @@ CreateTCPStream(mtcp_manager_t mtcp, socket_map_t socket, int type,
 #endif
 		return NULL;
 	}
-#if USE_SPIN_LOCK
+#if USE_SPIN_LOCK //自旋锁
 	if (pthread_spin_init(&stream->sndvar->write_lock, PTHREAD_PROCESS_PRIVATE)) {
 		perror("pthread_spin_init of write_lock");
 		pthread_spin_destroy(&stream->rcvvar->read_lock);
-#else
+#else	//互斥锁
 	if (pthread_mutex_init(&stream->sndvar->write_lock, NULL)) {
 		perror("pthread_mutex_init of write_lock");
 		pthread_mutex_destroy(&stream->rcvvar->read_lock);

@@ -287,7 +287,7 @@ AcceptConnection(struct thread_context *ctx, int listener)
 	struct server_vars *sv;
 	struct mtcp_epoll_event ev;
 	int c;
-
+	//8、accept
 	c = mtcp_accept(mctx, listener, NULL, NULL);
 
 	if (c >= 0) {
@@ -334,6 +334,7 @@ InitializeServerThread(int core)
 	}
 
 	/* create mtcp context: this will spawn an mtcp thread */
+	//2、create context
 	ctx->mctx = mtcp_create_context(core);
 	if (!ctx->mctx) {
 		TRACE_ERROR("Failed to create mtcp context!\n");
@@ -342,6 +343,7 @@ InitializeServerThread(int core)
 	}
 
 	/* create epoll descriptor */
+	//3、epoll create
 	ctx->ep = mtcp_epoll_create(ctx->mctx, MAX_EVENTS);
 	if (ctx->ep < 0) {
 		mtcp_destroy_context(ctx->mctx);
@@ -373,11 +375,13 @@ CreateListeningSocket(struct thread_context *ctx)
 	int ret;
 
 	/* create socket and set it as nonblocking */
+	//4、socket
 	listener = mtcp_socket(ctx->mctx, AF_INET, SOCK_STREAM, 0);
 	if (listener < 0) {
 		TRACE_ERROR("Failed to create listening socket!\n");
 		return -1;
 	}
+	//5、setsock_nonblock
 	ret = mtcp_setsock_nonblock(ctx->mctx, listener);
 	if (ret < 0) {
 		TRACE_ERROR("Failed to set socket in nonblocking mode.\n");
@@ -388,6 +392,7 @@ CreateListeningSocket(struct thread_context *ctx)
 	saddr.sin_family = AF_INET;
 	saddr.sin_addr.s_addr = INADDR_ANY;
 	saddr.sin_port = htons(80);
+	//6、bind
 	ret = mtcp_bind(ctx->mctx, listener, 
 			(struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
 	if (ret < 0) {
@@ -396,6 +401,7 @@ CreateListeningSocket(struct thread_context *ctx)
 	}
 
 	/* listen (backlog: can be configured) */
+	//7、listen
 	ret = mtcp_listen(ctx->mctx, listener, backlog);
 	if (ret < 0) {
 		TRACE_ERROR("mtcp_listen() failed!\n");
@@ -405,6 +411,7 @@ CreateListeningSocket(struct thread_context *ctx)
 	/* wait for incoming accept events */
 	ev.events = MTCP_EPOLLIN;
 	ev.data.sockid = listener;
+	//8、epollctl
 	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_ADD, listener, &ev);
 
 	return listener;
@@ -424,6 +431,7 @@ RunServerThread(void *arg)
 	int do_accept;
 	
 	/* initialization */
+	// 2、3
 	ctx = InitializeServerThread(core);
 	if (!ctx) {
 		TRACE_ERROR("Failed to initialize server thread.\n");
@@ -438,7 +446,7 @@ RunServerThread(void *arg)
 		TRACE_ERROR("Failed to create event struct!\n");
 		exit(-1);
 	}
-
+	//4-7
 	listener = CreateListeningSocket(ctx);
 	if (listener < 0) {
 		TRACE_ERROR("Failed to create listening socket.\n");
@@ -446,6 +454,7 @@ RunServerThread(void *arg)
 	}
 
 	while (!done[core]) {
+		//8、epollwait
 		nevents = mtcp_epoll_wait(mctx, ep, events, MAX_EVENTS, -1);
 		if (nevents < 0) {
 			if (errno != EINTR)
@@ -686,7 +695,7 @@ main(int argc, char **argv)
 		TRACE_CONFIG("You forgot to pass the mTCP startup config file!\n");
 		exit(EXIT_FAILURE);
 	}
-
+	//1、init
 	ret = mtcp_init(conf_file);
 	if (ret) {
 		TRACE_CONFIG("Failed to initialize mtcp\n");

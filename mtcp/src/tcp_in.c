@@ -104,6 +104,7 @@ HandleActiveOpen(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 /* ValidateSequence: validates sequence number of the segment                 */
 /* Return: TRUE if acceptable, FALSE if not acceptable                        */
 /*----------------------------------------------------------------------------*/
+//校验序列号
 static inline int
 ValidateSequence(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts, 
 		struct tcphdr *tcph, uint32_t seq, uint32_t ack_seq, int payloadlen)
@@ -146,6 +147,7 @@ ValidateSequence(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	}
 
 	/* TCP sequence validation */
+	//序列号校验
 	if (!TCP_SEQ_BETWEEN(seq + payloadlen, cur_stream->rcv_nxt, 
 				cur_stream->rcv_nxt + cur_stream->rcvvar->rcv_wnd)) {
 
@@ -319,10 +321,12 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	uint8_t dup;
 	int ret;
 
+	//对端接收窗口大小
 	cwindow = window;
 	if (!tcph->syn) {
-		cwindow = cwindow << sndvar->wscale_peer;
+		cwindow = cwindow << sndvar->wscale_peer; 
 	}
+	//对端接收窗口右边界（确认号加窗口）
 	right_wnd_edge = sndvar->peer_wnd + cur_stream->rcvvar->snd_wl2;
 
 	/* If ack overs the sending buffer, return */
@@ -331,11 +335,13 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			cur_stream->state == TCP_ST_CLOSING || 
 			cur_stream->state == TCP_ST_CLOSE_WAIT || 
 			cur_stream->state == TCP_ST_LAST_ACK) {
+		// 收到的确认号等于FIN序列号
 		if (sndvar->is_fin_sent && ack_seq == sndvar->fss + 1) {
 			ack_seq--;
 		}
 	}
-	
+
+	// 检查收到的ACK确认号是否超过发送缓冲区数据的最大序列号（无效ACK）
 	if (TCP_SEQ_GT(ack_seq, sndvar->sndbuf->head_seq + sndvar->sndbuf->len)) {
 		TRACE_DBG("Stream %d (%s): invalid acknologement. "
 				"ack_seq: %u, possible max_ack_seq: %u\n", cur_stream->id, 
@@ -345,20 +351,22 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	}
 
 	/* Update window */
-	if (TCP_SEQ_LT(cur_stream->rcvvar->snd_wl1, seq) ||
-			(cur_stream->rcvvar->snd_wl1 == seq && 
-			TCP_SEQ_LT(cur_stream->rcvvar->snd_wl2, ack_seq)) ||
+	//更新窗口
+	if (TCP_SEQ_LT(cur_stream->rcvvar->snd_wl1, seq) ||	//收到更高序列号的报文
+			(cur_stream->rcvvar->snd_wl1 == seq && 	
+			TCP_SEQ_LT(cur_stream->rcvvar->snd_wl2, ack_seq)) ||//序列号相同但确认号更高
 			(cur_stream->rcvvar->snd_wl2 == ack_seq && 
-			cwindow > sndvar->peer_wnd)) {
+			cwindow > sndvar->peer_wnd)) {	//序列/确认号相同但窗口更大
 		cwindow_prev = sndvar->peer_wnd;
-		sndvar->peer_wnd = cwindow;
-		cur_stream->rcvvar->snd_wl1 = seq;
-		cur_stream->rcvvar->snd_wl2 = ack_seq;
+		sndvar->peer_wnd = cwindow;	//更新窗口
+		cur_stream->rcvvar->snd_wl1 = seq;	//更新序列号
+		cur_stream->rcvvar->snd_wl2 = ack_seq;	//更新确认号
 #if 0
 		TRACE_CLWND("Window update. "
 				"ack: %u, peer_wnd: %u, snd_nxt-snd_una: %u\n", 
 				ack_seq, cwindow, cur_stream->snd_nxt - sndvar->snd_una);
 #endif
+		// 旧窗口不足以发送所有未确认数据但新窗口可以
 		if (cwindow_prev < cur_stream->snd_nxt - sndvar->snd_una && 
 				sndvar->peer_wnd >= cur_stream->snd_nxt - sndvar->snd_una) {
 			TRACE_CLWND("%u Broadcasting client window update! "
@@ -366,6 +374,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 					"(snd_nxt - snd_una: %u)\n", 
 					cur_stream->id, ack_seq, sndvar->peer_wnd, cwindow_prev, 
 					cur_stream->snd_nxt - sndvar->snd_una);
+			//触发写事件
 			RaiseWriteEvent(mtcp, cur_stream);
 		}
 	}
@@ -379,11 +388,12 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	   5) ack_seq == snd_una
 	 */
 
+	//确认号检查 
 	dup = FALSE;
-	if (TCP_SEQ_LT(ack_seq, cur_stream->snd_nxt)) {
-		if (ack_seq == cur_stream->rcvvar->last_ack_seq && payloadlen == 0) {
-			if (cur_stream->rcvvar->snd_wl2 + sndvar->peer_wnd == right_wnd_edge) {
-				if (cur_stream->rcvvar->dup_acks + 1 > cur_stream->rcvvar->dup_acks) {
+	if (TCP_SEQ_LT(ack_seq, cur_stream->snd_nxt)) {	//接收确认号小于发送序列号（确认旧数据）
+		if (ack_seq == cur_stream->rcvvar->last_ack_seq && payloadlen == 0) {	//接收确认号等于上一次的确认号，且无数据（重复确认）
+			if (cur_stream->rcvvar->snd_wl2 + sndvar->peer_wnd == right_wnd_edge) {//窗口未变化
+				if (cur_stream->rcvvar->dup_acks + 1 > cur_stream->rcvvar->dup_acks) {	//增加相应重复ACK计数
 					cur_stream->rcvvar->dup_acks++;
 #if USE_CCP
 					ccp_record_event(mtcp, cur_stream, EVENT_DUPACK,
@@ -394,7 +404,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			}
 		}
 	}
-	if (!dup) {
+	if (!dup) {	//不为重传
 #if USE_CCP
 		if (cur_stream->rcvvar->dup_acks >= 3) {
 			TRACE_DBG("passed dup_acks, ack=%u, snd_nxt=%u, last_ack=%u len=%u wl2=%u peer_wnd=%u right=%u\n",
@@ -403,6 +413,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 				  right_wnd_edge - sndvar->iss);
 		}
 #endif
+		//重置重传信息
 		cur_stream->rcvvar->dup_acks = 0;
 		cur_stream->rcvvar->last_ack_seq = ack_seq;
 	}
@@ -414,10 +425,11 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 	}
 #endif
 	/* Fast retransmission */
-	if (dup && cur_stream->rcvvar->dup_acks == 3) {
+	//快重传操作
+	if (dup && cur_stream->rcvvar->dup_acks == 3) {	//收到连续三个重复ACK
 		TRACE_LOSS("Triple duplicated ACKs!! ack_seq: %u\n", ack_seq);
 		TRACE_CCP("tridup ack %u (%u)!\n", ack_seq - cur_stream->sndvar->iss, ack_seq);
-		if (TCP_SEQ_LT(ack_seq, cur_stream->snd_nxt)) {
+		if (TCP_SEQ_LT(ack_seq, cur_stream->snd_nxt)) {	//接收确认号小于发送序列号（确认旧数据）
 			TRACE_LOSS("Reducing snd_nxt from %u to %u\n",
                                         cur_stream->snd_nxt-sndvar->iss,
                                         ack_seq - cur_stream->sndvar->iss);
@@ -430,7 +442,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #if USE_CCP
 			ccp_record_event(mtcp, cur_stream, EVENT_TRI_DUPACK, ack_seq);
 #endif
-			if (ack_seq != sndvar->snd_una) {
+			if (ack_seq != sndvar->snd_una) {	//接收确认号不等于待接收确认号
 				TRACE_DBG("ack_seq and snd_una mismatch on tdp ack. "
 						"ack_seq: %u, snd_una: %u\n", 
 						ack_seq, sndvar->snd_una);
@@ -438,17 +450,17 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #if USE_CCP
 			sndvar->missing_seq = ack_seq;
 #else
-			cur_stream->snd_nxt = ack_seq;
+			cur_stream->snd_nxt = ack_seq;//更新发送序列号为接收确认号
 #endif
 		}
 
 		/* update congestion control variables */
 		/* ssthresh to half of min of cwnd and peer wnd */
-		sndvar->ssthresh = MIN(sndvar->cwnd, sndvar->peer_wnd) / 2;
-		if (sndvar->ssthresh < 2 * sndvar->mss) {
+		sndvar->ssthresh = MIN(sndvar->cwnd, sndvar->peer_wnd) / 2; // 设置慢启动阈值为当前cwnd和对端接收窗口中的较小者的一半
+		if (sndvar->ssthresh < 2 * sndvar->mss) { //设置最小值为2mss
 			sndvar->ssthresh = 2 * sndvar->mss;
 		}
-		sndvar->cwnd = sndvar->ssthresh + 3 * sndvar->mss;
+		sndvar->cwnd = sndvar->ssthresh + 3 * sndvar->mss;	//当前窗口更新为门限+3mss
 
 		TRACE_CONG("fast retrans: cwnd = ssthresh(%u)+3*mss = %u\n",
                                 sndvar->ssthresh / sndvar->mss,
@@ -461,23 +473,23 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 			TRACE_DBG("Exceed MAX_RTX.\n");
 		}
 
-		AddtoSendList(mtcp, cur_stream);
+		AddtoSendList(mtcp, cur_stream);	//添加到发送队列
 
-	} else if (cur_stream->rcvvar->dup_acks > 3) {
+	} else if (cur_stream->rcvvar->dup_acks > 3) {	//重复确认计数大于3
 		/* Inflate congestion window until before overflow */
 		if ((uint32_t)(sndvar->cwnd + sndvar->mss) > sndvar->cwnd) {
-			sndvar->cwnd += sndvar->mss;
+			sndvar->cwnd += sndvar->mss;	//增加1mss窗口
 			TRACE_CONG("Dupack cwnd inflate. cwnd: %u, ssthresh: %u\n", 
 					sndvar->cwnd, sndvar->ssthresh);
 		}
 	}
 
-#if TCP_OPT_SACK_ENABLED
+#if TCP_OPT_SACK_ENABLED //SACK
 	ParseSACKOption(cur_stream, ack_seq, (uint8_t *)tcph + TCP_HEADER_LEN, 
 			(tcph->doff << 2) - TCP_HEADER_LEN);
 #endif /* TCP_OPT_SACK_ENABLED */
 
-#if RECOVERY_AFTER_LOSS
+#if RECOVERY_AFTER_LOSS	//丢包后恢复
 #if USE_CCP
 	/* updating snd_nxt (when recovered from loss) */
 	if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt) ||
@@ -487,7 +499,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #endif
 	))
 #else
-        if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt))
+        if (TCP_SEQ_GT(ack_seq, cur_stream->snd_nxt))	//接收确认号大于发送序列号 （先前的确认信息到达了 但已经更改了发送序列号和窗口）
 #endif /* USE_CCP */
 	{
 #if RTM_STAT
@@ -495,27 +507,27 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		sndvar->rstat.ack_upd_bytes += (ack_seq - cur_stream->snd_nxt);
 #endif
 		// fast retransmission exit: cwnd=ssthresh
-		cur_stream->sndvar->cwnd = cur_stream->sndvar->ssthresh;
+		cur_stream->sndvar->cwnd = cur_stream->sndvar->ssthresh; //将窗口更新为当前门限 （错误重传后的恢复）
 
 		TRACE_LOSS("Updating snd_nxt from %u to %u\n", cur_stream->snd_nxt, ack_seq);
 #if USE_CCP
 		cur_stream->wait_for_acks = FALSE;
 #endif
-		cur_stream->snd_nxt = ack_seq;
+		cur_stream->snd_nxt = ack_seq;	//将发送序列号改为接收确认号
 		TRACE_DBG("Sending again..., ack_seq=%u sndlen=%u cwnd=%u\n",
                         ack_seq-sndvar->iss,
                         sndvar->sndbuf->len,
                         sndvar->cwnd / sndvar->mss);
 		if (sndvar->sndbuf->len == 0) {
-			RemoveFromSendList(mtcp, cur_stream);
+			RemoveFromSendList(mtcp, cur_stream); //无数据时移除发送队列
 		} else {
-			AddtoSendList(mtcp, cur_stream);
+			AddtoSendList(mtcp, cur_stream);//有时加入到发送队列
 		}
 	}
 #endif /* RECOVERY_AFTER_LOSS */
 
-	rmlen = ack_seq - sndvar->sndbuf->head_seq;
-	uint16_t packets = rmlen / sndvar->eff_mss;
+	rmlen = ack_seq - sndvar->sndbuf->head_seq; //需要在sndbuf移除的长度
+	uint16_t packets = rmlen / sndvar->eff_mss; //计算数据包数量
 	if (packets * sndvar->eff_mss > rmlen) {
 		packets++;
 	}
@@ -527,19 +539,20 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #endif
 
 	/* If ack_seq is previously acked, return */
-	if (TCP_SEQ_GEQ(sndvar->sndbuf->head_seq, ack_seq)) {
+	if (TCP_SEQ_GEQ(sndvar->sndbuf->head_seq, ack_seq)) {  //接收的ACK包小于等于当前sndbuf头部元素
 		return;
 	}
 
 	/* Remove acked sequence from send buffer */
-	if (rmlen > 0) {
+	if (rmlen > 0) { //需要清理sndbuf
 		/* Routine goes here only if there is new payload (not retransmitted) */
 		
 		/* Estimate RTT and calculate rto */
+		//估算RTT和RTO
 		if (cur_stream->saw_timestamp) {
 			EstimateRTT(mtcp, cur_stream, 
 					cur_ts - cur_stream->rcvvar->ts_lastack_rcvd);
-			sndvar->rto = (cur_stream->rcvvar->srtt >> 3) + cur_stream->rcvvar->rttvar;
+			sndvar->rto = (cur_stream->rcvvar->srtt >> 3) + cur_stream->rcvvar->rttvar; //RTO公式
 			assert(sndvar->rto > 0);
 		} else {
 			//TODO: Need to implement timestamp estimation without timestamp
@@ -549,16 +562,16 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 		// TODO CCP should comment this out? 
 		/* Update congestion control variables */
 		if (cur_stream->state >= TCP_ST_ESTABLISHED) {
-			if (sndvar->cwnd < sndvar->ssthresh) {
+			if (sndvar->cwnd < sndvar->ssthresh) { //慢启动阶段
 				if ((sndvar->cwnd + sndvar->mss) > sndvar->cwnd) {
-					sndvar->cwnd += (sndvar->mss * packets);
+					sndvar->cwnd += (sndvar->mss * packets); // 每确认packets个包，cwnd += mss * packets
 				}
 				TRACE_CONG("slow start cwnd: %u, ssthresh: %u\n", 
 						sndvar->cwnd, sndvar->ssthresh);
-			} else {
+			} else {//拥塞避免阶段
 				uint32_t new_cwnd = sndvar->cwnd + 
 						packets * sndvar->mss * sndvar->mss / 
-						sndvar->cwnd;
+						sndvar->cwnd;	//new_cwnd = cwnd + (packets * mss²) / cwnd 相当于每个RTT增加约1个MSS
 				if (new_cwnd > sndvar->cwnd) {
 					sndvar->cwnd = new_cwnd;
 				}
@@ -572,10 +585,11 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 				perror("ProcessACK: write_lock blocked\n");
 			assert(0);
 		}
+		//从发送队列中移除
 		ret = SBRemove(mtcp->rbm_snd, sndvar->sndbuf, rmlen);
-		sndvar->snd_una = ack_seq;
+		sndvar->snd_una = ack_seq; // 更新最早未确认序列号
 		snd_wnd_prev = sndvar->snd_wnd;
-		sndvar->snd_wnd = sndvar->sndbuf->size - sndvar->sndbuf->len;
+		sndvar->snd_wnd = sndvar->sndbuf->size - sndvar->sndbuf->len;//更新发送窗口
 
 		/* If there was no available sending window */
 		/* notify the newly available window to application */
@@ -588,6 +602,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 #endif /* SELECTIVE_WRITE_EVENT_NOTIFY */
 
 		SBUF_UNLOCK(&sndvar->write_lock);
+		//更新重传计时
 		UpdateRetransmissionTimer(mtcp, cur_stream, cur_ts);
 	}
 
@@ -598,6 +613,7 @@ ProcessACK(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts,
 /* Return: TRUE (1) in normal case, FALSE (0) if immediate ACK is required    */
 /* CAUTION: should only be called at ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2      */
 /*----------------------------------------------------------------------------*/
+//解析TCP负载
 static inline int 
 ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream, 
 		uint32_t cur_ts, uint8_t *payload, uint32_t seq, int payloadlen)
@@ -607,16 +623,16 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 	int ret;
 
 	/* if seq and segment length is lower than rcv_nxt, ignore and send ack */
-	if (TCP_SEQ_LT(seq + payloadlen, cur_stream->rcv_nxt)) {
+	if (TCP_SEQ_LT(seq + payloadlen, cur_stream->rcv_nxt)) { //重复包
 		return FALSE;
 	}
 	/* if payload exceeds receiving buffer, drop and send ack */
-	if (TCP_SEQ_GT(seq + payloadlen, cur_stream->rcv_nxt + rcvvar->rcv_wnd)) {
+	if (TCP_SEQ_GT(seq + payloadlen, cur_stream->rcv_nxt + rcvvar->rcv_wnd)) { //超出接收窗口范围
 		return FALSE;
 	}
 
 	/* allocate receive buffer if not exist */
-	if (!rcvvar->rcvbuf) {
+	if (!rcvvar->rcvbuf) {	//初始化缓冲区
 		rcvvar->rcvbuf = RBInit(mtcp->rbm_rcv, rcvvar->irs + 1);
 		if (!rcvvar->rcvbuf) {
 			TRACE_ERROR("Stream %d: Failed to allocate receive buffer.\n", 
@@ -636,6 +652,7 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 	}
 
 	prev_rcv_nxt = cur_stream->rcv_nxt;
+	//将payload放到读取缓冲区中
 	ret = RBPut(mtcp->rbm_rcv, 
 			rcvvar->rcvbuf, payload, (uint32_t)payloadlen, seq);
 	if (ret < 0) {
@@ -644,12 +661,15 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 
 	/* discard the buffer if the state is FIN_WAIT_1 or FIN_WAIT_2, 
 	   meaning that the connection is already closed by the application */
+	//连接结束，移除接收缓冲区
 	if (cur_stream->state == TCP_ST_FIN_WAIT_1 || 
 			cur_stream->state == TCP_ST_FIN_WAIT_2) {
 		RBRemove(mtcp->rbm_rcv, 
 				rcvvar->rcvbuf, rcvvar->rcvbuf->merged_len, AT_MTCP);
 	}
+	//更新下一接收序列号
 	cur_stream->rcv_nxt = rcvvar->rcvbuf->head_seq + rcvvar->rcvbuf->merged_len;
+	//更新接收窗口
 	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - rcvvar->rcvbuf->merged_len;
 
 	SBUF_UNLOCK(&rcvvar->read_lock);
@@ -667,6 +687,7 @@ ProcessTCPPayload(mtcp_manager_t mtcp, tcp_stream *cur_stream,
 			cur_stream->socket? cur_stream->socket->epoll & MTCP_EPOLLOUT : 0);
 
 	if (cur_stream->state == TCP_ST_ESTABLISHED) {
+		// 触发读事件 （epoll/阻塞）
 		RaiseReadEvent(mtcp, cur_stream);
 	}
 
@@ -698,6 +719,7 @@ CreateNewFlowHTEntry(mtcp_manager_t mtcp, uint32_t cur_ts, const struct iphdr *i
 		}
 
 		/* now accept the connection */
+		//被动建连
 		cur_stream = HandlePassiveOpen(mtcp, 
 				cur_ts, iph, tcph, seq, window);
 		if (!cur_stream) {
@@ -1205,6 +1227,7 @@ int
 ProcessTCPPacket(mtcp_manager_t mtcp, 
 		 uint32_t cur_ts, const int ifidx, const struct iphdr *iph, int ip_len)
 {
+	//解析包
 	struct tcphdr* tcph = (struct tcphdr *) ((u_char *)iph + (iph->ihl << 2));
 	uint8_t *payload    = (uint8_t *)tcph + (tcph->doff << 2);
 	int payloadlen = ip_len - (payload - (u_char *)iph);
@@ -1228,6 +1251,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 					  PKT_RX_TCP_CSUM, NULL);
 #endif
 	if (rc == -1) {
+		//计算TCP校验和
 		check = TCPCalcChecksum((uint16_t *)tcph, 
 					(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr);
 		if (check) {
@@ -1249,8 +1273,10 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	s_stream.daddr = iph->saddr;
 	s_stream.dport = tcph->source;
 
+	//查找现有连接
 	if (!(cur_stream = StreamHTSearch(mtcp->tcp_flow_table, &s_stream))) {
 		/* not found in flow table */
+		//创建新流
 		cur_stream = CreateNewFlowHTEntry(mtcp, cur_ts, iph, ip_len, tcph, 
 				seq, ack_seq, payloadlen, window);
 		if (!cur_stream)
@@ -1275,17 +1301,19 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	}
 
 	/* Update receive window size */
-	if (tcph->syn) {
+	//更新窗口
+	if (tcph->syn) { //建连包为缺省值
 		cur_stream->sndvar->peer_wnd = window;
-	} else {
+	} else {	//正常包左移wscale_peer位(窗口缩放因子)
 		cur_stream->sndvar->peer_wnd = 
 				(uint32_t)window << cur_stream->sndvar->wscale_peer;
 	}
-				
+	//更新时间戳
 	cur_stream->last_active_ts = cur_ts;
 	UpdateTimeoutList(mtcp, cur_stream);
 
 	/* Process RST: process here only if state > TCP_ST_SYN_SENT */
+	//处理RST包
 	if (tcph->rst) {
 		cur_stream->have_reset = TRUE;
 		if (cur_stream->state > TCP_ST_SYN_SENT) {
@@ -1294,7 +1322,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 			}
 		}
 	}
-
+	//判断状态
 	switch (cur_stream->state) {
 	case TCP_ST_LISTEN:
 		Handle_TCP_ST_LISTEN(mtcp, cur_ts, cur_stream, tcph);
@@ -1307,7 +1335,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 
 	case TCP_ST_SYN_RCVD:
 		/* SYN retransmit implies our SYN/ACK was lost. Resend */
-		if (tcph->syn && seq == cur_stream->rcvvar->irs)
+		if (tcph->syn && seq == cur_stream->rcvvar->irs) //SYN重传
 			Handle_TCP_ST_LISTEN(mtcp, cur_ts, cur_stream, tcph);
 		else {
 			Handle_TCP_ST_SYN_RCVD(mtcp, cur_ts, cur_stream, tcph, ack_seq);

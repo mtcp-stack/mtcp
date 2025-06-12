@@ -378,6 +378,7 @@ mtcp_socket_ioctl(mctx_t mctx, int sockid, int request, void *argp)
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+//创建一个mtcp的socket 
 int 
 mtcp_socket(mctx_t mctx, int domain, int type, int protocol)
 {
@@ -689,6 +690,7 @@ mtcp_init_rss(mctx_t mctx, in_addr_t saddr_base, int num_addr,
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
+//建立连接函数
 int 
 mtcp_connect(mctx_t mctx, int sockid, 
 		const struct sockaddr *addr, socklen_t addrlen)
@@ -754,6 +756,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 	dport = addr_in->sin_port;
 
 	/* address binding */
+	//手动绑定，检查是否为正确的RSS核心
 	if ((socket->opts & MTCP_ADDR_BIND) && 
 	    socket->saddr.sin_port != INPORT_ANY &&
 	    socket->saddr.sin_addr.s_addr != INADDR_ANY) {
@@ -767,7 +770,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 			errno = EINVAL;
 			return -1;
 		}
-	} else {
+	} else {	//动态绑定，自动分配ip/prot
 		if (mtcp->ap) {
 			ret = FetchAddressPerCore(mtcp->ap, 
 						  mctx->cpu, num_queues, addr_in, &socket->saddr);
@@ -789,7 +792,7 @@ mtcp_connect(mctx_t mctx, int sockid,
 		socket->opts |= MTCP_ADDR_BIND;
 		is_dyn_bound = TRUE;
 	}
-
+	//创建TCP流
 	cur_stream = CreateTCPStream(mtcp, socket, socket->socktype, 
 			socket->saddr.sin_addr.s_addr, socket->saddr.sin_port, dip, dport);
 	if (!cur_stream) {
@@ -807,8 +810,10 @@ mtcp_connect(mctx_t mctx, int sockid,
 	TRACE_STATE("Stream %d: TCP_ST_SYN_SENT\n", cur_stream->id);
 
 	SQ_LOCK(&mtcp->ctx->connect_lock);
+	//将流加入连接队列
 	ret = StreamEnqueue(mtcp->connectq, cur_stream);
 	SQ_UNLOCK(&mtcp->ctx->connect_lock);
+	//唤醒工作线程
 	mtcp->wakeup_flag = TRUE;
 	if (ret < 0) {
 		TRACE_ERROR("Socket %d: failed to enqueue to conenct queue!\n", sockid);
@@ -1117,35 +1122,36 @@ PeekForUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 	return copylen;
 }
 /*----------------------------------------------------------------------------*/
+//复制到用户空间
 static inline int
 CopyToUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, char *buf, int len)
 {
-	struct tcp_recv_vars *rcvvar = cur_stream->rcvvar;
-	uint32_t prev_rcv_wnd;
+	struct tcp_recv_vars *rcvvar = cur_stream->rcvvar;//流的接收变量
+	uint32_t prev_rcv_wnd;	
 	int copylen;
 
-	copylen = MIN(rcvvar->rcvbuf->merged_len, len);
+	copylen = MIN(rcvvar->rcvbuf->merged_len, len); // 计算可复制长度，取接收缓冲区合并长度和用户缓冲区长度的最小值
 	if (copylen <= 0) {
 		errno = EAGAIN;
 		return -1;
 	}
 
-	prev_rcv_wnd = rcvvar->rcv_wnd;
+	prev_rcv_wnd = rcvvar->rcv_wnd;//获取先前接收窗口大小
 	/* Copy data to user buffer and remove it from receiving buffer */
-	memcpy(buf, rcvvar->rcvbuf->head, copylen);
-	RBRemove(mtcp->rbm_rcv, rcvvar->rcvbuf, copylen, AT_APP);
-	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - rcvvar->rcvbuf->merged_len;
+	memcpy(buf, rcvvar->rcvbuf->head, copylen);	//将数据复制到用户空间
+	RBRemove(mtcp->rbm_rcv, rcvvar->rcvbuf, copylen, AT_APP);	//从接收缓冲区中移除已复制数据
+	rcvvar->rcv_wnd = rcvvar->rcvbuf->size - rcvvar->rcvbuf->merged_len; // 更新接收窗口 缓冲区总大小 - 剩余有效数据长度
 
 	/* Advertise newly freed receive buffer */
 	if (cur_stream->need_wnd_adv) {
-		if (rcvvar->rcv_wnd > cur_stream->sndvar->eff_mss) {
-			if (!cur_stream->sndvar->on_ackq) {
+		if (rcvvar->rcv_wnd > cur_stream->sndvar->eff_mss) {//判断新接收窗口是否大于有效MSS
+			if (!cur_stream->sndvar->on_ackq) {	//不在ACK队列中
 				SQ_LOCK(&mtcp->ctx->ackq_lock);
-				cur_stream->sndvar->on_ackq = TRUE;
-				StreamEnqueue(mtcp->ackq, cur_stream); /* this always success */
+				cur_stream->sndvar->on_ackq = TRUE;//更改标志位
+				StreamEnqueue(mtcp->ackq, cur_stream); //加入到ack队列中
 				SQ_UNLOCK(&mtcp->ctx->ackq_lock);
-				cur_stream->need_wnd_adv = FALSE;
-				mtcp->wakeup_flag = TRUE;
+				cur_stream->need_wnd_adv = FALSE; // 清除窗口更新需求标志
+				mtcp->wakeup_flag = TRUE;		  // 设置唤醒标志通知
 			}
 		}
 	}
@@ -1213,7 +1219,7 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
         }
 	
 	/* return EAGAIN if no receive buffer */
-	if (socket->opts & MTCP_NONBLOCK) {
+	if (socket->opts & MTCP_NONBLOCK) {	//非阻塞
 		if (!rcvvar->rcvbuf || rcvvar->rcvbuf->merged_len == 0) {
 			errno = EAGAIN;
 			return -1;
@@ -1221,7 +1227,7 @@ mtcp_recv(mctx_t mctx, int sockid, char *buf, size_t len, int flags)
 	}
 	
 	SBUF_LOCK(&rcvvar->read_lock);
-#if BLOCKING_SUPPORT
+#if BLOCKING_SUPPORT	//阻塞
 	if (!(socket->opts & MTCP_NONBLOCK)) {
 		while (rcvvar->rcvbuf->merged_len == 0) {
 			if (!cur_stream || cur_stream->state != TCP_ST_ESTABLISHED) {
@@ -1433,6 +1439,7 @@ CopyFromUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, const char *buf, int l
 	}
 
 	/* allocate send buffer if not exist */
+	//初始化缓冲区
 	if (!sndvar->sndbuf) {
 		sndvar->sndbuf = SBInit(mtcp->rbm_snd, sndvar->iss + 1);
 		if (!sndvar->sndbuf) {
@@ -1443,8 +1450,10 @@ CopyFromUser(mtcp_manager_t mtcp, tcp_stream *cur_stream, const char *buf, int l
 		}
 	}
 
+	//放入缓冲区中
 	ret = SBPut(mtcp->rbm_snd, sndvar->sndbuf, buf, sndlen);
 	assert(ret == sndlen);
+	//更新发送窗口
 	sndvar->snd_wnd = sndvar->sndbuf->size - sndvar->sndbuf->len;
 	if (ret <= 0) {
 		TRACE_ERROR("SBPut failed. reason: %d (sndlen: %u, len: %u\n", 
@@ -1552,16 +1561,18 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 	}
 
 	/* if there are remaining sending buffer, generate write event */
+	//有剩余发送窗口
 	if (sndvar->snd_wnd > 0) {
 		if ((socket->epoll & MTCP_EPOLLOUT) && !(socket->epoll & MTCP_EPOLLET)) {
+			// 将可写事件添加到epoll的就绪队列
 			AddEpollEvent(mtcp->ep, 
 					USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);
 #if BLOCKING_SUPPORT
-		} else if (!(socket->opts & MTCP_NONBLOCK)) {
-			if (!cur_stream->on_snd_br_list) {
-				cur_stream->on_snd_br_list = TRUE;
+		} else if (!(socket->opts & MTCP_NONBLOCK)) {	//阻塞模式
+			if (!cur_stream->on_snd_br_list) {	//不在发送阻塞队列
+				cur_stream->on_snd_br_list = TRUE;	//更新标准位
 				TAILQ_INSERT_TAIL(&mtcp->snd_br_list, 
-						cur_stream, sndvar->snd_br_link);
+						cur_stream, sndvar->snd_br_link); //添加到队列中
 				mtcp->snd_br_list_cnt++;
 			}
 #endif

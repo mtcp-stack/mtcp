@@ -56,6 +56,7 @@ whichCoreID(int thread_no)
 	return thread_no;
 }
 /*----------------------------------------------------------------------------*/
+//绑定核心
 int 
 mtcp_core_affinitize(int cpu)
 {
@@ -75,14 +76,15 @@ mtcp_core_affinitize(int cpu)
 	CPU_ZERO(&cpus);
 	CPU_SET((unsigned)cpu, &cpus);
 
-#ifndef DISABLE_DPDK
+#ifndef DISABLE_DPDK //dpdk
 	return rte_thread_set_affinity(&cpus);
-#else
+#else	//其余
 	struct bitmask *bmask;
 	FILE *fp;
 	char sysfname[MAX_FILE_NAME];
 	int phy_id;
 	
+	//绑定核心
 	ret = sched_setaffinity(Gettid(), sizeof(cpus), &cpus);
 
 	if (numa_max_node() == 0)

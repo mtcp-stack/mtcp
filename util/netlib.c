@@ -16,6 +16,9 @@
 
 #include "netlib.h"
 
+struct Options Options[] = {
+    { NULL, NULL, NULL }  /* initialize empty; can be filled later */
+};
 /*----------------------------------------------------------------------------*/
 int 
 GetNumCPUCores(void)

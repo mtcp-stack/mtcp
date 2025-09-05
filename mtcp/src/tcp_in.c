@@ -18,7 +18,7 @@
 #define MAX(a, b) ((a)>(b)?(a):(b))
 #define MIN(a, b) ((a)<(b)?(a):(b))
 
-#define VERIFY_RX_CHECKSUM TRUE
+#define VERIFY_RX_CHECKSUM FALSE
 #define RECOVERY_AFTER_LOSS TRUE
 #define SELECTIVE_WRITE_EVENT_NOTIFY TRUE
 
@@ -1213,9 +1213,9 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	uint32_t seq = ntohl(tcph->seq);
 	uint32_t ack_seq = ntohl(tcph->ack_seq);
 	uint16_t window = ntohs(tcph->window);
-	uint16_t check;
-	int ret;
-	int rc = -1;
+	//uint16_t check;
+	// int ret;
+	// int rc = -1;
 
 	/* Check ip packet invalidation */	
 	if (ip_len < ((iph->ihl + tcph->doff) << 2))
@@ -1231,7 +1231,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 		check = TCPCalcChecksum((uint16_t *)tcph, 
 					(tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr);
 		if (check) {
-			TRACE_DBG("Checksum Error: Original: 0x%04x, calculated: 0x%04x\n", 
+			TRACE_ERROR("Checksum Error: Original: 0x%04x, calculated: 0x%04x\n", 
 				  tcph->check, TCPCalcChecksum((uint16_t *)tcph, 
 				  (tcph->doff << 2) + payloadlen, iph->saddr, iph->daddr));
 			tcph->check = 0;
@@ -1251,6 +1251,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 
 	if (!(cur_stream = StreamHTSearch(mtcp->tcp_flow_table, &s_stream))) {
 		/* not found in flow table */
+		TRACE_ERROR("not found in flow table\n");
 		cur_stream = CreateNewFlowHTEntry(mtcp, cur_ts, iph, ip_len, tcph, 
 				seq, ack_seq, payloadlen, window);
 		if (!cur_stream)
@@ -1259,10 +1260,10 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 
 	/* Validate sequence. if not valid, ignore the packet */
 	if (cur_stream->state > TCP_ST_SYN_RCVD) {
-		ret = ValidateSequence(mtcp, cur_stream, 
+		int ret = ValidateSequence(mtcp, cur_stream, 
 				cur_ts, tcph, seq, ack_seq, payloadlen);
 		if (!ret) {
-			TRACE_DBG("Stream %d: Unexpected sequence: %u, expected: %u\n",
+			TRACE_ERROR("Stream %d: Unexpected sequence: %u, expected: %u\n",
 					cur_stream->id, seq, cur_stream->rcv_nxt);
 #ifdef DBGMSG
 			DumpIPPacket(mtcp, iph, ip_len);
@@ -1287,6 +1288,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 
 	/* Process RST: process here only if state > TCP_ST_SYN_SENT */
 	if (tcph->rst) {
+		TRACE_ERROR("RST packet Received!!! \n");
 		cur_stream->have_reset = TRUE;
 		if (cur_stream->state > TCP_ST_SYN_SENT) {
 			if (ProcessRST(mtcp, cur_stream, ack_seq)) {
@@ -1296,6 +1298,7 @@ ProcessTCPPacket(mtcp_manager_t mtcp,
 	}
 
 	switch (cur_stream->state) {
+	// based on current state , process packets
 	case TCP_ST_LISTEN:
 		Handle_TCP_ST_LISTEN(mtcp, cur_ts, cur_stream, tcph);
 		break;

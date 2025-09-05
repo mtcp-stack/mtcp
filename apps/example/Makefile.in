@@ -7,6 +7,7 @@ PS=@PSIO@
 NETMAP=@NETMAP@
 ONVM=@ONVM@
 CCP=@CCP@
+PCAP=@PCAP@
 CFLAGS=@CFLAGS@
 
 # Add arch-specific optimization
@@ -25,40 +26,41 @@ UTIL_INC = -I${UTIL_FLD}/include
 UTIL_OBJ = ${UTIL_FLD}/http_parsing.o ${UTIL_FLD}/tdate_parse.o ${UTIL_FLD}/netlib.o
 
 # util library and header
-INC = -I./include/ ${UTIL_INC} ${MTCP_INC} -I${UTIL_FLD}/include
-LIBS = ${MTCP_LIB}
+INC = -I./include/ ${UTIL_INC} ${MTCP_INC}
+LIBS = ${MTCP_LIB} -lmtcp -lpthread -lnuma -lrt
 
 # psio-specific variables
 ifeq ($(PS),1)
 PS_DIR = ../../io_engine/
 PS_INC = ${PS_DIR}/include
-INC += -I{PS_INC}
-LIBS += -lmtcp -L${PS_DIR}/lib -lps -lpthread -lnuma -lrt
+INC += -I${PS_INC}
+LIBS += -L${PS_DIR}/lib -lps
 endif
 
 # netmap-specific variables
 ifeq ($(NETMAP),1)
-LIBS += -lmtcp -lpthread -lnuma -lrt
+INC += -I../../io_engine/include
 endif
 
 # dpdk-specific variables
 ifeq ($(DPDK),1)
 DPDK_MACHINE_LINKER_FLAGS=$${RTE_SDK}/$${RTE_TARGET}/lib/ldflags.txt
 DPDK_MACHINE_LDFLAGS=$(shell cat ${DPDK_MACHINE_LINKER_FLAGS})
-LIBS += -g -O3 -pthread -lrt -march=native ${MTCP_FLD}/lib/libmtcp.a -lnuma -lmtcp -lpthread -lrt -ldl -lgmp -L${RTE_SDK}/${RTE_TARGET}/lib ${DPDK_MACHINE_LDFLAGS}
+LIBS += -g -O3 -pthread -lrt -march=native -ldl -lgmp -L${RTE_SDK}/${RTE_TARGET}/lib ${DPDK_MACHINE_LDFLAGS}
 endif
 
 # onvm-specific variables
 ifeq ($(ONVM),1)
-ifeq ($(RTE_TARGET),)
-$(error "Please define RTE_TARGET environment variable")
-endif
-
 INC += -I@ONVMLIBPATH@/onvm_nflib
 INC += -I@ONVMLIBPATH@/lib
 INC += -DENABLE_ONVM
 LIBS += @ONVMLIBPATH@/onvm_nflib/$(RTE_TARGET)/libonvm.a
 LIBS += @ONVMLIBPATH@/lib/$(RTE_TARGET)/lib/libonvmhelper.a -lm
+endif
+
+# pcap-specific variables
+ifeq ($(PCAP),1)
+LIBS += -lpcap
 endif
 
 ifeq ($V,) # no echo
@@ -84,7 +86,7 @@ epserver.o: epserver.c
 
 epserver: epserver.o ${MTCP_FLD}/lib/libmtcp.a
 	$(MSG) "   LD $<"
-	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	$(HIDE) ${CC} $< ${UTIL_OBJ} -L${MTCP_FLD}/lib -lmtcp -lpthread -lnuma -lrt ${LIBS} -o $@
 
 epwget.o: epwget.c
 	$(MSG) "   CC $<"
@@ -92,7 +94,8 @@ epwget.o: epwget.c
 
 epwget: epwget.o ${MTCP_FLD}/lib/libmtcp.a
 	$(MSG) "   LD $<"
-	$(HIDE) ${CC} $< ${LIBS} ${UTIL_OBJ} -o $@
+	$(HIDE) ${CC} $< ${UTIL_OBJ} -L${MTCP_FLD}/lib -lmtcp -lpthread -lnuma -lrt ${LIBS} -o $@
+
 
 clean:
 	$(MSG) "   CLEAN $(TARGETS)"

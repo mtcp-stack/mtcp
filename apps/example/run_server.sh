@@ -1,0 +1,1 @@
+sudo ./epserver -p www_home -f epserver.conf -N 1

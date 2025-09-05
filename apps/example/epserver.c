@@ -288,7 +288,7 @@ AcceptConnection(struct thread_context *ctx, int listener)
 	struct mtcp_epoll_event ev;
 	int c;
 
-	c = mtcp_accept(mctx, listener, NULL, NULL);
+	c = mtcp_accept(mctx, listener, NULL, NULL); // return connected socket file descriptor
 
 	if (c >= 0) {
 		if (c >= MAX_FLOW_NUM) {
@@ -321,6 +321,7 @@ InitializeServerThread(int core)
 	struct thread_context *ctx;
 
 	/* affinitize application thread to a CPU core */
+
 #if HT_SUPPORT
 	mtcp_core_affinitize(core + (num_cores / 2));
 #else
@@ -387,7 +388,7 @@ CreateListeningSocket(struct thread_context *ctx)
 	/* bind to port 80 */
 	saddr.sin_family = AF_INET;
 	saddr.sin_addr.s_addr = INADDR_ANY;
-	saddr.sin_port = htons(80);
+	saddr.sin_port = htons(8080);
 	ret = mtcp_bind(ctx->mctx, listener, 
 			(struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
 	if (ret < 0) {
@@ -445,7 +446,10 @@ RunServerThread(void *arg)
 		exit(-1);
 	}
 
+	printf("listening socket created !! \n");
+
 	while (!done[core]) {
+		printf("waiting\n");
 		nevents = mtcp_epoll_wait(mctx, ep, events, MAX_EVENTS, -1);
 		if (nevents < 0) {
 			if (errno != EINTR)
@@ -457,9 +461,9 @@ RunServerThread(void *arg)
 		for (i = 0; i < nevents; i++) {
 
 			if (events[i].data.sockid == listener) {
+				printf("listener!! \n");
 				/* if the event is for the listener, accept connection */
 				do_accept = TRUE;
-
 			} else if (events[i].events & MTCP_EPOLLERR) {
 				int err;
 				socklen_t len = sizeof(err);
@@ -479,7 +483,8 @@ RunServerThread(void *arg)
 				CloseConnection(ctx, events[i].data.sockid, 
 						&ctx->svars[events[i].data.sockid]);
 
-			} else if (events[i].events & MTCP_EPOLLIN) {
+			}else if (events[i].events & MTCP_EPOLLIN) {
+				printf("epoll in event!! \n");
 				ret = HandleReadEvent(ctx, events[i].data.sockid, 
 						&ctx->svars[events[i].data.sockid]);
 

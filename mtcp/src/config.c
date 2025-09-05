@@ -157,7 +157,14 @@ EnrollRouteTableEntry(char *optstr)
 			break;
 		}
 #endif
-	}
+	} else if (current_iomodule_func == &pcap_module_func) {
+		for (i = 0; i < num_devices; i++) {
+			if (strcmp(CONFIG.eths[i].dev_name, dev))
+				continue;
+			ifidx = CONFIG.eths[i].ifindex;
+			break;
+		}
+	} 
 
 	ridx = CONFIG.routes++;
 	if (ridx == MAX_ROUTE_ENTRY) {
@@ -561,6 +568,7 @@ ParseConfiguration(char *line)
 	char *saveptr;
 
 	strncpy(optstr, line, MAX_OPTLINE_LEN - 1);
+	optstr[MAX_OPTLINE_LEN - 1] = '\0';
 	saveptr = NULL;
 
 	p = strtok_r(optstr, " \t=", &saveptr);
@@ -640,17 +648,11 @@ ParseConfiguration(char *line)
 		}
 	} else if (strcmp(p, "num_mem_ch") == 0) {
 		CONFIG.num_mem_ch = mystrtol(q, 10);
-#ifdef ENABLE_ONVM
-	} else if (strcmp(p, "onvm_inst") == 0) {
-		CONFIG.onvm_inst = mystrtol(q, 10);
-	} else if (strcmp(p, "onvm_serv") == 0) {
-		CONFIG.onvm_serv = mystrtol(q, 10);
-	} else if (strcmp(p, "onvm_dest") == 0) {
-		CONFIG.onvm_dest = mystrtol(q, 10);
-#endif
+
 	} else if (strcmp(p, "multiprocess") == 0) {
 		SetMultiProcessSupport(line + strlen(p) + 1);
     } else if (strcmp(p, "cc") == 0) {
+
 #if USE_CCP
         // ignore the parsing done by the second strtok_r so that we can get the full param string
         *strchr(q, '\0') = ' ';
@@ -684,7 +686,6 @@ LoadConfiguration(const char *fname)
 		TRACE_CONFIG("Failed to load configuration file: %s\n", fname);
 		return -1;
 	}
-
 #ifndef DISABLE_DPDK
 	mpz_init(CONFIG._cpumask);
 #endif
@@ -726,10 +727,9 @@ LoadConfiguration(const char *fname)
 	/* if sndbuf & rcvbuf are not set, rcvbuf = sndbuf = 8192 */
 	if (CONFIG.rcvbuf_size == -1 && CONFIG.sndbuf_size == -1)
 		CONFIG.sndbuf_size = CONFIG.rcvbuf_size = 8192;
-	
+
+
 	return SetNetEnv(port_list, port_stat_list);
-	
-	return 0;
 }
 /*----------------------------------------------------------------------------*/
 void 

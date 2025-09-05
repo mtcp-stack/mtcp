@@ -18,6 +18,7 @@ fi
 
 # Checks for header files.
 AC_HEADER_STDC
+AC_CHECK_HEADER([pcap.h], [], [AC_MSG_ERROR([Could not find pcap.h. Please install libpcap-dev.])])
 AC_CHECK_HEADER([linux/sched.h],,AC_MSG_ERROR([Could not find linux/sched.h]))
 AC_CHECK_HEADER([pthread.h],,AC_MSG_ERROR([Could not find pthread.h]))
 AC_CHECK_HEADER([numa.h],,AC_MSG_ERROR([Could not find numa.h]))
@@ -78,6 +79,31 @@ AC_SUBST(ONVM, 0)
 AC_SUBST(NETMAP, 0)
 # Reset HWCSUM to 1
 AC_SUBST(HWCSUM, 1)
+
+# Check pcap path (lib & inc)
+AC_ARG_WITH([pcap-lib],
+    [AS_HELP_STRING([--with-pcap-lib=PATH], [path to libpcap install root])],
+    [pcap_lib=$withval], [pcap_lib=""])
+
+if test "x$pcap_lib" != "x"; then
+    AC_SUBST(PCAPLIBPATH, $pcap_lib)
+    AC_SUBST(PCAP, 1)
+
+    CPPFLAGS="$CPPFLAGS -I$pcap_lib/include"
+    LDFLAGS="$LDFLAGS -L$pcap_lib/lib"
+fi
+
+# Check presence of pcap headers and functions
+AC_CHECK_HEADERS([pcap.h],
+    [], [AC_MSG_ERROR([Could not find pcap.h])])
+
+AC_CHECK_LIB([pcap], [pcap_open_live],
+    [LIBS="$LIBS -lpcap"],
+    [AC_MSG_ERROR([Could not find libpcap. Please install libpcap-dev.])])
+	
+AC_DEFINE([HAVE_PCAP], [1], [Define if libpcap is available])
+AM_CONDITIONAL([PCAP], [test x$PCAP = x1])
+
 
 # Check dpdk-17.08 path (lib & inc)
 AC_ARG_WITH(stuff, [  --with-dpdk-lib      path to the dpdk-17.08 install root])
@@ -148,10 +174,11 @@ then
 	AC_SUBST(ONVM, 1)
 fi
 
-if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "$enable_netmap" = ""
+if test "$with_psio_lib" == "" && test "$with_dpdk_lib" == "" && test "$enable_netmap" = "" && test "x$pcap_lib" = "x"
 then
-	AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk or psio or netmap as your I/O lib.])
+    AC_MSG_ERROR([Packet I/O library is missing. Please set either dpdk, psio, netmap, or pcap as your I/O lib.])
 fi
+
 
 if test "x$enable_ccp" = "xyes"
 then

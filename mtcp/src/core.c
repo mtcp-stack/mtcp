@@ -497,36 +497,34 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 	}
 
 	/*************************************************** */
-	if (ep->mtcp_queue->num_events > 0)
+
+	while (mtcpq->num_events > 0 && usrq->num_events < usrq->size)
 	{
-		/* while mtcp_queue have events */
-		/* and usr_queue is not full */
-		while (mtcpq->num_events > 0 && usrq->num_events < usrq->size)
-		{
-			/* copy the event from mtcp_queue to usr_queue */
-			usrq->events[usrq->end++] = mtcpq->events[mtcpq->start++];
+		/* copy the event from mtcp_queue to usr_queue */
+		usrq->events[usrq->end++] = mtcpq->events[mtcpq->start++];
 
-			if (usrq->end >= usrq->size)
-				usrq->end = 0;
-			usrq->num_events++;
+		if (usrq->end >= usrq->size)
+			usrq->end = 0;
+		usrq->num_events++;
 
-			if (mtcpq->start >= mtcpq->size)
-				mtcpq->start = 0;
-			mtcpq->num_events--;
-		}
+		if (mtcpq->start >= mtcpq->size)
+			mtcpq->start = 0;
+		mtcpq->num_events--;
 	}
 
 	/* if there are pending events, wake up user */
-	if (ep->waiting && (ep->usr_queue->num_events > 0 ||
-						ep->usr_shadow_queue->num_events > 0))
+	// if (ep->waiting && (ep->usr_queue->num_events > 0 ||
+	// 					ep->usr_shadow_queue->num_events > 0))
+	if (usrq->num_events > 0 || ep->usr_shadow_queue->num_events > 0) 
 	{
 		STAT_COUNT(mtcp->runstat.rounds_epoll);
 		TRACE_EPOLL("Broadcasting events. num: %d, cur_ts: %u, prev_ts: %u\n",
 					ep->usr_queue->num_events, cur_ts, mtcp->ts_last_event);
 		mtcp->ts_last_event = cur_ts;
 		ep->stat.wakes++;
+		printf("[FlushEpollEvents]  MTCP_THREAD: Try to Wake Up application thread\n\n");
 		pthread_cond_signal(&ep->epoll_cond);
-		TRACE_ERROR("MTCP_THREAD: Wake Up application thread\n\n");
+		printf("[FlushEpollEvents]  MTCP_THREAD: Waked Up application thread\n\n");
 	}
 	pthread_mutex_unlock(&ep->epoll_lock);
 }
@@ -847,6 +845,7 @@ DestroyRemainingFlows(mtcp_manager_t mtcp)
 static void
 InterruptApplication(mtcp_manager_t mtcp)
 {
+	printf("[InterruptApplication] Interrupting application\n");
 	int i;
 	struct tcp_listener *listener = NULL;
 
@@ -856,6 +855,7 @@ InterruptApplication(mtcp_manager_t mtcp)
 		pthread_mutex_lock(&mtcp->ep->epoll_lock);
 		if (mtcp->ep->waiting)
 		{
+			printf("[FlushEpollEvents] signaling app thread!\n");
 			pthread_cond_signal(&mtcp->ep->epoll_cond);
 		}
 		pthread_mutex_unlock(&mtcp->ep->epoll_lock);
@@ -957,7 +957,7 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		}
 		unsigned char *dummy = 0;
 		int dummy_len = 0;
-		mtcp->iom->release_pkt(ctx, rx_inf, dummy,dummy_len);
+		mtcp->iom->release_pkt(ctx, rx_inf, dummy, dummy_len);
 		/* if epoll is in use, flush all the queued events */
 		if (mtcp->ep)
 		{
@@ -1000,7 +1000,6 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			InterruptApplication(mtcp);
 		}
 	}
-
 
 	TRACE_ERROR("while loop ended: done %d, flow_cnt %d, exit %d\n",
 				ctx->done, mtcp->flow_cnt, ctx->exit);

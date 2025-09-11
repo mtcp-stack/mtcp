@@ -81,6 +81,7 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
         TRACE_ERROR("pcap_set_timeout failed\n");
     if (pcap_set_buffer_size(temp, BUF_SIZE) != 0)
         TRACE_ERROR("pcap_set_buffer_size failed\n");
+    pcap_setnonblock(temp, 1, errbuf);
 
     if (pcap_activate(temp) < 0)
     {
@@ -227,12 +228,15 @@ pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
     TRACE_ERROR("ENTER PCAP_RECV_PKTS\n");
     struct pcap_private_context *ppc = ctxt->io_private_context;
+    printf("pcap_rev_pkts: num_pkts_in_chunk=%d\n", ppc->num_pkts_in_chunk);
+
     // for (int i = 0; i < ppc->num_pkts_in_chunk; i++)
     // {
-    //     if (ppc->hdrs[i])
-    //         free(ppc->hdrs[i]);
-    //     if (ppc->pkts[i])
-    //         free((void *)ppc->pkts[i]);
+    //     if(!ppc->hdrs[i])
+    //         printf("hdrs[%d] is NULL\n",i);
+    //     if(!ppc->pkts[i])
+    //         printf("pkts[%d] is NULL\n",i);
+    //     printf("  pkt %d: len=%u caplen=%u\n", i,ppc->hdrs[i]->caplen);
     // }
     ppc->num_pkts_in_chunk = 0;
     int ret = pcap_dispatch(ppc->handle, CHUNK_SIZE, pcap_packet_handler, (u_char *)ppc);
@@ -248,6 +252,7 @@ pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
     {
         printf("timeout expired on live caputure\n");
     }
+    TRACE_ERROR("QUITTING PCAP_RECV_PKTS\n");
     return ppc->num_pkts_in_chunk;
 }
 /*----------------------------------------------------------------------------*/

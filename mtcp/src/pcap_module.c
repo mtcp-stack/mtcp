@@ -7,16 +7,21 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <unistd.h>
-#include <arpa/inet.h> // htons/ntohs
+#include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <errno.h>
-#include <pcap.h>
+#include <poll.h>
+#include <fcntl.h>
 #include "debug.h"
 #include "io_module.h"
 #include "mtcp.h"
 #include "config.h"
-#define CHUNK_SIZE 64
 
+#define CHUNK_SIZE 64
+#define BUF_SIZE (64 * 1024 * 1024)
+#define SNAPLEN 65535
+#define TIMEOUT_MS 1
+#define MAX_TX_BURST 1024
 // assume single core (x need to RSS packets to multiple cores)
 // x concept of core affinity
 // x concept of specific NIC queue
@@ -25,7 +30,6 @@
 // struct pcap_pkthdr defintion
 // --> struct timeval ts(time info when the packet was captured), uint32 len(length of packet), uint32 caplen(length of portion present)
 /*----------------------------------------------------------------------------*/
-#define MAX_TX_BURST 1024 // you can tune this
 
 struct tx_pkt
 {
@@ -48,6 +52,7 @@ struct pcap_private_context
     const u_char *pkts[CHUNK_SIZE];
     int num_pkts_in_chunk;
 } __attribute__((aligned(__WORDSIZE)));
+
 /*----------------------------------------------------------------------------*/
 void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
 {
@@ -62,27 +67,54 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
     }
     ppc = (struct pcap_private_context *)ctxt->io_private_context;
 
-    // Open the device (assume CONFIG.eths[0].dev_name set in config)
-    ppc->handle = pcap_open_live(CONFIG.eths[0].dev_name,
-                                 65535, 1, 1, errbuf);
-
-    // enlarge pcap buffer
-    pcap_set_buffer_size(ppc->handle, 64 * 1024 * 1024);
-    // promiscuous mode and timeout info may be modified
-
-    if (!ppc->handle)
+    pcap_t *temp = pcap_create(CONFIG.eths[0].dev_name, errbuf);
+    if (!temp)
     {
-        TRACE_ERROR("pcap_open_live failed: %s\n", errbuf);
+        TRACE_ERROR("pcap_create failed: %s\n", errbuf);
         exit(EXIT_FAILURE);
     }
+    if (pcap_set_snaplen(temp, SNAPLEN) != 0)
+        TRACE_ERROR("pcap_set_snaplen failed\n");
+    if (pcap_set_promisc(temp, 1) != 0)
+        TRACE_ERROR("pcap_set_promisc failed\n");
+    if (pcap_set_timeout(temp, TIMEOUT_MS) != 0)
+        TRACE_ERROR("pcap_set_timeout failed\n");
+    if (pcap_set_buffer_size(temp, BUF_SIZE) != 0)
+        TRACE_ERROR("pcap_set_buffer_size failed\n");
+
+    if (pcap_activate(temp) < 0)
+    {
+        TRACE_ERROR("pcap_activate failed: %s\n", pcap_geterr(temp));
+        exit(EXIT_FAILURE);
+    }
+
+    ppc->handle = temp;
 }
 /*----------------------------------------------------------------------------*/
 void pcap_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *pkt_data, int len)
 {
-    return; // useless since I use filter that only allows TCP packet
-}
-/*----------------------------------------------------------------------------*/
+    /**************************************************************** */
+    // free received packets here all after processing packets
+    struct pcap_private_context *ppc =
+        (struct pcap_private_context *)ctxt->io_private_context;
+    for (int k = 0; k < ppc->num_pkts_in_chunk; k++)
+    {
+        if (ppc->hdrs[k])
+        {
+            free(ppc->hdrs[k]);
+            ppc->hdrs[k] = NULL;
+        }
+        if (ppc->pkts[k])
+        {
+            free((void *)ppc->pkts[k]);
+            ppc->pkts[k] = NULL;
+        }
+    }
+    ppc->num_pkts_in_chunk = 0;
 
+    /**************************************************************** */
+    return;
+}
 /*----------------------------------------------------------------------------*/
 int32_t
 pcap_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
@@ -97,20 +129,34 @@ pcap_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
         uint8_t *buf = ppc->w_buf.pkts[i].buf;
         int len = ppc->w_buf.pkts[i].len;
 
-        if (pcap_sendpacket(ppc->handle, buf, len) == 0)
+        if (pcap_inject(ppc->handle, buf, len) == len)
         {
             sent++;
         }
         else
         {
-            TRACE_ERROR("pcap_sendpacket failed: %s\n", pcap_geterr(ppc->handle));
+        TRACE_ERROR("pcap_inject failed: %s\n", pcap_geterr(ppc->handle));
         }
-        free(buf); // free after sending
+        free(buf);
+    }
+    TRACE_ERROR("[pcap_send_pkts] flushing %d packets\n", ppc->w_buf.cnt);
+
+    // Check pcap statistics after flushing
+    struct pcap_stat ps;
+    if (pcap_stats(ppc->handle, &ps) == 0)
+    {
+        TRACE_ERROR("[pcap_stats] recv=%u drop=%u ifdrop=%u\n",
+                    ps.ps_recv, ps.ps_drop, ps.ps_ifdrop);
+    }
+    else
+    {
+        TRACE_ERROR("[pcap_stats] failed: %s\n", pcap_geterr(ppc->handle));
     }
 
     ppc->w_buf.cnt = 0; // reset buffer
     return sent;
 }
+/*----------------------------------------------------------------------------*/
 
 uint8_t *
 pcap_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t len) // used when mtcp wants to transmit packet. get a buffer for outgoing packet
@@ -118,7 +164,7 @@ pcap_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t len) // used
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
 
-    if (ppc->w_buf.cnt >= MAX_TX_BURST)
+    if (ppc->w_buf.cnt >0)
     {
         pcap_send_pkts(ctxt, ifidx);
     }
@@ -142,22 +188,36 @@ pcap_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
     uint8_t *pktbuf;
     ppc = (struct pcap_private_context *)ctxt->io_private_context;
     pktbuf = (uint8_t *)ppc->pkts[index];
-    *len = ppc->hdrs[index]->caplen;
+    if(!ppc->hdrs[index])
+        *len = ppc->hdrs[index]->caplen;
     return pktbuf;
 }
 /*----------------------------------------------------------------------------*/
 static void
 pcap_packet_handler(u_char *user,
-                    const struct pcap_pkthdr *h,
-                    const u_char *bytes)
+                                const struct pcap_pkthdr *h,
+                                const u_char *bytes)
 {
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)user;
-
-    if (ppc->num_pkts_in_chunk < 64)
+    /************************************************************ */
+    struct iphdr *iph = (struct iphdr *)(bytes + sizeof(struct ether_header));
+    struct tcphdr *tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl << 2));
+    if (tcph->ack)
+    {
+        printf("Captured ACK: ack_seq=%u win=%u\n",
+               ntohl(tcph->ack_seq), ntohs(tcph->window));
+    }
+    /************************************************************ */
+    if (ppc->num_pkts_in_chunk < CHUNK_SIZE)
     { // safety guard
-        ppc->hdrs[ppc->num_pkts_in_chunk] = (struct pcap_pkthdr *)h;
-        ppc->pkts[ppc->num_pkts_in_chunk] = bytes;
+        // deep copy pkthdr and buf
+        struct pcap_pkthdr *hdr = (struct pcap_pkthdr *)malloc(sizeof(struct pcap_pkthdr));
+        memcpy(hdr, h, sizeof(struct pcap_pkthdr));
+        ppc->hdrs[ppc->num_pkts_in_chunk] = hdr;
+        u_char *bts = malloc(hdr->caplen);
+        memcpy(bts, bytes, hdr->caplen);
+        ppc->pkts[ppc->num_pkts_in_chunk] = bts;
         ppc->num_pkts_in_chunk++;
     }
 }
@@ -165,10 +225,18 @@ pcap_packet_handler(u_char *user,
 int32_t
 pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
+    TRACE_ERROR("ENTER PCAP_RECV_PKTS\n");
     struct pcap_private_context *ppc = ctxt->io_private_context;
-    // use pcap_dipatch();
+    // for (int i = 0; i < ppc->num_pkts_in_chunk; i++)
+    // {
+    //     if (ppc->hdrs[i])
+    //         free(ppc->hdrs[i]);
+    //     if (ppc->pkts[i])
+    //         free((void *)ppc->pkts[i]);
+    // }
     ppc->num_pkts_in_chunk = 0;
     int ret = pcap_dispatch(ppc->handle, CHUNK_SIZE, pcap_packet_handler, (u_char *)ppc);
+    TRACE_ERROR("pcap dispatch returned %d\n\n", ret);
     // receive up to max CHUNK_SIZE packets
     // packets in socket's receive buffers are copied to user application buffer
     if (ret < 0) // error
@@ -180,7 +248,7 @@ pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
     {
         printf("timeout expired on live caputure\n");
     }
-    return ret;
+    return ppc->num_pkts_in_chunk;
 }
 /*----------------------------------------------------------------------------*/
 int32_t

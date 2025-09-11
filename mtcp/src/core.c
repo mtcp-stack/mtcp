@@ -481,11 +481,22 @@ FlushReadEvents(mtcp_manager_t mtcp, int thresh)
 static inline void
 FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
+	TRACE_ERROR("FlushEpollEvents: Inside\n");
 	struct mtcp_epoll *ep = mtcp->ep;
 	struct event_queue *usrq = ep->usr_queue;
 	struct event_queue *mtcpq = ep->mtcp_queue;
 
 	pthread_mutex_lock(&ep->epoll_lock);
+	/*************************************************** */
+	// debugging purpose
+	struct mtcp_epoll_event_int *ev_i = mtcpq->events;
+	int start = mtcpq->start;
+	for (int i = start; i < start + mtcpq->num_events; i++)
+	{
+		TRACE_ERROR("mtcp_queue event %d: sockid %d, events %u\n", i, ev_i[i].sockid, ev_i[i].ev.events);
+	}
+
+	/*************************************************** */
 	if (ep->mtcp_queue->num_events > 0)
 	{
 		/* while mtcp_queue have events */
@@ -515,6 +526,7 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 		mtcp->ts_last_event = cur_ts;
 		ep->stat.wakes++;
 		pthread_cond_signal(&ep->epoll_cond);
+		TRACE_ERROR("MTCP_THREAD: Wake Up application thread\n\n");
 	}
 	pthread_mutex_unlock(&ep->epoll_lock);
 }
@@ -522,6 +534,7 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 static inline void
 HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
+	TRACE_ERROR("HandleApplicationCalls: Inside\n");
 	tcp_stream *stream;
 	int cnt, max_cnt;
 	int handled, delayed;
@@ -780,8 +793,6 @@ WritePacketsToChunks(mtcp_manager_t mtcp, uint32_t cur_ts)
 	// }
 	for (i = 0; i < CONFIG.eths_num; i++)
 	{
-
-		TRACE_ERROR("no 4\n")
 		assert(mtcp->n_sender[i] != NULL);
 		if (mtcp->n_sender[i]->control_list_cnt)
 		{
@@ -894,7 +905,7 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		printf("eths_num: %d\n", CONFIG.eths_num);
 		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++)
 		{
-			
+
 			static uint16_t len;
 			static uint8_t *pktbuf;
 			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
@@ -940,15 +951,17 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 			if (CONFIG.tcp_timeout > 0 && ts != ts_prev)
 			{
-				TRACE_ERROR("CheckConnectionTimeout Start\n");
+				TRACE_ERROR("\nCheckConnectionTimeout Start\n");
 				CheckConnectionTimeout(mtcp, ts, thresh);
 			}
 		}
-
+		unsigned char *dummy = 0;
+		int dummy_len = 0;
+		mtcp->iom->release_pkt(ctx, rx_inf, dummy,dummy_len);
 		/* if epoll is in use, flush all the queued events */
 		if (mtcp->ep)
 		{
-			TRACE_ERROR("epoll in use \n");
+			TRACE_ERROR("epoll is in use \n");
 			FlushEpollEvents(mtcp, ts);
 		}
 
@@ -987,6 +1000,10 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			InterruptApplication(mtcp);
 		}
 	}
+
+
+	TRACE_ERROR("while loop ended: done %d, flow_cnt %d, exit %d\n",
+				ctx->done, mtcp->flow_cnt, ctx->exit);
 
 #if TESTING
 	DestroyRemainingFlows(mtcp);

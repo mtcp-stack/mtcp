@@ -223,7 +223,9 @@ int CloseEpollSocket(mctx_t mctx, int epid)
 	pthread_mutex_lock(&ep->epoll_lock);
 	mtcp->ep = NULL;
 	mtcp->smap[epid].ep = NULL;
+	printf("[CloseEpollSocket]  MTCP_THREAD: Try to Wake Up application thread\n\n");
 	pthread_cond_signal(&ep->epoll_cond);
+	printf("[CloseEpollSocket]  MTCP_THREAD: Waked Up application thread\n\n");
 	pthread_mutex_unlock(&ep->epoll_lock);
 
 	pthread_cond_destroy(&ep->epoll_cond);
@@ -469,14 +471,14 @@ wait:
 		/* signal to mtcp thread if it is sleeping */
 		if (mtcp->wakeup_flag && mtcp->is_sleeping)
 		{
-			TRACE_ERROR("SERVER_THREAD: Killing mtcp thread\n\n");
+			printf("[mtcp_epoll_wait] : SERVER_THREAD: singaling mtcp thread\n\n");
 			pthread_kill(mtcp->ctx->thread, SIGUSR1);
 		}
 #endif
 		ep->stat.waits++;
 		ep->waiting = TRUE;
 
-			if (timeout > 0)
+		if (timeout > 0)
 		{
 			struct timespec deadline;
 
@@ -500,6 +502,7 @@ wait:
 			// deadline.tv_sec = mtcp->cur_tv.tv_sec;
 			// deadline.tv_nsec = (mtcp->cur_tv.tv_usec + timeout * 1000) * 1000;
 			TRACE_ERROR("waiting for epoll_cond\n\n");
+			// goes to sleep
 			ret = pthread_cond_timedwait(&ep->epoll_cond,
 										 &ep->epoll_lock, &deadline);
 			if (ret && ret != ETIMEDOUT)
@@ -514,8 +517,10 @@ wait:
 		}
 		else if (timeout < 0)
 		{
+			printf("mtcp wake up flag: %d\n",mtcp->wakeup_flag);
 			TRACE_ERROR("[epoll_wait] usr_q=%d shadow_q=%d timeout=%d\n",
 						eq->num_events, eq_shadow->num_events, timeout);
+			// goes to sleep
 			ret = pthread_cond_wait(&ep->epoll_cond, &ep->epoll_lock);
 			if (ret)
 			{
@@ -526,13 +531,13 @@ wait:
 				return -1;
 			}
 		}
-		TRACE_ERROR("SERVER_THREAD: Wake Up!!\n\n");
+		printf("SERVER_THREAD: Wake Up!!\n\n");
 		ep->waiting = FALSE;
 
 		if (mtcp->ctx->done || mtcp->ctx->exit || mtcp->ctx->interrupt)
 		{
 			mtcp->ctx->interrupt = FALSE;
-			//ret = pthread_cond_signal(&ep->epoll_cond);
+			// ret = pthread_cond_signal(&ep->epoll_cond);
 			pthread_mutex_unlock(&ep->epoll_lock);
 			errno = EINTR;
 			return -1;
@@ -699,8 +704,23 @@ AddEpollEvent(struct mtcp_epoll *ep,
 #endif
 
 	if (queue_type == USR_EVENT_QUEUE)
+		// {
+		// 	if (ep->waiting)
+		// 	{
+		// 		pthread_cond_signal(&ep->epoll_cond);
+		// 	}
+		// 	pthread_mutex_unlock(&ep->epoll_lock);
+		// }
+		// else if (queue_type == MTCP_EVENT_QUEUE)
+		// {
+		// 	pthread_mutex_lock(&ep->epoll_lock);
+		// 	if (ep->waiting)
+		// 	{
+		// 		pthread_cond_signal(&ep->epoll_cond);
+		// 	}
+		// 	pthread_mutex_unlock(&ep->epoll_lock);
+		// }
 		pthread_mutex_unlock(&ep->epoll_lock);
-
 	ep->stat.registered++;
 
 	return 0;

@@ -6,15 +6,15 @@
 
 #define SERVER_IP "10.200.1.1" // server IP
 #define SERVER_PORT 8080
-#define BUF_SIZE (64*1024)
+#define BUF_SIZE (64 * 1024)
 
-int main()
+int main(int argc, char *argv[])
 {
     int sock;
     struct sockaddr_in serv_addr;
     char buffer[BUF_SIZE];
     int n;
-
+    char *file_name = "random_100MB"; // default file name
     // create socket
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -46,9 +46,11 @@ int main()
     }
 
     // send HTTP GET
-    //char *req = "GET /random_10MB.txt HTTP/1.0\r\nHost: 10.200.1.1\r\n\r\n";
-    char *req = "GET /random_100MB.txt HTTP/1.0\r\nHost: 10.200.1.1\r\n\r\n";
-
+    // char *req = "GET /random_10MB.txt HTTP/1.0\r\nHost: 10.200.1.1\r\n\r\n";
+    // char *req = "GET /random_100MB.txt HTTP/1.0\r\nHost: 10.200.1.1\r\n\r\n";
+    char req[1024];
+    snprintf(req, sizeof(req), "GET /%s_%s.txt HTTP/1.0\r\nHost: %s\r\n\r\n", file_name, argv[1], SERVER_IP);
+    printf("Request:\n%s", req);
     if (write(sock, req, strlen(req)) < 0)
     {
         perror("write");
@@ -57,7 +59,11 @@ int main()
     }
 
     // open output file
-    FILE *fp = fopen("downloaded.txt", "wb");
+    char down[1024];
+    char *downloading_file_name = "downloaded_100MB";
+    snprintf(down, sizeof(down), "%s_%s.txt", downloading_file_name, argv[1]);
+    fprintf(stderr,"Saving to file: %s\n", down);
+    FILE *fp = fopen(down, "wb");
     if (!fp)
     {
         perror("fopen");

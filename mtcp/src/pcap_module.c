@@ -17,10 +17,10 @@
 #include "mtcp.h"
 #include "config.h"
 
-#define CHUNK_SIZE 64
-#define BUF_SIZE (64 * 1024 * 1024)
+#define CHUNK_SIZE 262144
+#define BUF_SIZE (128 * 1024 * 1024)
 #define SNAPLEN 65535
-#define TIMEOUT_MS 1
+#define TIMEOUT_MS 50
 #define MAX_TX_BURST 1024
 // assume single core (x need to RSS packets to multiple cores)
 // x concept of core affinity
@@ -81,8 +81,10 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
         TRACE_ERROR("pcap_set_timeout failed\n");
     if (pcap_set_buffer_size(temp, BUF_SIZE) != 0)
         TRACE_ERROR("pcap_set_buffer_size failed\n");
-    pcap_setnonblock(temp, 1, errbuf);
-
+    if(!pcap_setnonblock(temp, 1, errbuf)){
+        TRACE_ERROR("pcap_setnonblock failed: %s\n", errbuf);
+    }
+    pcap_set_immediate_mode(temp, 1); // set immediate mode 
     if (pcap_activate(temp) < 0)
     {
         TRACE_ERROR("pcap_activate failed: %s\n", pcap_geterr(temp));
@@ -98,19 +100,19 @@ void pcap_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char
     // free received packets here all after processing packets
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
-    for (int k = 0; k < ppc->num_pkts_in_chunk; k++)
-    {
-        if (ppc->hdrs[k])
-        {
-            free(ppc->hdrs[k]);
-            ppc->hdrs[k] = NULL;
-        }
-        if (ppc->pkts[k])
-        {
-            free((void *)ppc->pkts[k]);
-            ppc->pkts[k] = NULL;
-        }
-    }
+    // for (int k = 0; k < ppc->num_pkts_in_chunk; k++)
+    // {
+    //     if (ppc->hdrs[k])
+    //     {
+    //         free(ppc->hdrs[k]);
+    //         ppc->hdrs[k] = NULL;
+    //     }
+    //     if (ppc->pkts[k])
+    //     {
+    //         free((void *)ppc->pkts[k]);
+    //         ppc->pkts[k] = NULL;
+    //     }
+    // }
     ppc->num_pkts_in_chunk = 0;
 
     /**************************************************************** */
@@ -136,7 +138,7 @@ pcap_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
         }
         else
         {
-        TRACE_ERROR("pcap_inject failed: %s\n", pcap_geterr(ppc->handle));
+            TRACE_ERROR("pcap_inject failed: %s\n", pcap_geterr(ppc->handle));
         }
         free(buf);
     }
@@ -165,7 +167,7 @@ pcap_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t len) // used
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
 
-    if (ppc->w_buf.cnt >0)
+    if (ppc->w_buf.cnt > 0)
     {
         pcap_send_pkts(ctxt, ifidx);
     }
@@ -189,19 +191,22 @@ pcap_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
     uint8_t *pktbuf;
     ppc = (struct pcap_private_context *)ctxt->io_private_context;
     pktbuf = (uint8_t *)ppc->pkts[index];
-    if(!ppc->hdrs[index])
+    if (ppc->hdrs[index])
         *len = ppc->hdrs[index]->caplen;
+    else 
+        *len = 0;   
     return pktbuf;
 }
 /*----------------------------------------------------------------------------*/
 static void
 pcap_packet_handler(u_char *user,
-                                const struct pcap_pkthdr *h,
-                                const u_char *bytes)
+                    const struct pcap_pkthdr *h,
+                    const u_char *bytes)
 {
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)user;
     /************************************************************ */
+    // For Debuggging purpose
     struct iphdr *iph = (struct iphdr *)(bytes + sizeof(struct ether_header));
     struct tcphdr *tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl << 2));
     if (tcph->ack)
@@ -213,12 +218,12 @@ pcap_packet_handler(u_char *user,
     if (ppc->num_pkts_in_chunk < CHUNK_SIZE)
     { // safety guard
         // deep copy pkthdr and buf
-        struct pcap_pkthdr *hdr = (struct pcap_pkthdr *)malloc(sizeof(struct pcap_pkthdr));
-        memcpy(hdr, h, sizeof(struct pcap_pkthdr));
-        ppc->hdrs[ppc->num_pkts_in_chunk] = hdr;
-        u_char *bts = malloc(hdr->caplen);
-        memcpy(bts, bytes, hdr->caplen);
-        ppc->pkts[ppc->num_pkts_in_chunk] = bts;
+        // struct pcap_pkthdr *hdr = (struct pcap_pkthdr *)malloc(sizeof(struct pcap_pkthdr));
+        // memcpy(hdr, h, sizeof(struct pcap_pkthdr));
+        ppc->hdrs[ppc->num_pkts_in_chunk] = (struct pcap_pkthdr *)h;
+        // u_char *bts = malloc(hdr->caplen);
+        // memcpy(bts, bytes, hdr->caplen);
+        ppc->pkts[ppc->num_pkts_in_chunk] = bytes;
         ppc->num_pkts_in_chunk++;
     }
 }
@@ -229,16 +234,7 @@ pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
     TRACE_ERROR("ENTER PCAP_RECV_PKTS\n");
     struct pcap_private_context *ppc = ctxt->io_private_context;
     printf("pcap_rev_pkts: num_pkts_in_chunk=%d\n", ppc->num_pkts_in_chunk);
-
-    // for (int i = 0; i < ppc->num_pkts_in_chunk; i++)
-    // {
-    //     if(!ppc->hdrs[i])
-    //         printf("hdrs[%d] is NULL\n",i);
-    //     if(!ppc->pkts[i])
-    //         printf("pkts[%d] is NULL\n",i);
-    //     printf("  pkt %d: len=%u caplen=%u\n", i,ppc->hdrs[i]->caplen);
-    // }
-    ppc->num_pkts_in_chunk = 0;
+    // ppc->num_pkts_in_chunk = 0;
     int ret = pcap_dispatch(ppc->handle, CHUNK_SIZE, pcap_packet_handler, (u_char *)ppc);
     TRACE_ERROR("pcap dispatch returned %d\n\n", ret);
     // receive up to max CHUNK_SIZE packets

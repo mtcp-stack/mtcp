@@ -1759,6 +1759,7 @@ mtcp_write(mctx_t mctx, int sockid, const char *buf, size_t len)
 	{
 		if ((socket->epoll & MTCP_EPOLLOUT) && !(socket->epoll & MTCP_EPOLLET))
 		{
+			printf("[MTCP_WRITE] Add EPOLLOUT event in SHADOW QUEUE\n");
 			AddEpollEvent(mtcp->ep,
 						  USR_SHADOW_EVENT_QUEUE, socket, MTCP_EPOLLOUT);
 #if BLOCKING_SUPPORT

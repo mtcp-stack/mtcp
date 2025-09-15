@@ -902,7 +902,6 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		gettimeofday(&cur_ts, NULL);
 		ts = TIMEVAL_TO_TS(&cur_ts);
 		mtcp->cur_ts = ts;
-		printf("eths_num: %d\n", CONFIG.eths_num);
 		for (rx_inf = 0; rx_inf < CONFIG.eths_num; rx_inf++)
 		{
 

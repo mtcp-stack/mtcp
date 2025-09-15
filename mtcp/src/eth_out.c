@@ -56,6 +56,7 @@ EthernetOutput(struct mtcp_manager *mtcp, uint16_t h_proto,
 	}
 	
 	buf = mtcp->iom->get_wptr(mtcp->ctx, eidx, iplen + ETHERNET_HEADER_LEN);
+	// allocat memory for TX path packet
 	if (!buf) {
 		//TRACE_DBG("Failed to get available write buffer\n");
 		return NULL;

@@ -10,6 +10,7 @@ typedef struct mtcp_manager* mtcp_manager_t;
 /*----------------------------------------------------------------------------*/
 struct tcp_send_buffer
 {
+
 	unsigned char *data;
 	unsigned char *head;
 

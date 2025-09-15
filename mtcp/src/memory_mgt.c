@@ -30,7 +30,7 @@ typedef struct mem_pool
 /*----------------------------------------------------------------------------*/
 mem_pool * 
 MPCreate(int chunk_size, size_t total_size)
-{
+{	
 	mem_pool_t mp;
 
 	if (chunk_size < sizeof(mem_chunk)) {

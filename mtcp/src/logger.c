@@ -11,7 +11,7 @@
 #include "cpu.h"
 #include "debug.h"
 #include "logger.h"
-
+int log_thread_state = IDLE_LOGT;
 /*----------------------------------------------------------------------------*/
 static void
 EnqueueFreeBuffer(log_thread_context *ctx, log_buff *free_bp) 

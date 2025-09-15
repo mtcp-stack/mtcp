@@ -238,6 +238,8 @@ SendTCPPacket(struct mtcp_manager *mtcp, tcp_stream *cur_stream,
 
 	tcph = (struct tcphdr *)IPOutput(mtcp, cur_stream, 
 			TCP_HEADER_LEN + optlen + payloadlen);
+
+
 	if (tcph == NULL) {
 		return -2;
 	}
@@ -611,29 +613,35 @@ FlushTCPSendingBuffer(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_
 static inline int 
 SendControlPacket(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 {
+	printf("DEBUG: SendControlPacket\n");
 	struct tcp_send_vars *sndvar = cur_stream->sndvar;
 	int ret = 0;
 
 	if (cur_stream->state == TCP_ST_SYN_SENT) {
 		/* Send SYN here */
+		printf("DEBUG: SYN SENT\n");
 		ret = SendTCPPacket(mtcp, cur_stream, cur_ts, TCP_FLAG_SYN, NULL, 0);
 
 	} else if (cur_stream->state == TCP_ST_SYN_RCVD) {
 		/* Send SYN/ACK here */
+		printf("DEBUG: SYN RCVD\n");
 		cur_stream->snd_nxt = sndvar->iss;
 		ret = SendTCPPacket(mtcp, cur_stream, cur_ts, 
 				TCP_FLAG_SYN | TCP_FLAG_ACK, NULL, 0);
 
 	} else if (cur_stream->state == TCP_ST_ESTABLISHED) {
 		/* Send ACK here */
+		printf("DEBUG: ST_ESTABLISHED\n");
 		ret = SendTCPPacket(mtcp, cur_stream, cur_ts, TCP_FLAG_ACK, NULL, 0);
 
 	} else if (cur_stream->state == TCP_ST_CLOSE_WAIT) {
 		/* Send ACK for the FIN here */
+		printf("DEBUG: ST_CLOSE_WAIT SENT\n");
 		ret = SendTCPPacket(mtcp, cur_stream, cur_ts, TCP_FLAG_ACK, NULL, 0);
 
 	} else if (cur_stream->state == TCP_ST_LAST_ACK) {
 		/* if it is on ack_list, send it after sending ack */
+		printf("DEBUG: LAST ACK SENT\n");
 		if (sndvar->on_send_list || sndvar->on_ack_list) {
 			ret = -1;
 		} else {
@@ -642,6 +650,7 @@ SendControlPacket(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 					TCP_FLAG_FIN | TCP_FLAG_ACK, NULL, 0);
 		}
 	} else if (cur_stream->state == TCP_ST_FIN_WAIT_1) {
+		printf("DEBUG: FIN_WAIT_1\n");
 		/* if it is on ack_list, send it after sending ack */
 		if (sndvar->on_send_list || sndvar->on_ack_list) {
 			ret = -1;
@@ -653,9 +662,11 @@ SendControlPacket(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 
 	} else if (cur_stream->state == TCP_ST_FIN_WAIT_2) {
 		/* Send ACK here */
+		printf("DEBUG: FIN_WAIT_2\n");
 		ret = SendTCPPacket(mtcp, cur_stream, cur_ts, TCP_FLAG_ACK, NULL, 0);
 
 	} else if (cur_stream->state == TCP_ST_CLOSING) {
+		printf("DEBUG: ST_CLOSING\n");
 		if (sndvar->is_fin_sent) {
 			/* if the sequence is for FIN, send FIN */
 			if (cur_stream->snd_nxt == sndvar->fss) {
@@ -673,10 +684,12 @@ SendControlPacket(mtcp_manager_t mtcp, tcp_stream *cur_stream, uint32_t cur_ts)
 
 	} else if (cur_stream->state == TCP_ST_TIME_WAIT) {
 		/* Send ACK here */
+		printf("DEBUG: ST_TIMEWAIT\n");
 		ret = SendTCPPacket(mtcp, cur_stream, cur_ts, TCP_FLAG_ACK, NULL, 0);
 
 	} else if (cur_stream->state == TCP_ST_CLOSED) {
 		/* Send RST here */
+		printf("DEBUG: ST_CLOSED\n");
 		TRACE_DBG("Stream %d: Try sending RST (TCP_ST_CLOSED)\n", 
 				cur_stream->id);
 		/* first flush the data and ack */
@@ -1082,7 +1095,7 @@ EnqueueACK(mtcp_manager_t mtcp,
 			cur_stream->state == TCP_ST_CLOSE_WAIT || 
 			cur_stream->state == TCP_ST_FIN_WAIT_1 || 
 			cur_stream->state == TCP_ST_FIN_WAIT_2)) {
-		TRACE_DBG("Stream %u: Enqueueing ack at state %s\n", 
+		TRACE_ERROR("Stream %u: Enqueueing ack at state %s\n", 
 				cur_stream->id, TCPStateToString(cur_stream));
 	}
 

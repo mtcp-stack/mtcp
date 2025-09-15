@@ -85,6 +85,7 @@ struct tcp_recv_vars
 
 struct tcp_send_vars
 {
+		int need_wakeup;
 	/* IP-level information */
 	uint16_t ip_id;
 
@@ -122,7 +123,6 @@ struct tcp_send_vars
 
 	uint8_t is_wack:1, 			/* is ack for window adertisement? */
 			ack_cnt:6;			/* number of acks to send. max 64 */
-
 	uint8_t on_control_list;
 	uint8_t on_send_list;
 	uint8_t on_ack_list;

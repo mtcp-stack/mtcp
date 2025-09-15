@@ -1,6 +1,5 @@
 #ifndef MTCP_H
 #define MTCP_H
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -42,7 +41,7 @@
 #define ETHERNET_HEADER_LEN             14  // sizeof(struct ethhdr)
 #define IP_HEADER_LEN                   20  // sizeof(struct iphdr)
 #define TCP_HEADER_LEN                  20  // sizeof(struct tcphdr)
-#define TOTAL_TCP_HEADER_LEN            54  // total header length
+#define TOTAL_TCP_HEADER_LEN            54  // total header length 14+20+20
 
 /* configurations */
 #define BACKLOG_SIZE                    (10*1024)

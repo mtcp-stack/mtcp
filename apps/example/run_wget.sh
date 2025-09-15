@@ -1,0 +1,1 @@
+sudo ip netns exec ns_client ./epwget 10.200.1.1/random_100MB_1.txt 1 -N 1 -c 1 -o output.txt -f epwget.conf

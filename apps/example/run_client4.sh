@@ -1,0 +1,1 @@
+sudo ip netns exec ns_client ./sample_client 4

@@ -226,12 +226,12 @@ int SetNetEnv(char *dev_name_list, char *port_stat_list)
 				}
 
 				/* getting address */
-				if (ioctl(sock, SIOCGIFADDR, &ifr) == 0)
-				{
-					struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
-					CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
-				}
-
+				// if (ioctl(sock, SIOCGIFADDR, &ifr) == 0)
+				// {
+				// 	struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+				// 	CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
+				// }
+				CONFIG.eths[eidx].ip_addr = inet_addr("10.2.0.3");
 				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0)
 				{
 					for (j = 0; j < ETH_ALEN; j++)

@@ -515,7 +515,7 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 	/* if there are pending events, wake up user */
 	// if (ep->waiting && (ep->usr_queue->num_events > 0 ||
 	// 					ep->usr_shadow_queue->num_events > 0))
-	if (usrq->num_events > 0 || ep->usr_shadow_queue->num_events > 0) 
+	if (usrq->num_events > 0 || ep->usr_shadow_queue->num_events > 0)
 	{
 		STAT_COUNT(mtcp->runstat.rounds_epoll);
 		TRACE_EPOLL("Broadcasting events. num: %d, cur_ts: %u, prev_ts: %u\n",

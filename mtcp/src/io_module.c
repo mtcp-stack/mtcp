@@ -185,7 +185,7 @@ int SetNetEnv(char *dev_name_list, char *port_stat_list)
 		TRACE_ERROR("Can't allocate space for CONFIG.eths\n");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	if (current_iomodule_func == &pcap_module_func)
 	{
 		if (!CONFIG.eths)
@@ -231,7 +231,11 @@ int SetNetEnv(char *dev_name_list, char *port_stat_list)
 				// 	struct in_addr sin = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
 				// 	CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
 				// }
+
 				CONFIG.eths[eidx].ip_addr = inet_addr("10.2.0.3");
+				// for server case 
+				// CONFIG.eths[eidx].ip_addr = inet_addr("10.2.0.1");
+
 				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0)
 				{
 					for (j = 0; j < ETH_ALEN; j++)

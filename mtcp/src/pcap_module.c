@@ -66,8 +66,9 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
         exit(EXIT_FAILURE);
     }
     ppc = (struct pcap_private_context *)ctxt->io_private_context;
-
+    printf("pcap init handle enetered\n\n");
     pcap_t *temp = pcap_create(CONFIG.eths[0].dev_name, errbuf);
+    printf("handle created \n\n");
     if (!temp)
     {
         TRACE_ERROR("pcap_create failed: %s\n", errbuf);
@@ -75,22 +76,28 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
     }
     if (pcap_set_snaplen(temp, SNAPLEN) != 0)
         TRACE_ERROR("pcap_set_snaplen failed\n");
+    printf("set snaplen\n\n");
     if (pcap_set_promisc(temp, 1) != 0)
         TRACE_ERROR("pcap_set_promisc failed\n");
+    printf("set promisc \n\n");
     if (pcap_set_timeout(temp, TIMEOUT_MS) != 0)
         TRACE_ERROR("pcap_set_timeout failed\n");
+    printf("set timeout \n\n");
     if (pcap_set_buffer_size(temp, BUF_SIZE) != 0)
         TRACE_ERROR("pcap_set_buffer_size failed\n");
-    if(!pcap_setnonblock(temp, 1, errbuf)){
+    printf("set buffer size \n\n");
+    if (pcap_setnonblock(temp, 1, errbuf) < 0)
         TRACE_ERROR("pcap_setnonblock failed: %s\n", errbuf);
-    }
+
     //pcap_set_immediate_mode(temp, 1); // set immediate mode 
+
+
     if (pcap_activate(temp) < 0)
     {
         TRACE_ERROR("pcap_activate failed: %s\n", pcap_geterr(temp));
         exit(EXIT_FAILURE);
     }
-
+    printf("pcap is activated!! \n\n ");
     ppc->handle = temp;
 }
 /*----------------------------------------------------------------------------*/
@@ -100,19 +107,7 @@ void pcap_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char
     // free received packets here all after processing packets
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
-    // for (int k = 0; k < ppc->num_pkts_in_chunk; k++)
-    // {
-    //     if (ppc->hdrs[k])
-    //     {
-    //         free(ppc->hdrs[k]);
-    //         ppc->hdrs[k] = NULL;
-    //     }
-    //     if (ppc->pkts[k])
-    //     {
-    //         free((void *)ppc->pkts[k]);
-    //         ppc->pkts[k] = NULL;
-    //     }
-    // }
+
     ppc->num_pkts_in_chunk = 0;
 
     /**************************************************************** */
@@ -125,6 +120,7 @@ pcap_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
     TRACE_ERROR("ENTER PCAP_SEND_PKTS\n");
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
+
     int sent = 0;
 
     for (int i = 0; i < ppc->w_buf.cnt; i++)
@@ -143,18 +139,6 @@ pcap_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
         free(buf);
     }
     TRACE_ERROR("[pcap_send_pkts] flushing %d packets\n", ppc->w_buf.cnt);
-
-    // Check pcap statistics after flushing
-    struct pcap_stat ps;
-    if (pcap_stats(ppc->handle, &ps) == 0)
-    {
-        TRACE_ERROR("[pcap_stats] recv=%u drop=%u ifdrop=%u\n",
-                    ps.ps_recv, ps.ps_drop, ps.ps_ifdrop);
-    }
-    else
-    {
-        TRACE_ERROR("[pcap_stats] failed: %s\n", pcap_geterr(ppc->handle));
-    }
 
     ppc->w_buf.cnt = 0; // reset buffer
     return sent;
@@ -193,8 +177,8 @@ pcap_get_rptr(struct mtcp_thread_context *ctxt, int ifidx, int index, uint16_t *
     pktbuf = (uint8_t *)ppc->pkts[index];
     if (ppc->hdrs[index])
         *len = ppc->hdrs[index]->caplen;
-    else 
-        *len = 0;   
+    else
+        *len = 0;
     return pktbuf;
 }
 /*----------------------------------------------------------------------------*/

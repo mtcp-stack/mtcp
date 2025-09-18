@@ -847,10 +847,11 @@ int mtcp_connect(mctx_t mctx, int sockid,
 		socket->saddr.sin_addr.s_addr != INADDR_ANY)
 	{
 		int rss_core;
-		uint8_t endian_check = FetchEndianType();
+//		uint8_t endian_check = FetchEndianType();
 
-		rss_core = GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip,
-								 socket->saddr.sin_port, dport, num_queues, endian_check);
+		rss_core = mctx->cpu; /*GetRSSCPUCore(socket->saddr.sin_addr.s_addr, dip,
+								 socket->saddr.sin_port, dport, num_queues, endian_check);*/
+
 
 		if (rss_core != mctx->cpu)
 		{

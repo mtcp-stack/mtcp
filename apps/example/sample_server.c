@@ -100,7 +100,7 @@ int main() {
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(SERVER_PORT);
-    addr.sin_addr.s_addr = inet_addr("10.200.1.1");
+    addr.sin_addr.s_addr = inet_addr("10.2.0.1");
 
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");

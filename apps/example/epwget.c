@@ -186,15 +186,15 @@ CreateConnection(thread_context_t ctx)
 		return -1;
 	}
 
-	struct sockaddr_in src_addr;
-	src_addr.sin_family = AF_INET;
-	src_addr.sin_addr.s_addr = saddr; 
-	src_addr.sin_port = 11111;
+	// struct sockaddr_in src_addr;
+	// src_addr.sin_family = AF_INET;
+	// src_addr.sin_addr.s_addr = saddr; 
+	// src_addr.sin_port = 11111;
 	
-	if (mtcp_bind(mctx, sockid, (struct sockaddr *)&src_addr, sizeof(src_addr)) < 0)
-	{
-		perror("mtcp_bind");
-	}
+	// if (mtcp_bind(mctx, sockid, (struct sockaddr *)&src_addr, sizeof(src_addr)) < 0)
+	// {
+	// 	perror("mtcp_bind");
+	// }
 
 	memset(&ctx->wvars[sockid], 0, sizeof(struct wget_vars));
 	ret = mtcp_setsock_nonblock(mctx, sockid);
@@ -767,7 +767,7 @@ int main(int argc, char **argv)
 	process_cpu = -1;
 	daddr = inet_addr(host);
 	dport = htons(8080);
-	saddr = inet_addr("10.2.0.3");
+	saddr = inet_addr("10.153.1.2");
 
 	total_flows = mystrtol(argv[2], 10);
 	if (total_flows <= 0)

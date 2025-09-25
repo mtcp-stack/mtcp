@@ -4,10 +4,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define SERVER_IP "10.2.0.1" // server IP
+#define SERVER_IP "10.153.1.1" // server IP
 #define SERVER_PORT 8080
-#define BUF_SIZE (64 * 1024)
-
+#define BUF_SIZE (128 * 1024) // 128 MB
 int main(int argc, char *argv[])
 {
     int sock;

@@ -232,10 +232,10 @@ int SetNetEnv(char *dev_name_list, char *port_stat_list)
 				// 	CONFIG.eths[eidx].ip_addr = *(uint32_t *)&sin;
 				// }
 
+<<<<<<< HEAD
 				CONFIG.eths[eidx].ip_addr = inet_addr("10.153.1.2");
 				// for server case 
 				// CONFIG.eths[eidx].ip_addr = inet_addr("10.2.0.1");
-
 				if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0)
 				{
 					for (j = 0; j < ETH_ALEN; j++)

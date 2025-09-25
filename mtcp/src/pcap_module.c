@@ -89,9 +89,7 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
     if (pcap_setnonblock(temp, 1, errbuf) < 0)
         TRACE_ERROR("pcap_setnonblock failed: %s\n", errbuf);
 
-    //pcap_set_immediate_mode(temp, 1); // set immediate mode 
-
-
+    // pcap_set_immediate_mode(temp, 1); // set immediate mode
     if (pcap_activate(temp) < 0)
     {
         TRACE_ERROR("pcap_activate failed: %s\n", pcap_geterr(temp));

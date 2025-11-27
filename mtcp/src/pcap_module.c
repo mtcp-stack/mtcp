@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
+#include <linux/if_packet.h>
 #include <errno.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -21,7 +22,8 @@
 #define BUF_SIZE (128 * 1024 * 1024)
 #define SNAPLEN 65535
 #define TIMEOUT_MS 50
-#define MAX_TX_BURST 1024
+#define MAX_TX_BURST 128
+
 // assume single core (x need to RSS packets to multiple cores)
 // x concept of core affinity
 // x concept of specific NIC queue
@@ -51,10 +53,62 @@ struct pcap_private_context
     // metadata includes time it was captured and total length of this packet
     const u_char *pkts[CHUNK_SIZE];
     int num_pkts_in_chunk;
+
+    int tx_sock;
+    struct sockaddr_ll tx_addr;
+
 } __attribute__((aligned(__WORDSIZE)));
 
 /*----------------------------------------------------------------------------*/
-void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
+// improving tx functionality of pcap
+
+// init_tx_sock
+// creates an AF_PACKET raw socket
+// lookup the interface index for a given interface name
+// fill a sockaddr_ll with the interface index and protocol
+// bind the socket to that NIC interface + Protocol
+/*----------------------------------------------------------------------------*/
+static int init_tx_sock(struct mtcp_thread_context *ctxt)
+{ // for stream 11 -> may be ens2f1np1
+    struct pcap_private_context *ppc =
+        (struct pcap_private_context *)ctxt->io_private_context;
+    int s;
+    if ((s = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) // send/receive raw socket including L2 header
+    {
+        perror("tx_sock initialziation failed");
+        return -1;
+    }
+    struct sockaddr_ll sll;
+    memset(&sll, 0, sizeof(sll));
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strcpy(ifr.ifr_name, CONFIG.eths[0].dev_name);
+    if (ioctl(s, SIOCGIFINDEX, &ifr) < 0)
+    {
+        perror("tx socekt ioctl failed");
+        close(s);
+        return -1;
+    }
+
+    sll.sll_family = AF_PACKET;
+    sll.sll_ifindex = ifr.ifr_ifindex;
+    sll.sll_protocol = htons(ETH_P_IP);
+
+    if (bind(s, (struct sockaddr *)&sll, sizeof(sll)) < 0)
+    {
+        perror("tx_sock bind error");
+        close(s);
+        return -1;
+    } // attaches socket to specific interface and specifc EtherType
+
+    ppc->tx_addr = sll;
+    ppc->tx_sock = s;
+
+    return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+void pcap_init_handle(struct mtcp_thread_context *ctxt)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
     struct pcap_private_context *ppc;
@@ -66,80 +120,143 @@ void pcap_init_handle(struct mtcp_thread_context *ctxt) //,int designated_port)
         exit(EXIT_FAILURE);
     }
     ppc = (struct pcap_private_context *)ctxt->io_private_context;
-    printf("pcap init handle enetered\n\n");
+    printf("Using pcap interface: [%s]\n", CONFIG.eths[0].dev_name);
+
     pcap_t *temp = pcap_create(CONFIG.eths[0].dev_name, errbuf);
-    printf("handle created \n\n");
     if (!temp)
     {
         TRACE_ERROR("pcap_create failed: %s\n", errbuf);
         exit(EXIT_FAILURE);
     }
+    // make tx_sock
+    if (init_tx_sock(ctxt) < 0)
+    {
+        perror("error initialzing tx_sock ");
+        exit(EXIT_FAILURE);
+    }
+
     if (pcap_set_snaplen(temp, SNAPLEN) != 0)
         TRACE_ERROR("pcap_set_snaplen failed\n");
-    printf("set snaplen\n\n");
     if (pcap_set_promisc(temp, 1) != 0)
         TRACE_ERROR("pcap_set_promisc failed\n");
-    printf("set promisc \n\n");
     if (pcap_set_timeout(temp, TIMEOUT_MS) != 0)
         TRACE_ERROR("pcap_set_timeout failed\n");
-    printf("set timeout \n\n");
     if (pcap_set_buffer_size(temp, BUF_SIZE) != 0)
         TRACE_ERROR("pcap_set_buffer_size failed\n");
-    printf("set buffer size \n\n");
     if (pcap_setnonblock(temp, 1, errbuf) < 0)
         TRACE_ERROR("pcap_setnonblock failed: %s\n", errbuf);
 
     // pcap_set_immediate_mode(temp, 1); // set immediate mode
+
     if (pcap_activate(temp) < 0)
     {
         TRACE_ERROR("pcap_activate failed: %s\n", pcap_geterr(temp));
         exit(EXIT_FAILURE);
     }
-    printf("pcap is activated!! \n\n ");
     ppc->handle = temp;
+    struct bpf_program fp;
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strcpy(ifr.ifr_name, CONFIG.eths[0].dev_name);
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    ioctl(fd, SIOCGIFHWADDR, &ifr);
+    close(fd);
+
+    unsigned char *m = (unsigned char *)ifr.ifr_hwaddr.sa_data;
+
+    char filter[128];
+    sprintf(filter,
+            "not ether src %02x:%02x:%02x:%02x:%02x:%02x",
+            m[0], m[1], m[2], m[3], m[4], m[5]);
+    pcap_compile(ppc->handle, &fp, filter, 0, PCAP_NETMASK_UNKNOWN);
+    pcap_setfilter(ppc->handle, &fp);
 }
 /*----------------------------------------------------------------------------*/
 void pcap_release_pkt(struct mtcp_thread_context *ctxt, int ifidx, unsigned char *pkt_data, int len)
 {
-    /**************************************************************** */
-    // free received packets here all after processing packets
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
 
     ppc->num_pkts_in_chunk = 0;
-
-    /**************************************************************** */
     return;
 }
 /*----------------------------------------------------------------------------*/
+static int raw_send_batch(struct mtcp_thread_context *ctxt)
+{
+    struct pcap_private_context *ppc = (struct pcap_private_context *)ctxt->io_private_context;
+    int cnt = ppc->w_buf.cnt;
+    if (cnt == 0)
+        return 0;
+
+    struct mmsghdr msgs[cnt];
+    struct iovec iov[cnt];
+
+    memset(msgs, 0, sizeof(msgs));
+    memset(iov, 0, sizeof(iov));
+
+    for (int i = 0; i < cnt; i++)
+    {
+        iov[i].iov_base = ppc->w_buf.pkts[i].buf;
+        iov[i].iov_len = ppc->w_buf.pkts[i].len;
+
+        msgs[i].msg_hdr.msg_iov = &iov[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+        msgs[i].msg_hdr.msg_name = &ppc->tx_addr;
+        msgs[i].msg_hdr.msg_namelen = sizeof(ppc->tx_addr);
+    }
+
+    int sent = sendmmsg(ppc->tx_sock, msgs, cnt, 0);
+    if (sent < 0)
+    {
+        perror("sendmmsg error");
+        sent = 0;
+    }
+    /* free only successfully sent buffers */
+    for (int i = 0; i < sent; i++)
+    {
+        free(ppc->w_buf.pkts[i].buf);
+    }
+
+    for (int i = sent; i < cnt; i++)
+    {
+        free(ppc->w_buf.pkts[i].buf);
+    }
+
+    ppc->w_buf.cnt = 0;
+    return sent;
+}
+
+/*----------------------------------------------------------------------------*/
+
 int32_t
 pcap_send_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
-    TRACE_ERROR("ENTER PCAP_SEND_PKTS\n");
-    struct pcap_private_context *ppc =
-        (struct pcap_private_context *)ctxt->io_private_context;
+    // TRACE_ERROR("ENTER PCAP_SEND_PKTS\n");
 
-    int sent = 0;
+    return raw_send_batch(ctxt);
+    /*
+        int sent = 0;
 
-    for (int i = 0; i < ppc->w_buf.cnt; i++)
-    {
-        uint8_t *buf = ppc->w_buf.pkts[i].buf;
-        int len = ppc->w_buf.pkts[i].len;
-
-        if (pcap_inject(ppc->handle, buf, len) == len)
+        for (int i = 0; i < ppc->w_buf.cnt; i++)
         {
-            sent++;
+            uint8_t *buf = ppc->w_buf.pkts[i].buf;
+            int len = ppc->w_buf.pkts[i].len;
+            if (pcap_inject(ppc->handle, buf, len) == len)
+            {
+                sent++;
+            }
+            else
+            {
+                TRACE_ERROR("pcap_inject failed: %s\n", pcap_geterr(ppc->handle));
+            }
+            free(buf);
         }
-        else
-        {
-            TRACE_ERROR("pcap_inject failed: %s\n", pcap_geterr(ppc->handle));
-        }
-        free(buf);
-    }
-    TRACE_ERROR("[pcap_send_pkts] flushing %d packets\n", ppc->w_buf.cnt);
+        // TRACE_ERROR("[pcap_send_pkts] flushing %d packets\n", ppc->w_buf.cnt);
 
-    ppc->w_buf.cnt = 0; // reset buffer
-    return sent;
+        ppc->w_buf.cnt = 0; // reset buffer
+        return sent;
+    */
 }
 /*----------------------------------------------------------------------------*/
 
@@ -149,13 +266,13 @@ pcap_get_wptr(struct mtcp_thread_context *ctxt, int ifidx, uint16_t len) // used
     struct pcap_private_context *ppc =
         (struct pcap_private_context *)ctxt->io_private_context;
 
-    if (ppc->w_buf.cnt > 0)
+    if (ppc->w_buf.cnt == MAX_TX_BURST) // if count reached maximum capacity flush it first, then allocate new buffer 
     {
-        pcap_send_pkts(ctxt, ifidx);
+        raw_send_batch(ctxt);
     }
 
     // allocate buffer (heap )
-    uint8_t *buf = malloc(len); //!! neeed free logic in the code!!
+    uint8_t *buf = malloc(len);
     if (!buf)
         return NULL;
 
@@ -189,22 +306,20 @@ pcap_packet_handler(u_char *user,
         (struct pcap_private_context *)user;
     /************************************************************ */
     // For Debuggging purpose
-    struct iphdr *iph = (struct iphdr *)(bytes + sizeof(struct ether_header));
-    struct tcphdr *tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl << 2));
-    if (tcph->ack)
-    {
-        printf("Captured ACK: ack_seq=%u win=%u\n",
-               ntohl(tcph->ack_seq), ntohs(tcph->window));
-    }
+    // struct iphdr *iph = (struct iphdr *)(bytes + sizeof(struct ether_header));
+    // struct tcphdr *tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ihl << 2));
+
     /************************************************************ */
+    // if (tcph->ack)
+    // {
+    //     printf("Captured ACK: ack_seq=%u win=%u\n",
+    //            ntohl(tcph->ack_seq), ntohs(tcph->window));
+    // }
+    /************************************************************ */
+
     if (ppc->num_pkts_in_chunk < CHUNK_SIZE)
-    { // safety guard
-        // deep copy pkthdr and buf
-        // struct pcap_pkthdr *hdr = (struct pcap_pkthdr *)malloc(sizeof(struct pcap_pkthdr));
-        // memcpy(hdr, h, sizeof(struct pcap_pkthdr));
+    {
         ppc->hdrs[ppc->num_pkts_in_chunk] = (struct pcap_pkthdr *)h;
-        // u_char *bts = malloc(hdr->caplen);
-        // memcpy(bts, bytes, hdr->caplen);
         ppc->pkts[ppc->num_pkts_in_chunk] = bytes;
         ppc->num_pkts_in_chunk++;
     }
@@ -213,12 +328,12 @@ pcap_packet_handler(u_char *user,
 int32_t
 pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
 {
-    TRACE_ERROR("ENTER PCAP_RECV_PKTS\n");
+    // TRACE_ERROR("ENTER PCAP_RECV_PKTS\n");
     struct pcap_private_context *ppc = ctxt->io_private_context;
-    printf("pcap_rev_pkts: num_pkts_in_chunk=%d\n", ppc->num_pkts_in_chunk);
+    // printf("pcap_rev_pkts: num_pkts_in_chunk=%d\n", ppc->num_pkts_in_chunk);
     // ppc->num_pkts_in_chunk = 0;
     int ret = pcap_dispatch(ppc->handle, CHUNK_SIZE, pcap_packet_handler, (u_char *)ppc);
-    TRACE_ERROR("pcap dispatch returned %d\n\n", ret);
+    // TRACE_ERROR("pcap dispatch returned %d\n\n", ret);
     // receive up to max CHUNK_SIZE packets
     // packets in socket's receive buffers are copied to user application buffer
     if (ret < 0) // error
@@ -226,11 +341,11 @@ pcap_recv_pkts(struct mtcp_thread_context *ctxt, int ifidx)
         TRACE_ERROR("pcap_dispatch failed: %s\n", pcap_geterr(ppc->handle));
         return -1;
     }
-    if (ret == 0)
-    {
-        printf("timeout expired on live caputure\n");
-    }
-    TRACE_ERROR("QUITTING PCAP_RECV_PKTS\n");
+    // if (ret == 0)
+    // {
+    //     fprintf(stderr, "timeout expired on live caputure\n");
+    // }
+    //  TRACE_ERROR("QUITTING PCAP_RECV_PKTS\n");
     return ppc->num_pkts_in_chunk;
 }
 /*----------------------------------------------------------------------------*/

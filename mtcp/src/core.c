@@ -481,7 +481,7 @@ FlushReadEvents(mtcp_manager_t mtcp, int thresh)
 static inline void
 FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
-	TRACE_ERROR("FlushEpollEvents: Inside\n");
+	//TRACE_ERROR("FlushEpollEvents: Inside\n");
 	struct mtcp_epoll *ep = mtcp->ep;
 	struct event_queue *usrq = ep->usr_queue;
 	struct event_queue *mtcpq = ep->mtcp_queue;
@@ -489,12 +489,12 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 	pthread_mutex_lock(&ep->epoll_lock);
 	/*************************************************** */
 	// debugging purpose
-	struct mtcp_epoll_event_int *ev_i = mtcpq->events;
-	int start = mtcpq->start;
-	for (int i = start; i < start + mtcpq->num_events; i++)
-	{
-		TRACE_ERROR("mtcp_queue event %d: sockid %d, events %u\n", i, ev_i[i].sockid, ev_i[i].ev.events);
-	}
+	// struct mtcp_epoll_event_int *ev_i = mtcpq->events;
+	// int start = mtcpq->start;
+	// for (int i = start; i < start + mtcpq->num_events; i++)
+	// {
+	// 	TRACE_ERROR("mtcp_queue event %d: sockid %d, events %u\n", i, ev_i[i].sockid, ev_i[i].ev.events);
+	// }
 
 	/*************************************************** */
 
@@ -522,9 +522,9 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 					ep->usr_queue->num_events, cur_ts, mtcp->ts_last_event);
 		mtcp->ts_last_event = cur_ts;
 		ep->stat.wakes++;
-		printf("[FlushEpollEvents]  MTCP_THREAD: Try to Wake Up application thread\n\n");
+	//	printf("[FlushEpollEvents]  MTCP_THREAD: Try to Wake Up application thread\n\n");
 		pthread_cond_signal(&ep->epoll_cond);
-		printf("[FlushEpollEvents]  MTCP_THREAD: Waked Up application thread\n\n");
+	//	printf("[FlushEpollEvents]  MTCP_THREAD: Waked Up application thread\n\n");
 	}
 	pthread_mutex_unlock(&ep->epoll_lock);
 }
@@ -532,7 +532,7 @@ FlushEpollEvents(mtcp_manager_t mtcp, uint32_t cur_ts)
 static inline void
 HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
-	TRACE_ERROR("HandleApplicationCalls: Inside\n");
+	//TRACE_ERROR("HandleApplicationCalls: Inside\n");
 	tcp_stream *stream;
 	int cnt, max_cnt;
 	int handled, delayed;
@@ -765,7 +765,7 @@ HandleApplicationCalls(mtcp_manager_t mtcp, uint32_t cur_ts)
 static inline void
 WritePacketsToChunks(mtcp_manager_t mtcp, uint32_t cur_ts)
 {
-	TRACE_ERROR("here in write packet to chunks \n");
+	//TRACE_ERROR("here in write packet to chunks \n");
 	int thresh = CONFIG.max_concurrency;
 	int i;
 
@@ -794,20 +794,20 @@ WritePacketsToChunks(mtcp_manager_t mtcp, uint32_t cur_ts)
 		assert(mtcp->n_sender[i] != NULL);
 		if (mtcp->n_sender[i]->control_list_cnt)
 		{
-			TRACE_ERROR("no 11\n");
+			//TRACE_ERROR("no 11\n");
 			WriteTCPControlList(mtcp, mtcp->n_sender[i], cur_ts, thresh);
 		}
 		if (mtcp->n_sender[i]->ack_list_cnt)
 		{
-			TRACE_ERROR("no 12\n");
+			//TRACE_ERROR("no 12\n");
 			WriteTCPACKList(mtcp, mtcp->n_sender[i], cur_ts, thresh);
 		}
 		if (mtcp->n_sender[i]->send_list_cnt)
 		{
-			TRACE_ERROR("no 13\n");
+			//TRACE_ERROR("no 13\n");
 			WriteTCPDataList(mtcp, mtcp->n_sender[i], cur_ts, thresh);
 		}
-		TRACE_ERROR("no 99\n")
+		//TRACE_ERROR("no 99\n")
 	}
 }
 /*----------------------------------------------------------------------------*/
@@ -845,7 +845,7 @@ DestroyRemainingFlows(mtcp_manager_t mtcp)
 static void
 InterruptApplication(mtcp_manager_t mtcp)
 {
-	printf("[InterruptApplication] Interrupting application\n");
+	//printf("[InterruptApplication] Interrupting application\n");
 	int i;
 	struct tcp_listener *listener = NULL;
 
@@ -855,7 +855,7 @@ InterruptApplication(mtcp_manager_t mtcp)
 		pthread_mutex_lock(&mtcp->ep->epoll_lock);
 		if (mtcp->ep->waiting)
 		{
-			printf("[FlushEpollEvents] signaling app thread!\n");
+			//printf("[FlushEpollEvents] signaling app thread!\n");
 			pthread_cond_signal(&mtcp->ep->epoll_cond);
 		}
 		pthread_mutex_unlock(&mtcp->ep->epoll_lock);
@@ -884,7 +884,7 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 	mtcp_manager_t mtcp = ctx->mtcp_manager;
 	int i;
 	int recv_cnt;
-	int rx_inf, tx_inf;
+	int rx_inf , tx_inf;
 	struct timeval cur_ts = {0};
 	uint32_t ts, ts_prev;
 	int thresh;
@@ -908,7 +908,6 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 			static uint16_t len;
 			static uint8_t *pktbuf;
 			recv_cnt = mtcp->iom->recv_pkts(ctx, rx_inf);
-			printf("recv_vnt: %d \n", recv_cnt);
 			STAT_COUNT(mtcp->runstat.rounds_rx_try);
 
 			for (i = 0; i < recv_cnt; i++)
@@ -927,7 +926,6 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		/* interaction with application */
 		if (mtcp->flow_cnt > 0)
 		{
-			printf("flow_cnt: %d\n", mtcp->flow_cnt);
 			/* check retransmission timeout and timewait expire */
 #if 0
 			thresh = (int)mtcp->flow_cnt / (TS_TO_USEC(PER_STREAM_TCHECK));
@@ -950,24 +948,26 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 
 			if (CONFIG.tcp_timeout > 0 && ts != ts_prev)
 			{
-				TRACE_ERROR("\nCheckConnectionTimeout Start\n");
+				//TRACE_ERROR("\nCheckConnectionTimeout Start\n");
 				CheckConnectionTimeout(mtcp, ts, thresh);
 			}
 		}
+
 		unsigned char *dummy = 0;
 		int dummy_len = 0;
 		mtcp->iom->release_pkt(ctx, rx_inf, dummy, dummy_len);
+
 		/* if epoll is in use, flush all the queued events */
 		if (mtcp->ep)
 		{
-			TRACE_ERROR("epoll is in use \n");
+			//TRACE_ERROR("epoll is in use \n");
 			FlushEpollEvents(mtcp, ts);
 		}
 
 		if (mtcp->flow_cnt > 0)
 		{
 			/* hadnle stream queues  */
-			TRACE_ERROR("Handle Application Calls\n");
+			//TRACE_ERROR("Handle Application Calls\n");
 			HandleApplicationCalls(mtcp, ts);
 		}
 
@@ -1000,8 +1000,8 @@ RunMainLoop(struct mtcp_thread_context *ctx)
 		}
 	}
 
-	TRACE_ERROR("while loop ended: done %d, flow_cnt %d, exit %d\n",
-				ctx->done, mtcp->flow_cnt, ctx->exit);
+	//TRACE_ERROR("while loop ended: done %d, flow_cnt %d, exit %d\n",
+				// ctx->done, mtcp->flow_cnt, ctx->exit);
 
 #if TESTING
 	DestroyRemainingFlows(mtcp);
@@ -1203,7 +1203,7 @@ InitializeMTCPManager(struct mtcp_thread_context *ctx)
 	}
 	mtcp->closeq = CreateStreamQueue(CONFIG.max_concurrency);
 	if (!mtcp->closeq)
-	{
+	{ 
 		CTRACE_ERROR("Failed to create close queue.\n");
 		return NULL;
 	}
@@ -1815,7 +1815,6 @@ int mtcp_init(const char *config_file)
 
 	for (i = 0; i < CONFIG.eths_num; i++)
 	{
-		// in case of pcap, ip_address of veth_host is passed as argument
 		ap[i] = CreateAddressPool(CONFIG.eths[i].ip_addr, 1);
 		if (!ap[i])
 		{

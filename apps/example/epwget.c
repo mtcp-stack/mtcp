@@ -767,7 +767,7 @@ int main(int argc, char **argv)
 	process_cpu = -1;
 	daddr = inet_addr(host);
 	dport = htons(8080);
-	saddr = inet_addr("10.200.1.2");
+	saddr = inet_addr("10.2.0.3");
 
 	total_flows = mystrtol(argv[2], 10);
 	if (total_flows <= 0)
